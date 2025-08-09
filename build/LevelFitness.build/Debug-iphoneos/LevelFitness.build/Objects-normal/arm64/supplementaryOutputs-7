@@ -1,0 +1,24 @@
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/WorkoutSyncSourceCard.swift":
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutSyncSourceCard.d"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutSyncSourceCard.o"
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutSyncSourceCard.swiftdeps"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutSyncSourceCard.swiftconstvalues"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutSyncSourceCard.dia"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/WorkoutCard.swift":
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutCard.swiftconstvalues"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutCard.o"
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutCard.swiftdeps"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutCard.dia"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutCard.d"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/WorkoutTabNavigationView.swift":
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutTabNavigationView.o"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutTabNavigationView.swiftconstvalues"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutTabNavigationView.dia"
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutTabNavigationView.swiftdeps"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutTabNavigationView.d"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/WorkoutSyncView.swift":
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutSyncView.o"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutSyncView.d"
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutSyncView.swiftdeps"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutSyncView.dia"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WorkoutSyncView.swiftconstvalues"

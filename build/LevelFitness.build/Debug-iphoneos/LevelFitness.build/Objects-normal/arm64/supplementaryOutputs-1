@@ -1,0 +1,30 @@
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/NavigationCard.swift":
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/NavigationCard.o"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/NavigationCard.dia"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/NavigationCard.d"
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/NavigationCard.swiftdeps"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/NavigationCard.swiftconstvalues"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/StatItem.swift":
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/StatItem.dia"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/StatItem.o"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/StatItem.swiftconstvalues"
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/StatItem.swiftdeps"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/StatItem.d"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/IndustrialBackgroundViews.swift":
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/IndustrialBackgroundViews.swiftdeps"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/IndustrialBackgroundViews.dia"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/IndustrialBackgroundViews.o"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/IndustrialBackgroundViews.d"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/IndustrialBackgroundViews.swiftconstvalues"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/DesignSystem.swift":
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/DesignSystem.swiftdeps"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/DesignSystem.o"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/DesignSystem.dia"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/DesignSystem.d"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/DesignSystem.swiftconstvalues"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/ViewController.swift":
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/ViewController.swiftconstvalues"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/ViewController.o"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/ViewController.d"
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/ViewController.swiftdeps"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/ViewController.dia"

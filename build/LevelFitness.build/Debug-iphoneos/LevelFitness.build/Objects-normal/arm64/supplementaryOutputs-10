@@ -1,0 +1,24 @@
+"/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/DerivedSources/GeneratedAssetSymbols.swift":
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/GeneratedAssetSymbols.dia"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/GeneratedAssetSymbols.d"
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/GeneratedAssetSymbols.o"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/ChatMessageView.swift":
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/ChatMessageView.o"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/ChatMessageView.swiftconstvalues"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/ChatMessageView.dia"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/ChatMessageView.d"
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/ChatMessageView.swiftdeps"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/AppDelegate.swift":
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/AppDelegate.d"
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/AppDelegate.swiftdeps"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/AppDelegate.swiftconstvalues"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/AppDelegate.o"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/AppDelegate.dia"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/EventCardView.swift":
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/EventCardView.swiftdeps"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/EventCardView.o"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/EventCardView.swiftconstvalues"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/EventCardView.dia"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/EventCardView.d"

@@ -1,0 +1,24 @@
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/TeamsViewController.swift":
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamsViewController.swiftdeps"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamsViewController.d"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamsViewController.dia"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamsViewController.swiftconstvalues"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamsViewController.o"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/MessageView.swift":
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/MessageView.swiftconstvalues"
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/MessageView.swiftdeps"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/MessageView.dia"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/MessageView.d"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/MessageView.o"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/TeamCard.swift":
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamCard.d"
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamCard.swiftdeps"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamCard.swiftconstvalues"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamCard.dia"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamCard.o"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/TeamDetailViewController.swift":
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamDetailViewController.swiftdeps"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamDetailViewController.dia"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamDetailViewController.o"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamDetailViewController.d"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamDetailViewController.swiftconstvalues"

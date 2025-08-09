@@ -1,0 +1,24 @@
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/EarningsViewController.swift":
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/EarningsViewController.swiftdeps"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/EarningsViewController.swiftconstvalues"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/EarningsViewController.o"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/EarningsViewController.dia"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/EarningsViewController.d"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/TeamDetailTabNavigation.swift":
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamDetailTabNavigation.d"
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamDetailTabNavigation.swiftdeps"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamDetailTabNavigation.dia"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamDetailTabNavigation.o"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/TeamDetailTabNavigation.swiftconstvalues"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/WalletBalanceView.swift":
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WalletBalanceView.o"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WalletBalanceView.swiftconstvalues"
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WalletBalanceView.swiftdeps"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WalletBalanceView.dia"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WalletBalanceView.d"
+"/Users/dakotabrown/LevelFitness-IOS/LevelFitness/WalletActionButton.swift":
+  swift-dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WalletActionButton.swiftdeps"
+  diagnostics: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WalletActionButton.dia"
+  dependencies: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WalletActionButton.d"
+  object: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WalletActionButton.o"
+  const-values: "/Users/dakotabrown/LevelFitness-IOS/build/LevelFitness.build/Debug-iphoneos/LevelFitness.build/Objects-normal/arm64/WalletActionButton.swiftconstvalues"

@@ -1,0 +1,98 @@
+{
+  "" : {
+    "diagnostics" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/LevelFitness-master.dia",
+    "emit-module-dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/LevelFitness-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/LevelFitness-master-emit-module.dia",
+    "swift-dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/LevelFitness-master.swiftdeps"
+  },
+  "/Users/dakotabrown/LevelFitness-IOS/LevelFitness/AppDelegate.swift" : {
+    "const-values" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/AppDelegate.swiftconstvalues",
+    "dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/AppDelegate.d",
+    "diagnostics" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/AppDelegate.dia",
+    "index-unit-output-path" : "/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/AppDelegate.o",
+    "llvm-bc" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/AppDelegate.bc",
+    "object" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/AppDelegate.o",
+    "swift-dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/AppDelegate.swiftdeps",
+    "swiftmodule" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/AppDelegate~partial.swiftmodule"
+  },
+  "/Users/dakotabrown/LevelFitness-IOS/LevelFitness/DesignSystem.swift" : {
+    "const-values" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/DesignSystem.swiftconstvalues",
+    "dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/DesignSystem.d",
+    "diagnostics" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/DesignSystem.dia",
+    "index-unit-output-path" : "/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/DesignSystem.o",
+    "llvm-bc" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/DesignSystem.bc",
+    "object" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/DesignSystem.o",
+    "swift-dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/DesignSystem.swiftdeps",
+    "swiftmodule" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/DesignSystem~partial.swiftmodule"
+  },
+  "/Users/dakotabrown/LevelFitness-IOS/LevelFitness/IndustrialBackgroundViews.swift" : {
+    "const-values" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/IndustrialBackgroundViews.swiftconstvalues",
+    "dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/IndustrialBackgroundViews.d",
+    "diagnostics" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/IndustrialBackgroundViews.dia",
+    "index-unit-output-path" : "/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/IndustrialBackgroundViews.o",
+    "llvm-bc" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/IndustrialBackgroundViews.bc",
+    "object" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/IndustrialBackgroundViews.o",
+    "swift-dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/IndustrialBackgroundViews.swiftdeps",
+    "swiftmodule" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/IndustrialBackgroundViews~partial.swiftmodule"
+  },
+  "/Users/dakotabrown/LevelFitness-IOS/LevelFitness/NavigationCard.swift" : {
+    "const-values" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/NavigationCard.swiftconstvalues",
+    "dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/NavigationCard.d",
+    "diagnostics" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/NavigationCard.dia",
+    "index-unit-output-path" : "/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/NavigationCard.o",
+    "llvm-bc" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/NavigationCard.bc",
+    "object" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/NavigationCard.o",
+    "swift-dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/NavigationCard.swiftdeps",
+    "swiftmodule" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/NavigationCard~partial.swiftmodule"
+  },
+  "/Users/dakotabrown/LevelFitness-IOS/LevelFitness/StatItem.swift" : {
+    "const-values" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/StatItem.swiftconstvalues",
+    "dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/StatItem.d",
+    "diagnostics" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/StatItem.dia",
+    "index-unit-output-path" : "/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/StatItem.o",
+    "llvm-bc" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/StatItem.bc",
+    "object" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/StatItem.o",
+    "swift-dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/StatItem.swiftdeps",
+    "swiftmodule" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/StatItem~partial.swiftmodule"
+  },
+  "/Users/dakotabrown/LevelFitness-IOS/LevelFitness/TeamCard.swift" : {
+    "const-values" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamCard.swiftconstvalues",
+    "dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamCard.d",
+    "diagnostics" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamCard.dia",
+    "index-unit-output-path" : "/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamCard.o",
+    "llvm-bc" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamCard.bc",
+    "object" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamCard.o",
+    "swift-dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamCard.swiftdeps",
+    "swiftmodule" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamCard~partial.swiftmodule"
+  },
+  "/Users/dakotabrown/LevelFitness-IOS/LevelFitness/TeamsViewController.swift" : {
+    "const-values" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamsViewController.swiftconstvalues",
+    "dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamsViewController.d",
+    "diagnostics" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamsViewController.dia",
+    "index-unit-output-path" : "/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamsViewController.o",
+    "llvm-bc" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamsViewController.bc",
+    "object" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamsViewController.o",
+    "swift-dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamsViewController.swiftdeps",
+    "swiftmodule" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/TeamsViewController~partial.swiftmodule"
+  },
+  "/Users/dakotabrown/LevelFitness-IOS/LevelFitness/ViewController.swift" : {
+    "const-values" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/ViewController.swiftconstvalues",
+    "dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/ViewController.d",
+    "diagnostics" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/ViewController.dia",
+    "index-unit-output-path" : "/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/ViewController.o",
+    "llvm-bc" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/ViewController.bc",
+    "object" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/ViewController.o",
+    "swift-dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/ViewController.swiftdeps",
+    "swiftmodule" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/ViewController~partial.swiftmodule"
+  },
+  "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/dakotabrown/LevelFitness-IOS/build/Build/Intermediates.noindex/LevelFitness.build/Debug-iphonesimulator/LevelFitness.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  }
+}
