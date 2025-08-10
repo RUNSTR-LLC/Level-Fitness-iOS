@@ -100,23 +100,40 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
         // Create industrial L path
         let logoPath = createIndustrialLPath()
         
-        // Stroke layer for animation
+        // Stroke layer for animation with enhanced branding
         logoShapeLayer.path = logoPath.cgPath
         logoShapeLayer.fillColor = UIColor.clear.cgColor
         logoShapeLayer.strokeColor = UIColor.white.cgColor
-        logoShapeLayer.lineWidth = 4
-        logoShapeLayer.lineCap = .square
+        logoShapeLayer.lineWidth = 5  // Slightly thicker for better visibility
+        logoShapeLayer.lineCap = .round  // Smoother corners
         logoShapeLayer.strokeEnd = 0
+        
+        // Add subtle shadow for depth
+        logoShapeLayer.shadowColor = UIColor.black.cgColor
+        logoShapeLayer.shadowOffset = CGSize(width: 0, height: 2)
+        logoShapeLayer.shadowOpacity = 0.3
+        logoShapeLayer.shadowRadius = 4
+        
         logoMainView.layer.addSublayer(logoShapeLayer)
         
-        // Fill layer
+        // Enhanced fill layer with gradient effect
         logoFillLayer.path = logoPath.cgPath
-        logoFillLayer.fillColor = UIColor(white: 1.0, alpha: 0.1).cgColor
+        logoFillLayer.fillColor = UIColor.white.withAlphaComponent(0.15).cgColor
         logoFillLayer.opacity = 0
+        
+        // Add subtle glow effect
+        logoFillLayer.shadowColor = UIColor.white.cgColor
+        logoFillLayer.shadowOffset = CGSize.zero
+        logoFillLayer.shadowOpacity = 0.0
+        logoFillLayer.shadowRadius = 8
+        
         logoMainView.layer.addSublayer(logoFillLayer)
         
-        // Industrial details (bolt holes)
+        // Industrial details (bolt holes) with enhanced styling
         addBoltHoles()
+        
+        // Add bitcoin accent hint
+        addBitcoinAccentHint()
     }
     
     private func createIndustrialLPath() -> UIBezierPath {
@@ -145,10 +162,53 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
         
         for position in boltPositions {
             let boltHole = UIView()
-            boltHole.backgroundColor = UIColor(white: 0.2, alpha: 1.0)
+            boltHole.backgroundColor = UIColor(white: 0.15, alpha: 1.0) // Slightly darker for better contrast
             boltHole.layer.cornerRadius = 3
             boltHole.frame = CGRect(x: position.x - 3, y: position.y - 3, width: 6, height: 6)
+            
+            // Add subtle inner shadow to bolt holes for depth
+            boltHole.layer.shadowColor = UIColor.black.cgColor
+            boltHole.layer.shadowOffset = CGSize(width: 0, height: 1)
+            boltHole.layer.shadowOpacity = 0.3
+            boltHole.layer.shadowRadius = 1
+            boltHole.layer.masksToBounds = false
+            
             logoMainView.addSubview(boltHole)
+        }
+    }
+    
+    private func addBitcoinAccentHint() {
+        // Small bitcoin-colored accent dot in the top right of the L
+        let accentDot = UIView()
+        accentDot.backgroundColor = IndustrialDesign.Colors.bitcoin
+        accentDot.layer.cornerRadius = 2
+        accentDot.frame = CGRect(x: 95, y: 25, width: 4, height: 4)
+        accentDot.alpha = 0
+        
+        // Add subtle glow effect
+        accentDot.layer.shadowColor = IndustrialDesign.Colors.bitcoin.cgColor
+        accentDot.layer.shadowOffset = CGSize.zero
+        accentDot.layer.shadowOpacity = 0.8
+        accentDot.layer.shadowRadius = 3
+        accentDot.layer.masksToBounds = false
+        
+        logoMainView.addSubview(accentDot)
+        
+        // Animate the accent dot to appear after logo animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+            UIView.animate(withDuration: 1.0, delay: 0, options: .curveEaseInOut) {
+                accentDot.alpha = 1.0
+            }
+            
+            // Add subtle pulsing animation
+            let pulseAnimation = CABasicAnimation(keyPath: "transform.scale")
+            pulseAnimation.fromValue = 1.0
+            pulseAnimation.toValue = 1.3
+            pulseAnimation.duration = 2.0
+            pulseAnimation.autoreverses = true
+            pulseAnimation.repeatCount = .infinity
+            pulseAnimation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            accentDot.layer.add(pulseAnimation, forKey: "pulse")
         }
     }
     
@@ -422,6 +482,15 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
         fillAnimation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
         logoFillLayer.opacity = 1
         logoFillLayer.add(fillAnimation, forKey: "fillIn")
+        
+        // Add subtle glow effect animation
+        let glowAnimation = CABasicAnimation(keyPath: "shadowOpacity")
+        glowAnimation.fromValue = 0.0
+        glowAnimation.toValue = 0.3
+        glowAnimation.duration = 1.5
+        glowAnimation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        logoFillLayer.shadowOpacity = 0.3
+        logoFillLayer.add(glowAnimation, forKey: "glowIn")
     }
     
     private func animateDecorativeGears() {
@@ -468,37 +537,65 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
     }
     
     @objc private func handleAppleSignIn() {
-        let request = ASAuthorizationAppleIDProvider().createRequest()
-        request.requestedScopes = [.fullName, .email]
+        print("LoginViewController: Starting Apple Sign In")
+        showLoadingState(true)
         
-        let controller = ASAuthorizationController(authorizationRequests: [request])
-        controller.delegate = self
-        controller.presentationContextProvider = self
-        controller.performRequests()
-    }
-    
-    // MARK: - ASAuthorizationControllerDelegate
-    
-    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
-        if authorization.credential is ASAuthorizationAppleIDCredential {
-            // Handle successful sign in
-            print("Apple Sign In successful")
-            
-            // Navigate to main app
+        AuthenticationService.shared.signInWithApple(presentingViewController: self) { [weak self] result in
             DispatchQueue.main.async {
-                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                   let window = windowScene.windows.first {
-                    let mainViewController = ViewController()
-                    let navigationController = UINavigationController(rootViewController: mainViewController)
-                    window.rootViewController = navigationController
-                    window.makeKeyAndVisible()
+                self?.showLoadingState(false)
+                
+                switch result {
+                case .success(let session):
+                    print("LoginViewController: Sign in successful - User ID: \(session.id)")
+                    self?.navigateToMainApp()
+                    
+                case .failure(let error):
+                    print("LoginViewController: Sign in failed - \(error.localizedDescription)")
+                    self?.showErrorAlert(message: error.localizedDescription)
                 }
             }
         }
     }
     
+    private func navigateToMainApp() {
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first {
+            let mainViewController = ViewController()
+            let navigationController = UINavigationController(rootViewController: mainViewController)
+            
+            UIView.transition(with: window, duration: 0.5, options: .transitionCrossDissolve, animations: {
+                window.rootViewController = navigationController
+            }, completion: nil)
+            
+            window.makeKeyAndVisible()
+        }
+    }
+    
+    private func showLoadingState(_ loading: Bool) {
+        UIView.animate(withDuration: 0.3) {
+            self.signInButton.alpha = loading ? 0.5 : 1.0
+            self.signInButton.isEnabled = !loading
+        }
+    }
+    
+    private func showErrorAlert(message: String) {
+        let alert = UIAlertController(
+            title: "Sign In Failed",
+            message: message,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+        present(alert, animated: true, completion: nil)
+    }
+    
+    // MARK: - ASAuthorizationControllerDelegate (Remove these as AuthenticationService handles them)
+    
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        // No longer needed - handled by AuthenticationService
+    }
+    
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
-        print("Apple Sign In failed: \(error.localizedDescription)")
+        // No longer needed - handled by AuthenticationService
     }
     
     // MARK: - ASAuthorizationControllerPresentationContextProviding

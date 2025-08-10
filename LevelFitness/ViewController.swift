@@ -14,6 +14,7 @@ class ViewController: UIViewController {
     
     // Logo section
     private let logoSection = UIView()
+    private let logoImageView = UIImageView()
     private let logoLabel = UILabel()
     private let taglineLabel = UILabel()
     
@@ -120,6 +121,18 @@ class ViewController: UIViewController {
     private func setupLogo() {
         logoSection.translatesAutoresizingMaskIntoConstraints = false
         
+        // Logo image
+        logoImageView.image = UIImage(named: "LevelFitnessLogo")
+        logoImageView.contentMode = .scaleAspectFit
+        logoImageView.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Add subtle glow effect to logo image
+        logoImageView.layer.shadowColor = UIColor.white.cgColor
+        logoImageView.layer.shadowOffset = CGSize.zero
+        logoImageView.layer.shadowOpacity = 0.1
+        logoImageView.layer.shadowRadius = 4
+        logoImageView.layer.masksToBounds = false
+        
         // Logo text with gradient
         logoLabel.text = "Level Fitness"
         logoLabel.font = IndustrialDesign.Typography.logoFont
@@ -133,6 +146,7 @@ class ViewController: UIViewController {
         taglineLabel.textAlignment = .center
         taglineLabel.translatesAutoresizingMaskIntoConstraints = false
         
+        logoSection.addSubview(logoImageView)
         logoSection.addSubview(logoLabel)
         logoSection.addSubview(taglineLabel)
         contentView.addSubview(logoSection)
@@ -141,6 +155,14 @@ class ViewController: UIViewController {
         DispatchQueue.main.async {
             self.applyGradientToLabel(self.logoLabel)
         }
+        
+        // Development feature: Triple tap to generate app icons
+        #if DEBUG
+        let tripleTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTripleTap))
+        tripleTapGesture.numberOfTapsRequired = 3
+        logoSection.addGestureRecognizer(tripleTapGesture)
+        logoSection.isUserInteractionEnabled = true
+        #endif
     }
     
     private func setupNavigationGrid() {
@@ -249,7 +271,13 @@ class ViewController: UIViewController {
             logoSection.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             logoSection.widthAnchor.constraint(equalTo: contentView.widthAnchor),
             
-            logoLabel.topAnchor.constraint(equalTo: logoSection.topAnchor),
+            // Logo image positioned above text
+            logoImageView.topAnchor.constraint(equalTo: logoSection.topAnchor),
+            logoImageView.centerXAnchor.constraint(equalTo: logoSection.centerXAnchor),
+            logoImageView.widthAnchor.constraint(equalToConstant: 64),
+            logoImageView.heightAnchor.constraint(equalToConstant: 64),
+            
+            logoLabel.topAnchor.constraint(equalTo: logoImageView.bottomAnchor, constant: IndustrialDesign.Spacing.medium),
             logoLabel.centerXAnchor.constraint(equalTo: logoSection.centerXAnchor),
             
             taglineLabel.topAnchor.constraint(equalTo: logoLabel.bottomAnchor, constant: IndustrialDesign.Spacing.small),
@@ -384,4 +412,33 @@ class ViewController: UIViewController {
         
         print("🏆 LevelFitness: Successfully navigated to Competitions page")
     }
+    
+    // MARK: - Development Features
+    
+    #if DEBUG
+    @objc private func handleTripleTap() {
+        print("🎨 LevelFitness: Triple tap detected - generating app icons...")
+        
+        let alert = UIAlertController(
+            title: "Generate App Icons",
+            message: "This will generate app icons and save them to the Documents folder. Continue?",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Generate", style: .default) { _ in
+            IconGenerator.generateAppIcons()
+            
+            let successAlert = UIAlertController(
+                title: "Icons Generated!",
+                message: "App icons have been generated and saved to the Documents folder. Check the console for file paths.",
+                preferredStyle: .alert
+            )
+            successAlert.addAction(UIAlertAction(title: "OK", style: .default))
+            self.present(successAlert, animated: true)
+        })
+        
+        present(alert, animated: true)
+    }
+    #endif
 }
