@@ -50,6 +50,7 @@
 		D613E78D324148849B773D801477004E /* SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7FEA8665C6A4B22986DA6438533D80C /* SupabaseService.swift */; };
 		F274E58B8DB14A08BD0C0B0C7DD64028 /* AuthenticationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */; };
 		332404E503B442D6AB8B77067842ADCB /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99B4C1E5CC95463981F84EF706BAC273 /* KeychainService.swift */; };
+		HEALTH123456789ABCDEF1234567890AB /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = HEALTHABCDEF1234567890ABCDEF123456 /* HealthKitService.swift */; };
 		E87FF620924C4D69A271F8ED9EDC6202 /* TeamDetailEventsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCB683446B2F4C6397E096106C4813E9 /* TeamDetailEventsViewController.swift */; };
 		EE2A80B3C0B7449CA243D4333061A535 /* ChallengeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5801F4E4750540CABC6C94EBB8DD0B79 /* ChallengeCard.swift */; };
 		LOGIN123456789ABCDEF123456789012 /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = LOGIN987654321FEDCBA987654321098 /* LoginViewController.swift */; };
@@ -106,6 +107,7 @@
 		A7FEA8665C6A4B22986DA6438533D80C /* SupabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/SupabaseService.swift"; sourceTree = "<group>"; };
 		97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/AuthenticationService.swift"; sourceTree = "<group>"; };
 		99B4C1E5CC95463981F84EF706BAC273 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/KeychainService.swift"; sourceTree = "<group>"; };
+		HEALTHABCDEF1234567890ABCDEF123456 /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/HealthKitService.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -183,6 +185,7 @@
 				A7FEA8665C6A4B22986DA6438533D80C /* SupabaseService.swift */,
 				97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */,
 				99B4C1E5CC95463981F84EF706BAC273 /* KeychainService.swift */,
+				HEALTHABCDEF1234567890ABCDEF123456 /* HealthKitService.swift */,
 				3D4A1B932C5F7A8F00F3E2B3 /* Assets.xcassets */,
 				3D4A1B952C5F7A8F00F3E2B3 /* LaunchScreen.storyboard */,
 				3D4A1B982C5F7A8F00F3E2B3 /* Info.plist */,
@@ -310,6 +313,7 @@
 				D613E78D324148849B773D801477004E /* SupabaseService.swift in Sources */,
 				F274E58B8DB14A08BD0C0B0C7DD64028 /* AuthenticationService.swift in Sources */,
 				332404E503B442D6AB8B77067842ADCB /* KeychainService.swift in Sources */,
+				HEALTH123456789ABCDEF1234567890AB /* HealthKitService.swift in Sources */,
 				3D4A1B8D2C5F7A8E00F3E2B3 /* AppDelegate.swift in Sources */,
 				LOGIN123456789ABCDEF123456789012 /* LoginViewController.swift in Sources */,
 			);

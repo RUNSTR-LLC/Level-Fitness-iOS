@@ -43,5 +43,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Level Fitness needs access to your health data to sync workouts and calculate rewards. We only read workout data and never share your personal health information.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Level Fitness may update your health data to record workout achievements and progress milestones.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Level Fitness uses motion data to verify workout authenticity and prevent cheating in competitions.</string>
 </dict>
 </plist>

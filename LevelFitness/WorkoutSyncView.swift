@@ -49,6 +49,9 @@ class WorkoutSyncView: UIView {
         // Sync sources container
         syncSourcesContainer.translatesAutoresizingMaskIntoConstraints = false
         syncSourcesContainer.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0)
+        syncSourcesContainer.layer.cornerRadius = 12
+        syncSourcesContainer.layer.borderWidth = 1
+        syncSourcesContainer.layer.borderColor = UIColor(red: 0.16, green: 0.16, blue: 0.16, alpha: 1.0).cgColor
         
         // Add gradient background
         DispatchQueue.main.async {
@@ -119,10 +122,10 @@ class WorkoutSyncView: UIView {
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
             
             // Sync sources container
-            syncSourcesContainer.topAnchor.constraint(equalTo: contentView.topAnchor),
-            syncSourcesContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            syncSourcesContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            syncSourcesContainer.heightAnchor.constraint(equalToConstant: 200),
+            syncSourcesContainer.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
+            syncSourcesContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
+            syncSourcesContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
+            syncSourcesContainer.heightAnchor.constraint(equalToConstant: 220),
             
             // Sync sources title
             syncSourcesTitle.topAnchor.constraint(equalTo: syncSourcesContainer.topAnchor, constant: 20),
@@ -130,9 +133,9 @@ class WorkoutSyncView: UIView {
             syncSourcesTitle.trailingAnchor.constraint(equalTo: syncSourcesContainer.trailingAnchor, constant: -24),
             
             // Sources grid container
-            sourcesGridContainer.topAnchor.constraint(equalTo: syncSourcesTitle.bottomAnchor, constant: 16),
-            sourcesGridContainer.leadingAnchor.constraint(equalTo: syncSourcesContainer.leadingAnchor, constant: 24),
-            sourcesGridContainer.trailingAnchor.constraint(equalTo: syncSourcesContainer.trailingAnchor, constant: -24),
+            sourcesGridContainer.topAnchor.constraint(equalTo: syncSourcesTitle.bottomAnchor, constant: 20),
+            sourcesGridContainer.leadingAnchor.constraint(equalTo: syncSourcesContainer.leadingAnchor, constant: 20),
+            sourcesGridContainer.trailingAnchor.constraint(equalTo: syncSourcesContainer.trailingAnchor, constant: -20),
             sourcesGridContainer.bottomAnchor.constraint(equalTo: syncSourcesContainer.bottomAnchor, constant: -20),
             
             // Content view bottom anchor
@@ -156,6 +159,61 @@ class WorkoutSyncView: UIView {
         loadSampleSyncSources()
     }
     
+    func updateHealthKitConnectionStatus(connected: Bool) {
+        // Find HealthKit source and update its connection status
+        if let index = syncSources.firstIndex(where: { $0.type == .healthKit }) {
+            syncSources[index] = SyncSourceData(
+                id: syncSources[index].id,
+                type: syncSources[index].type,
+                isConnected: connected,
+                lastSync: connected ? Date() : nil,
+                workoutCount: syncSources[index].workoutCount
+            )
+            buildSyncSourcesGrid()
+        }
+    }
+    
+    func updateWithHealthKitWorkouts(_ workouts: [HealthKitWorkout]) {
+        print("🏃‍♂️ LevelFitness: Updating sync view with \(workouts.count) HealthKit workouts")
+        
+        // Update HealthKit source with real data
+        let healthKitConnected = !workouts.isEmpty
+        let lastSync = workouts.first?.startDate
+        
+        syncSources = [
+            SyncSourceData(
+                id: "healthkit",
+                type: .healthKit,
+                isConnected: healthKitConnected,
+                lastSync: lastSync,
+                workoutCount: workouts.count
+            ),
+            SyncSourceData(
+                id: "strava",
+                type: .strava,
+                isConnected: false,
+                lastSync: nil,
+                workoutCount: 0
+            ),
+            SyncSourceData(
+                id: "garmin",
+                type: .garmin,
+                isConnected: false,
+                lastSync: nil,
+                workoutCount: 0
+            ),
+            SyncSourceData(
+                id: "googlefit",
+                type: .googleFit,
+                isConnected: false,
+                lastSync: nil,
+                workoutCount: 0
+            )
+        ]
+        
+        buildSyncSourcesGrid()
+    }
+    
     private func loadSampleSyncSources() {
         syncSources = [
             SyncSourceData(
@@ -164,6 +222,13 @@ class WorkoutSyncView: UIView {
                 isConnected: true,
                 lastSync: Date(),
                 workoutCount: 25
+            ),
+            SyncSourceData(
+                id: "strava",
+                type: .strava,
+                isConnected: false,
+                lastSync: nil,
+                workoutCount: 0
             ),
             SyncSourceData(
                 id: "garmin",
@@ -198,29 +263,36 @@ class WorkoutSyncView: UIView {
             return card
         }
         
-        // Layout cards in grid with fixed spacing
-        if cards.count >= 3 {
+        // Layout cards in 2x2 grid format
+        if cards.count >= 4 {
             let spacing: CGFloat = 12
             
             NSLayoutConstraint.activate([
-                // Row 1: HealthKit (cards[0]) and Garmin (cards[1])
+                // Row 1: HealthKit (cards[0]) and Strava (cards[1])
                 // HealthKit - top left
                 cards[0].topAnchor.constraint(equalTo: sourcesGridContainer.topAnchor),
                 cards[0].leadingAnchor.constraint(equalTo: sourcesGridContainer.leadingAnchor),
                 cards[0].trailingAnchor.constraint(equalTo: sourcesGridContainer.centerXAnchor, constant: -spacing/2),
                 cards[0].heightAnchor.constraint(equalToConstant: 70),
                 
-                // Garmin - top right  
+                // Strava - top right  
                 cards[1].topAnchor.constraint(equalTo: sourcesGridContainer.topAnchor),
                 cards[1].leadingAnchor.constraint(equalTo: sourcesGridContainer.centerXAnchor, constant: spacing/2),
                 cards[1].trailingAnchor.constraint(equalTo: sourcesGridContainer.trailingAnchor),
                 cards[1].heightAnchor.constraint(equalToConstant: 70),
                 
-                // Row 2: Google Fit (cards[2]) - centered
+                // Row 2: Garmin (cards[2]) and Google Fit (cards[3])
+                // Garmin - bottom left
                 cards[2].topAnchor.constraint(equalTo: cards[0].bottomAnchor, constant: spacing),
-                cards[2].centerXAnchor.constraint(equalTo: sourcesGridContainer.centerXAnchor),
-                cards[2].widthAnchor.constraint(equalTo: sourcesGridContainer.widthAnchor, multiplier: 0.48),
-                cards[2].heightAnchor.constraint(equalToConstant: 70)
+                cards[2].leadingAnchor.constraint(equalTo: sourcesGridContainer.leadingAnchor),
+                cards[2].trailingAnchor.constraint(equalTo: sourcesGridContainer.centerXAnchor, constant: -spacing/2),
+                cards[2].heightAnchor.constraint(equalToConstant: 70),
+                
+                // Google Fit - bottom right
+                cards[3].topAnchor.constraint(equalTo: cards[1].bottomAnchor, constant: spacing),
+                cards[3].leadingAnchor.constraint(equalTo: sourcesGridContainer.centerXAnchor, constant: spacing/2),
+                cards[3].trailingAnchor.constraint(equalTo: sourcesGridContainer.trailingAnchor),
+                cards[3].heightAnchor.constraint(equalToConstant: 70)
             ])
         }
     }

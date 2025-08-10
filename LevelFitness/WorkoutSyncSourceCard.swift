@@ -2,12 +2,14 @@ import UIKit
 
 enum SyncSourceType {
     case healthKit
+    case strava
     case garmin
     case googleFit
     
     var displayName: String {
         switch self {
         case .healthKit: return "HealthKit"
+        case .strava: return "Strava"
         case .garmin: return "Garmin"
         case .googleFit: return "Google Fit"
         }
@@ -16,6 +18,7 @@ enum SyncSourceType {
     var systemIcon: String {
         switch self {
         case .healthKit: return "heart.fill"
+        case .strava: return "figure.run"
         case .garmin: return "location.fill"
         case .googleFit: return "plus.circle.fill"
         }

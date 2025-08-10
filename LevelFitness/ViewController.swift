@@ -126,6 +126,33 @@ class ViewController: UIViewController {
         logoImageView.contentMode = .scaleAspectFit
         logoImageView.translatesAutoresizingMaskIntoConstraints = false
         
+        // Debug: Check if logo image loaded
+        if logoImageView.image == nil {
+            print("⚠️ LevelFitness: Logo image 'LevelFitnessLogo' failed to load - creating text fallback")
+            // Create a text-based logo as fallback
+            logoImageView.backgroundColor = UIColor(red: 0.97, green: 0.58, blue: 0.10, alpha: 1.0)
+            logoImageView.layer.cornerRadius = 16
+            logoImageView.layer.borderWidth = 2
+            logoImageView.layer.borderColor = UIColor.white.withAlphaComponent(0.2).cgColor
+            
+            // Add a text label overlay
+            let textLabel = UILabel()
+            textLabel.translatesAutoresizingMaskIntoConstraints = false
+            textLabel.text = "L"
+            textLabel.font = UIFont.systemFont(ofSize: 32, weight: .bold)
+            textLabel.textColor = UIColor.white
+            textLabel.textAlignment = .center
+            
+            logoImageView.addSubview(textLabel)
+            
+            NSLayoutConstraint.activate([
+                textLabel.centerXAnchor.constraint(equalTo: logoImageView.centerXAnchor),
+                textLabel.centerYAnchor.constraint(equalTo: logoImageView.centerYAnchor)
+            ])
+        } else {
+            print("✅ LevelFitness: Logo image loaded successfully")
+        }
+        
         // Add subtle glow effect to logo image
         logoImageView.layer.shadowColor = UIColor.white.cgColor
         logoImageView.layer.shadowOffset = CGSize.zero

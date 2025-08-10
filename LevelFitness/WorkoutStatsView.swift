@@ -295,6 +295,77 @@ class WorkoutStatsView: UIView {
         loadSampleRecentWorkouts()
     }
     
+    func updateWithHealthKitWorkouts(_ workouts: [HealthKitWorkout]) {
+        print("🏃‍♂️ LevelFitness: Updating stats view with \(workouts.count) HealthKit workouts")
+        
+        // Convert HealthKitWorkouts to WorkoutData format
+        let workoutData = workouts.map { healthKitWorkout in
+            WorkoutData(
+                id: healthKitWorkout.id,
+                type: mapWorkoutType(healthKitWorkout.workoutType),
+                source: .healthKit,
+                date: healthKitWorkout.startDate,
+                distance: healthKitWorkout.totalDistance / 1000.0, // Convert meters to km
+                duration: healthKitWorkout.duration,
+                pace: healthKitWorkout.totalDistance > 0 ? healthKitWorkout.duration / (healthKitWorkout.totalDistance / 1000.0) : 0
+            )
+        }
+        
+        // Filter workouts based on current period
+        let filteredWorkouts = filterWorkoutsForPeriod(workoutData, period: currentPeriod)
+        
+        // Calculate real stats
+        let totalDistance = filteredWorkouts.reduce(0) { $0 + $1.distance }
+        let totalTime = filteredWorkouts.reduce(0) { $0 + $1.duration }
+        let averagePace = totalDistance > 0 ? totalTime / totalDistance : 0
+        
+        statsData = WorkoutStats(
+            period: currentPeriod,
+            totalWorkouts: filteredWorkouts.count,
+            totalDistance: totalDistance,
+            totalTime: totalTime,
+            averagePace: averagePace
+        )
+        
+        // Update recent workouts with real data (last 10)
+        recentWorkouts = Array(workoutData.prefix(10))
+        
+        // Rebuild views with real data
+        buildStatsGrid()
+        buildRecentWorkoutsList()
+    }
+    
+    private func mapWorkoutType(_ workoutType: String) -> WorkoutType {
+        switch workoutType.lowercased() {
+        case "running": return .run
+        case "walking": return .recovery // Map walking to recovery run
+        case "cycling": return .cycling
+        case "swimming": return .swimming
+        case "hiit", "high_intensity_interval_training": return .interval
+        case "strength_training", "traditional_strength_training", "functional_strength_training": return .strength
+        case "yoga": return .yoga
+        case "dance": return .recovery // Map dance to recovery
+        default: return .run // Default to run for unknown types
+        }
+    }
+    
+    private func filterWorkoutsForPeriod(_ workouts: [WorkoutData], period: StatsPeriod) -> [WorkoutData] {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        let startDate: Date
+        switch period {
+        case .weekly:
+            startDate = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        case .monthly:
+            startDate = calendar.dateInterval(of: .month, for: now)?.start ?? now
+        case .yearly:
+            startDate = calendar.dateInterval(of: .year, for: now)?.start ?? now
+        }
+        
+        return workouts.filter { $0.date >= startDate }
+    }
+    
     private func loadSampleStats() {
         statsData = WorkoutStats(
             period: currentPeriod,
