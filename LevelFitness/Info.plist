@@ -49,5 +49,20 @@
 	<string>Level Fitness may update your health data to record workout achievements and progress milestones.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Level Fitness uses motion data to verify workout authenticity and prevent cheating in competitions.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+		<string>healthkit</string>
+		<string>remote-notification</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.levelfitness.workout-sync</string>
+		<string>com.levelfitness.reward-check</string>
+		<string>com.levelfitness.notification-update</string>
+	</array>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>Level Fitness sends notifications about workout rewards, upcoming events, and achievement milestones to keep you motivated.</string>
 </dict>
 </plist>

@@ -1,6 +1,6 @@
 import UIKit
 
-struct LeaderboardUser {
+struct LeaderboardUser: Codable {
     let id: String
     let username: String
     let rank: Int
@@ -299,9 +299,14 @@ class LeagueView: UIView {
     // MARK: - Public Methods
     
     func loadSampleData() {
-        loadSampleLeaderboard()
-        loadSampleStreaks()
-        loadSampleChatMessages()
+        // Legacy method name kept for compatibility - now loads real data
+        loadRealData()
+    }
+    
+    func loadRealData() {
+        loadRealLeaderboard()
+        loadRealStreaks()
+        loadRealChatMessages()
     }
     
     private func loadSampleLeaderboard() {
@@ -416,6 +421,194 @@ class LeagueView: UIView {
             
             lastView = messageView
         }
+    }
+    
+    // MARK: - Real Data Loading Methods
+    
+    private func loadRealLeaderboard() {
+        Task {
+            do {
+                // Fetch weekly leaderboard from Supabase
+                let leaderboardEntries = try await SupabaseService.shared.fetchWeeklyLeaderboard()
+                
+                let users = leaderboardEntries.map { entry in
+                    LeaderboardUser(
+                        id: entry.userId,
+                        username: entry.username,
+                        rank: entry.rank,
+                        distance: entry.totalDistance / 1000.0, // Convert meters to km
+                        workouts: entry.workoutCount,
+                        points: entry.points
+                    )
+                }
+                
+                await MainActor.run {
+                    self.leaderboardUsers = users
+                    self.buildLeaderboard()
+                    print("🏆 LevelFitness: Loaded \(users.count) leaderboard entries from Supabase")
+                }
+                
+                // Subscribe to real-time updates
+                SupabaseService.shared.subscribeToLeaderboard { [weak self] updatedEntries in
+                    let updatedUsers = updatedEntries.map { entry in
+                        LeaderboardUser(
+                            id: entry.userId,
+                            username: entry.username,
+                            rank: entry.rank,
+                            distance: entry.totalDistance / 1000.0,
+                            workouts: entry.workoutCount,
+                            points: entry.points
+                        )
+                    }
+                    
+                    DispatchQueue.main.async {
+                        self?.leaderboardUsers = updatedUsers
+                        self?.buildLeaderboard()
+                    }
+                }
+                
+            } catch {
+                print("🏆 LevelFitness: Error fetching leaderboard: \(error)")
+                await MainActor.run {
+                    showEmptyLeaderboard()
+                }
+            }
+        }
+    }
+    
+    private func loadRealStreaks() {
+        // TODO: Fetch user's real streak data from Supabase
+        // For now, calculate from local HealthKit data if available
+        Task {
+            do {
+                if let userSession = AuthenticationService.shared.loadSession() {
+                    let workouts = try await SupabaseService.shared.fetchWorkouts(userId: userSession.id, limit: 100)
+                    
+                    await MainActor.run {
+                        calculateStreaksFromWorkouts(workouts)
+                    }
+                } else {
+                    await MainActor.run {
+                        showEmptyStreaks() // Show empty state if no user session
+                    }
+                }
+            } catch {
+                print("🏆 LevelFitness: Error fetching workouts for streaks: \(error)")
+                await MainActor.run {
+                    showEmptyStreaks() // Show empty state on error
+                }
+            }
+        }
+    }
+    
+    private func calculateStreaksFromWorkouts(_ workouts: [Workout]) {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        // Calculate daily streak
+        var dailyStreak = 0
+        var currentDate = now
+        while let yesterday = calendar.date(byAdding: .day, value: -1, to: currentDate) {
+            let hasWorkout = workouts.contains { workout in
+                calendar.isDate(workout.startedAt, inSameDayAs: yesterday)
+            }
+            
+            if hasWorkout {
+                dailyStreak += 1
+                currentDate = yesterday
+            } else {
+                break
+            }
+        }
+        
+        // Calculate weekly goals met (assuming 3 workouts per week goal)
+        let weeklyGoalsTarget = 3
+        let thisWeekWorkouts = workouts.filter { workout in
+            calendar.isDate(workout.startedAt, equalTo: now, toGranularity: .weekOfYear)
+        }.count
+        let weeklyGoalsMet = thisWeekWorkouts >= weeklyGoalsTarget ? 1 : 0
+        
+        // Total activities
+        let totalActivities = workouts.count
+        
+        // TODO: Calculate real rank from leaderboard position
+        let leagueRank = leaderboardUsers.first { $0.id == AuthenticationService.shared.loadSession()?.id }?.rank ?? 99
+        
+        streakData = [
+            StreakData(type: .daily, value: dailyStreak, label: "Daily Streak", emoji: "🔥"),
+            StreakData(type: .weekly, value: weeklyGoalsMet, label: "Weekly Goals", emoji: "⚡"),
+            StreakData(type: .total, value: totalActivities, label: "Total Activities", emoji: "🏃"),
+            StreakData(type: .rank, value: leagueRank, label: "League Rank", emoji: "🏆")
+        ]
+        
+        buildStreakGrid()
+    }
+    
+    private func loadRealChatMessages() {
+        // TODO: Implement with real team ID from current team context
+        // For now, using a sample team ID - in production this would come from user's current team
+        let sampleTeamId = "league-global-chat" // Global league chat
+        
+        Task {
+            do {
+                let teamMessages = try await SupabaseService.shared.fetchTeamMessages(teamId: sampleTeamId, limit: 20)
+                
+                let chatMessages = teamMessages.map { message in
+                    ChatMessage(
+                        id: message.id,
+                        username: message.username ?? "@anonymous",
+                        text: message.message,
+                        timestamp: message.createdAt,
+                        userInitials: String((message.username ?? "A").prefix(2)).uppercased()
+                    )
+                }.reversed() // Show most recent messages at bottom
+                
+                await MainActor.run {
+                    self.chatMessages = Array(chatMessages)
+                    self.buildChatMessages()
+                    print("🏆 LevelFitness: Loaded \(chatMessages.count) chat messages from Supabase")
+                }
+                
+                // Subscribe to real-time chat updates
+                SupabaseService.shared.subscribeToTeamChat(teamId: sampleTeamId) { [weak self] newMessage in
+                    let newChatMessage = ChatMessage(
+                        id: newMessage.id,
+                        username: newMessage.username ?? "@anonymous",
+                        text: newMessage.message,
+                        timestamp: newMessage.createdAt,
+                        userInitials: String((newMessage.username ?? "A").prefix(2)).uppercased()
+                    )
+                    
+                    DispatchQueue.main.async {
+                        self?.chatMessages.append(newChatMessage)
+                        self?.buildChatMessages()
+                        print("🏆 LevelFitness: New real-time message received: \(newMessage.message)")
+                    }
+                }
+                
+            } catch {
+                print("🏆 LevelFitness: Error fetching chat messages: \(error)")
+                await MainActor.run {
+                    self.chatMessages = []
+                    self.buildChatMessages()
+                }
+            }
+        }
+    }
+    
+    private func showEmptyLeaderboard() {
+        leaderboardUsers = []
+        buildLeaderboard()
+    }
+    
+    private func showEmptyStreaks() {
+        streakData = [
+            StreakData(type: .daily, value: 0, label: "Daily Streak", emoji: "🔥"),
+            StreakData(type: .weekly, value: 0, label: "Weekly Goals", emoji: "⚡"),
+            StreakData(type: .total, value: 0, label: "Total Activities", emoji: "🏃"),
+            StreakData(type: .rank, value: 0, label: "League Rank", emoji: "🏆")
+        ]
+        buildStreakGrid()
     }
 }
 

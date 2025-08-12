@@ -64,8 +64,8 @@ class IconGenerator {
             let logoSize: CGFloat = 80 * logoScale
             let logoOrigin = CGPoint(x: (size - logoSize) / 2, y: (size - logoSize) / 2)
             
-            // Draw the main "L" logo
-            drawIndustrialL(in: cgContext, origin: logoOrigin, scale: logoScale)
+            // Draw "LF" text instead of broken logo shape
+            drawLFText(in: cgContext, origin: logoOrigin, size: logoSize, scale: logoScale)
             
             // Add small decorative elements for larger icons
             if size >= 120 {
@@ -98,6 +98,31 @@ class IconGenerator {
         context.strokePath()
     }
     
+    static func drawLFText(in context: CGContext, origin: CGPoint, size: CGFloat, scale: CGFloat) {
+        // Set up text drawing
+        let fontSize = size * 0.6 // 60% of the logo size
+        let font = UIFont.systemFont(ofSize: fontSize, weight: .heavy)
+        
+        // Text attributes
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: UIColor.white
+        ]
+        
+        let text = "LF"
+        let attributedString = NSAttributedString(string: text, attributes: attributes)
+        
+        // Calculate text size and center it
+        let textSize = attributedString.size()
+        let textOrigin = CGPoint(
+            x: origin.x + (size - textSize.width) / 2,
+            y: origin.y + (size - textSize.height) / 2
+        )
+        
+        // Draw the text
+        attributedString.draw(at: textOrigin)
+    }
+    
     static func drawIndustrialL(in context: CGContext, origin: CGPoint, scale: CGFloat) {
         let path = createIndustrialLPath(origin: origin, scale: scale)
         
@@ -119,13 +144,13 @@ class IconGenerator {
         let path = UIBezierPath()
         let adjustedScale = scale * 0.8 // Make L slightly smaller to fit better
         
-        // Main L shape (matching LoginViewController design)
+        // Create a correct L shape: vertical stroke on left, horizontal stroke at bottom
         path.move(to: CGPoint(x: origin.x + 25 * adjustedScale, y: origin.y + 15 * adjustedScale))
         path.addLine(to: CGPoint(x: origin.x + 35 * adjustedScale, y: origin.y + 15 * adjustedScale))
-        path.addLine(to: CGPoint(x: origin.x + 35 * adjustedScale, y: origin.y + 75 * adjustedScale))
-        path.addLine(to: CGPoint(x: origin.x + 85 * adjustedScale, y: origin.y + 75 * adjustedScale))
+        path.addLine(to: CGPoint(x: origin.x + 35 * adjustedScale, y: origin.y + 85 * adjustedScale))
         path.addLine(to: CGPoint(x: origin.x + 85 * adjustedScale, y: origin.y + 85 * adjustedScale))
-        path.addLine(to: CGPoint(x: origin.x + 25 * adjustedScale, y: origin.y + 85 * adjustedScale))
+        path.addLine(to: CGPoint(x: origin.x + 85 * adjustedScale, y: origin.y + 75 * adjustedScale))
+        path.addLine(to: CGPoint(x: origin.x + 25 * adjustedScale, y: origin.y + 75 * adjustedScale))
         path.close()
         
         return path
@@ -262,6 +287,116 @@ class IconGenerator {
             print("Saved: \(fileName) to \(url.path)")
         } catch {
             print("Error saving \(fileName): \(error)")
+        }
+    }
+    
+    // MARK: - Logo Asset Generator
+    static func generateLogoAssets() {
+        let logoSizes = [
+            ("logo", 64),           // Standard logo
+            ("logo@2x", 128),       // @2x logo
+            ("logo@3x", 192),       // @3x logo
+            ("logo-small", 32),     // Small logo
+            ("logo-small@2x", 64),  // Small @2x logo
+            ("logo-small@3x", 96),  // Small @3x logo
+            ("logo-large", 128),    // Large logo
+            ("logo-large@2x", 256), // Large @2x logo
+            ("logo-large@3x", 384)  // Large @3x logo
+        ]
+        
+        for (name, size) in logoSizes {
+            let image = createLogoAsset(size: CGFloat(size))
+            saveImageToDocuments(image: image, fileName: "\(name).png")
+        }
+        
+        print("Logo assets generated! Check Documents folder.")
+        print("Copy these files to:")
+        print("- LevelFitnessLogo.imageset/")
+        print("- LevelFitnessLogoSmall.imageset/") 
+        print("- LevelFitnessLogoLarge.imageset/")
+    }
+    
+    static func createLogoAsset(size: CGFloat) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
+        
+        return renderer.image { context in
+            let cgContext = context.cgContext
+            
+            // Transparent background for logo assets
+            cgContext.clear(CGRect(x: 0, y: 0, width: size, height: size))
+            
+            // Calculate scaling for logo based on size
+            let logoScale = size / 64.0 // Base scale for 64pt logo
+            
+            // Center the logo
+            let logoSize: CGFloat = 48 * logoScale
+            let logoOrigin = CGPoint(x: (size - logoSize) / 2, y: (size - logoSize) / 2)
+            
+            // Draw "LF" text for logo assets
+            drawLFText(in: cgContext, origin: logoOrigin, size: logoSize, scale: logoScale)
+            
+            // Add small decorative elements for larger logos
+            if size >= 96 {
+                addSmallGears(in: cgContext, origin: logoOrigin, logoSize: logoSize, scale: logoScale)
+            }
+            
+            // Add bitcoin orange accent for larger logos
+            if size >= 128 {
+                addBitcoinAccent(in: cgContext, origin: logoOrigin, logoSize: logoSize, scale: logoScale)
+            }
+        }
+    }
+    
+    static func drawLogoL(in context: CGContext, origin: CGPoint, scale: CGFloat) {
+        let path = createLogoLPath(origin: origin, scale: scale)
+        
+        // Fill with solid white
+        context.setFillColor(UIColor.white.cgColor)
+        context.addPath(path.cgPath)
+        context.fillPath()
+        
+        // Add subtle shadow for depth
+        context.setShadow(offset: CGSize(width: 0, height: 1 * scale), blur: 2 * scale, color: UIColor.black.withAlphaComponent(0.2).cgColor)
+        context.addPath(path.cgPath)
+        context.fillPath()
+        
+        // Add bolt holes for industrial look
+        addLogoBoltHoles(to: context, origin: origin, scale: scale)
+    }
+    
+    static func createLogoLPath(origin: CGPoint, scale: CGFloat) -> UIBezierPath {
+        let path = UIBezierPath()
+        
+        // Create correct L shape - optimized for smaller sizes
+        path.move(to: CGPoint(x: origin.x + 10 * scale, y: origin.y + 8 * scale))   // Top-left of vertical
+        path.addLine(to: CGPoint(x: origin.x + 18 * scale, y: origin.y + 8 * scale)) // Top-right of vertical  
+        path.addLine(to: CGPoint(x: origin.x + 18 * scale, y: origin.y + 40 * scale)) // Down to bottom of vertical
+        path.addLine(to: CGPoint(x: origin.x + 38 * scale, y: origin.y + 40 * scale)) // Right across horizontal
+        path.addLine(to: CGPoint(x: origin.x + 38 * scale, y: origin.y + 32 * scale)) // Up to top of horizontal 
+        path.addLine(to: CGPoint(x: origin.x + 10 * scale, y: origin.y + 32 * scale)) // Left to inner corner
+        path.close()
+        
+        return path
+    }
+    
+    static func addLogoBoltHoles(to context: CGContext, origin: CGPoint, scale: CGFloat) {
+        let boltPositions = [
+            CGPoint(x: origin.x + 22 * scale, y: origin.y + 15 * scale),
+            CGPoint(x: origin.x + 22 * scale, y: origin.y + 25 * scale),
+            CGPoint(x: origin.x + 30 * scale, y: origin.y + 36 * scale)
+        ]
+        
+        let boltRadius: CGFloat = 1.5 * scale
+        
+        for position in boltPositions {
+            // Dark hole
+            context.setFillColor(UIColor.black.withAlphaComponent(0.3).cgColor)
+            context.fillEllipse(in: CGRect(
+                x: position.x - boltRadius,
+                y: position.y - boltRadius,
+                width: boltRadius * 2,
+                height: boltRadius * 2
+            ))
         }
     }
 }

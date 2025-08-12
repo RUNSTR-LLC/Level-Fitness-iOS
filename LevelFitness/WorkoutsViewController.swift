@@ -24,6 +24,7 @@ class WorkoutsViewController: UIViewController {
     private var currentTab: WorkoutTab = .sync
     private var healthKitWorkouts: [HealthKitWorkout] = []
     private var isSyncing = false
+    private var isLoadingInitialData = false
     
     // MARK: - UI Components
     private let headerView = UIView()
@@ -238,14 +239,14 @@ class WorkoutsViewController: UIViewController {
         syncView.isHidden = true
         statsView.isHidden = true
         
-        // Show selected view
+        // Show selected view with real data
         switch tab {
         case .sync:
             syncView.isHidden = false
-            syncView.loadSampleData()
+            syncView.updateWithHealthKitWorkouts(healthKitWorkouts)
         case .stats:
             statsView.isHidden = false
-            statsView.loadSampleData()
+            statsView.updateWithHealthKitWorkouts(healthKitWorkouts)
         }
         
         // Update tab navigation
@@ -385,6 +386,11 @@ extension WorkoutsViewController {
     }
     
     private func loadInitialWorkouts() {
+        guard !isLoadingInitialData else { return }
+        
+        isLoadingInitialData = true
+        showInitialLoadingState()
+        
         Task {
             do {
                 let healthKitWorkouts = try await HealthKitService.shared.fetchRecentWorkouts(limit: 20)
@@ -392,14 +398,55 @@ extension WorkoutsViewController {
                 await MainActor.run {
                     self.healthKitWorkouts = healthKitWorkouts
                     self.updateWorkoutViews()
+                    self.hideInitialLoadingState()
+                    self.isLoadingInitialData = false
                     print("🏃‍♂️ LevelFitness: Loaded \(healthKitWorkouts.count) initial workouts")
                 }
             } catch {
                 await MainActor.run {
                     print("🏃‍♂️ LevelFitness: Failed to load initial workouts: \(error)")
+                    self.showInitialLoadingError(error)
+                    self.hideInitialLoadingState()
+                    self.isLoadingInitialData = false
                 }
             }
         }
+    }
+    
+    private func showInitialLoadingState() {
+        // Update sync button to show loading
+        syncButton.setTitle("LOADING", for: .normal)
+        syncButton.isEnabled = false
+        syncButton.alpha = 0.6
+        
+        // Show loading in current tab
+        if currentTab == .sync {
+            syncView.showLoadingState()
+        } else if currentTab == .stats {
+            statsView.showLoadingState()
+        }
+    }
+    
+    private func hideInitialLoadingState() {
+        // Restore sync button
+        syncButton.setTitle("SYNC", for: .normal)
+        syncButton.isEnabled = true
+        syncButton.alpha = 1.0
+        
+        // Hide loading in views
+        syncView.hideLoadingState()
+        statsView.hideLoadingState()
+    }
+    
+    private func showInitialLoadingError(_ error: Error) {
+        let alert = UIAlertController(
+            title: "Loading Error",
+            message: "Failed to load initial workouts: \(error.localizedDescription)\n\nYou can still use the SYNC button to manually load workouts.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
     
     private func updateWorkoutViews() {

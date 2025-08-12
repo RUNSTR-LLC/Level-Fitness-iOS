@@ -1,16 +1,19 @@
 import UIKit
 
-struct CompetitionEvent {
-    let id: String
-    let title: String
-    let startDate: Date
-    let endDate: Date
-    let prizePool: Double // in Bitcoin
-    let entryFee: Double? // in Bitcoin, nil for free
-    let participants: Int
-    let eventType: EventType
-    let goalValue: String // "42.2 KM", "5x5K", etc.
-    let isRegistered: Bool
+// Extension to add computed properties to SupabaseService's CompetitionEvent
+extension CompetitionEvent {
+    var title: String { return name }
+    var participants: Int { return participantCount }
+    var eventType: EventType { 
+        return EventType.fromString(type)
+    }
+    var goalValue: String {
+        return "\(targetValue) \(unit.uppercased())"
+    }
+    var isRegistered: Bool {
+        // TODO: Check if current user is registered for this event
+        return false
+    }
     
     var formattedDateRange: String {
         let formatter = DateFormatter()
@@ -34,12 +37,14 @@ struct CompetitionEvent {
     }
     
     var formattedPrizePool: String {
-        return "₿\(String(format: "%.2f", prizePool))"
+        let btcAmount = Double(prizePool) / 100_000_000.0 // Convert satoshis to BTC
+        return "₿\(String(format: "%.6f", btcAmount))"
     }
     
     var formattedEntryFee: String {
-        guard let fee = entryFee, fee > 0 else { return "Free" }
-        return "₿\(String(format: "%.4f", fee))"
+        guard entryFee > 0 else { return "Free" }
+        let btcAmount = Double(entryFee) / 100_000_000.0 // Convert satoshis to BTC
+        return "₿\(String(format: "%.6f", btcAmount))"
     }
     
     var formattedParticipants: String {
@@ -53,6 +58,17 @@ enum EventType {
     case elevation
     case distance
     case streak
+    
+    static func fromString(_ typeString: String) -> EventType {
+        switch typeString.lowercased() {
+        case "marathon": return .marathon
+        case "speed_challenge": return .speed
+        case "elevation_goal": return .elevation
+        case "distance": return .distance
+        case "streak", "frequency": return .streak
+        default: return .distance
+        }
+    }
     
     var icon: String {
         switch self {
@@ -151,63 +167,36 @@ class EventsView: UIView {
     // MARK: - Public Methods
     
     func loadSampleData() {
-        loadSampleEvents()
+        // Legacy method name kept for compatibility - now loads real data
+        loadRealEvents()
+    }
+    
+    func loadRealEvents() {
+        Task {
+            do {
+                let fetchedEvents = try await SupabaseService.shared.fetchEvents(status: "active")
+                
+                await MainActor.run {
+                    displayEvents(fetchedEvents)
+                    print("🏆 LevelFitness: Loaded \(fetchedEvents.count) events from Supabase")
+                }
+            } catch {
+                print("🏆 LevelFitness: Error fetching events: \(error)")
+                await MainActor.run {
+                    displayEvents([]) // Show empty state on error
+                }
+            }
+        }
+    }
+    
+    private func displayEvents(_ eventList: [CompetitionEvent]) {
+        events = eventList
+        buildEventsList()
     }
     
     private func loadSampleEvents() {
-        let calendar = Calendar.current
-        let now = Date()
-        
-        events = [
-            CompetitionEvent(
-                id: "1",
-                title: "Global Marathon Challenge",
-                startDate: calendar.date(byAdding: .day, value: 20, to: now)!,
-                endDate: calendar.date(byAdding: .day, value: 22, to: now)!,
-                prizePool: 0.25,
-                entryFee: 0.001,
-                participants: 847,
-                eventType: .marathon,
-                goalValue: "42.2 KM Goal",
-                isRegistered: false
-            ),
-            CompetitionEvent(
-                id: "2",
-                title: "Speed Week Challenge",
-                startDate: calendar.date(byAdding: .day, value: 6, to: now)!,
-                endDate: calendar.date(byAdding: .day, value: 12, to: now)!,
-                prizePool: 0.10,
-                entryFee: nil,
-                participants: 324,
-                eventType: .speed,
-                goalValue: "5x5K Format",
-                isRegistered: true
-            ),
-            CompetitionEvent(
-                id: "3",
-                title: "Elevation Masters",
-                startDate: calendar.date(byAdding: .day, value: 11, to: now)!,
-                endDate: calendar.date(byAdding: .day, value: 22, to: now)!,
-                prizePool: 0.15,
-                entryFee: 0.0005,
-                participants: 156,
-                eventType: .elevation,
-                goalValue: "3000m Elevation",
-                isRegistered: false
-            ),
-            CompetitionEvent(
-                id: "4",
-                title: "New Year Century",
-                startDate: calendar.date(byAdding: .day, value: -8, to: now)!,
-                endDate: calendar.date(byAdding: .day, value: 22, to: now)!,
-                prizePool: 0.30,
-                entryFee: 0.0002,
-                participants: 512,
-                eventType: .distance,
-                goalValue: "100K Monthly Goal",
-                isRegistered: false
-            )
-        ]
+        // Start with empty array - real data will be loaded from Supabase
+        events = []
         
         buildEventsList()
     }

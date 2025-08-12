@@ -24,7 +24,7 @@ class TeamsViewController: UIViewController {
     private let teamsList = UIView()
     private var teamCards: [TeamCard] = []
     
-    // Sample data
+    // Activity filter options
     private let activities = ["All", "Running", "Cycling", "Walking", "Gym", "Swimming", "Yoga"]
     private var selectedActivity = 0
     
@@ -41,7 +41,7 @@ class TeamsViewController: UIViewController {
         setupSearchSection()
         setupTeamsList()
         setupConstraints()
-        loadSampleTeams()
+        loadRealTeams()
         print("🏗️ LevelFitness: Teams page loaded successfully!")
     }
     
@@ -302,18 +302,45 @@ class TeamsViewController: UIViewController {
     
     // MARK: - Data Loading
     
-    private func loadSampleTeams() {
-        let sampleTeams = [
-            TeamData(name: "Steel City Runners", captain: "@ironlegs", members: 247, prizePool: "₿0.15", activities: ["Running", "Walking"], isJoined: false),
-            TeamData(name: "Bitcoin Marathoners", captain: "@satoshirun", members: 89, prizePool: "₿0.08", activities: ["Running"], isJoined: true),
-            TeamData(name: "Chain Breakers Cycling", captain: "@pedalpusher", members: 156, prizePool: "₿0.21", activities: ["Cycling"], isJoined: false),
-            TeamData(name: "Proof of Work Fitness", captain: "@hashrate", members: 312, prizePool: "₿0.42", activities: ["Gym", "Running", "Cycling"], isJoined: false),
-            TeamData(name: "Lightning Yogis", captain: "@zenflow", members: 64, prizePool: "₿0.05", activities: ["Yoga"], isJoined: false)
-        ]
+    private func loadRealTeams() {
+        Task {
+            do {
+                let teams = try await SupabaseService.shared.fetchTeams()
+                print("🏗️ LevelFitness: Fetched \(teams.count) teams from Supabase")
+                
+                await MainActor.run {
+                    displayTeams(teams)
+                }
+            } catch {
+                print("🏗️ LevelFitness: Error fetching teams: \(error)")
+                
+                await MainActor.run {
+                    showErrorAlert("Failed to load teams: \(error.localizedDescription)")
+                    // Fallback to empty state or error handling
+                }
+            }
+        }
+    }
+    
+    private func displayTeams(_ teams: [Team]) {
+        // Clear existing team cards
+        clearTeamCards()
+        
+        // Convert Supabase Team objects to TeamData format
+        let teamDataArray = teams.map { team in
+            TeamData(
+                name: team.name,
+                captain: getCaptainName(for: team.captainId), // TODO: Fetch real captain name
+                members: team.memberCount,
+                prizePool: formatEarnings(team.totalEarnings),
+                activities: getActivitiesForTeam(team.id), // TODO: Fetch real activities from team_activities table
+                isJoined: false // TODO: Check if current user is member
+            )
+        }
         
         var lastCard: UIView? = nil
         
-        for teamData in sampleTeams {
+        for teamData in teamDataArray {
             let teamCard = TeamCard(teamData: teamData)
             teamCard.delegate = self
             teamCard.translatesAutoresizingMaskIntoConstraints = false
@@ -339,6 +366,46 @@ class TeamsViewController: UIViewController {
         }
     }
     
+    private func clearTeamCards() {
+        teamCards.forEach { $0.removeFromSuperview() }
+        teamCards.removeAll()
+        
+        // Remove all constraints from teamsList
+        teamsList.subviews.forEach { $0.removeFromSuperview() }
+    }
+    
+    private func getCaptainName(for captainId: String) -> String {
+        // TODO: Implement real captain name lookup
+        // For now, return a formatted username
+        return "@captain\(captainId.prefix(4))"
+    }
+    
+    private func formatEarnings(_ earnings: Double) -> String {
+        if earnings == 0 {
+            return "₿0.00"
+        }
+        return String(format: "₿%.4f", earnings)
+    }
+    
+    private func getActivitiesForTeam(_ teamId: String) -> [String] {
+        // TODO: Implement real activities lookup from team_activities table
+        // For now, return default activities based on team
+        return ["Running", "Cycling", "Gym"] // Default activities
+    }
+    
+    private func showErrorAlert(_ message: String) {
+        let alert = UIAlertController(
+            title: "Error Loading Teams",
+            message: message,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Retry", style: .default) { _ in
+            self.loadRealTeams()
+        })
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        present(alert, animated: true)
+    }
+    
     // MARK: - Actions
     
     @objc private func backButtonTapped() {
@@ -348,8 +415,94 @@ class TeamsViewController: UIViewController {
     }
     
     @objc private func createTeamTapped() {
-        print("Create team tapped")
-        // TODO: Implement create team flow
+        print("🏗️ LevelFitness: Create team tapped - checking subscription status")
+        
+        Task {
+            let subscriptionStatus = await SubscriptionService.shared.checkSubscriptionStatus()
+            
+            await MainActor.run {
+                if subscriptionStatus == .creator {
+                    print("🏗️ LevelFitness: Creator subscription active - launching team creation wizard")
+                    showTeamCreationWizard()
+                } else {
+                    print("🏗️ LevelFitness: Creator subscription required")
+                    showCreatorSubscriptionPrompt()
+                }
+            }
+        }
+    }
+    
+    private func showTeamCreationWizard() {
+        print("🏗️ LevelFitness: Launching team creation wizard")
+        
+        let teamCreationWizard = TeamCreationWizardViewController()
+        let navigationController = UINavigationController(rootViewController: teamCreationWizard)
+        navigationController.modalPresentationStyle = .fullScreen
+        present(navigationController, animated: true)
+    }
+    
+    private func showCreatorSubscriptionPrompt() {
+        print("🏗️ LevelFitness: Showing creator subscription prompt")
+        
+        let alert = UIAlertController(
+            title: "Creator Subscription Required",
+            message: "To create and manage teams, you need a Creator subscription ($29.99/month). This includes team analytics, leaderboard creation, and event management tools.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Upgrade to Creator", style: .default) { _ in
+            self.purchaseCreatorSubscription()
+        })
+        
+        alert.addAction(UIAlertAction(title: "Maybe Later", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+    
+    private func purchaseCreatorSubscription() {
+        print("🏗️ LevelFitness: Initiating Creator subscription purchase")
+        
+        Task {
+            do {
+                let success = try await SubscriptionService.shared.purchaseCreatorSubscriptionBool()
+                
+                await MainActor.run {
+                    if success {
+                        print("🏗️ LevelFitness: Creator subscription purchased successfully")
+                        let alert = UIAlertController(
+                            title: "Welcome to Creator!",
+                            message: "You now have access to team creation, analytics, and management tools. Let's create your first team!",
+                            preferredStyle: .alert
+                        )
+                        alert.addAction(UIAlertAction(title: "Create Team", style: .default) { _ in
+                            self.showTeamCreationWizard()
+                        })
+                        alert.addAction(UIAlertAction(title: "Maybe Later", style: .cancel))
+                        present(alert, animated: true)
+                    } else {
+                        print("🏗️ LevelFitness: Creator subscription purchase failed")
+                        let alert = UIAlertController(
+                            title: "Purchase Failed",
+                            message: "Unable to complete subscription purchase. Please try again.",
+                            preferredStyle: .alert
+                        )
+                        alert.addAction(UIAlertAction(title: "OK", style: .default))
+                        present(alert, animated: true)
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    print("🏗️ LevelFitness: Creator subscription purchase error: \(error)")
+                    let alert = UIAlertController(
+                        title: "Purchase Error",
+                        message: "An error occurred during purchase: \(error.localizedDescription)",
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    present(alert, animated: true)
+                }
+            }
+        }
     }
     
     @objc private func filterChipTapped(_ sender: UIButton) {

@@ -156,7 +156,40 @@ class WorkoutSyncView: UIView {
     // MARK: - Public Methods
     
     func loadSampleData() {
-        loadSampleSyncSources()
+        // Legacy method name kept for compatibility - now loads real data
+        loadRealSyncSources()
+    }
+    
+    private func loadRealSyncSources() {
+        // Initialize with real sync sources - only HealthKit available, others coming soon
+        syncSources = [
+            SyncSourceData(
+                id: "healthkit",
+                type: .healthKit,
+                isConnected: false, // Will be updated by HealthKit service
+                lastSync: nil,
+                workoutCount: 0,
+                isComingSoon: false
+            ),
+            SyncSourceData(
+                id: "garmin",
+                type: .garmin,
+                isConnected: false,
+                lastSync: nil,
+                workoutCount: 0,
+                isComingSoon: true
+            ),
+            SyncSourceData(
+                id: "googlefit",
+                type: .googleFit,
+                isConnected: false,
+                lastSync: nil,
+                workoutCount: 0,
+                isComingSoon: true
+            )
+        ]
+        
+        buildSyncSourcesGrid()
     }
     
     func updateHealthKitConnectionStatus(connected: Bool) {
@@ -167,7 +200,8 @@ class WorkoutSyncView: UIView {
                 type: syncSources[index].type,
                 isConnected: connected,
                 lastSync: connected ? Date() : nil,
-                workoutCount: syncSources[index].workoutCount
+                workoutCount: syncSources[index].workoutCount,
+                isComingSoon: false
             )
             buildSyncSourcesGrid()
         }
@@ -186,68 +220,30 @@ class WorkoutSyncView: UIView {
                 type: .healthKit,
                 isConnected: healthKitConnected,
                 lastSync: lastSync,
-                workoutCount: workouts.count
-            ),
-            SyncSourceData(
-                id: "strava",
-                type: .strava,
-                isConnected: false,
-                lastSync: nil,
-                workoutCount: 0
+                workoutCount: workouts.count,
+                isComingSoon: false
             ),
             SyncSourceData(
                 id: "garmin",
                 type: .garmin,
                 isConnected: false,
                 lastSync: nil,
-                workoutCount: 0
+                workoutCount: 0,
+                isComingSoon: true
             ),
             SyncSourceData(
                 id: "googlefit",
                 type: .googleFit,
                 isConnected: false,
                 lastSync: nil,
-                workoutCount: 0
+                workoutCount: 0,
+                isComingSoon: true
             )
         ]
         
         buildSyncSourcesGrid()
     }
     
-    private func loadSampleSyncSources() {
-        syncSources = [
-            SyncSourceData(
-                id: "healthkit",
-                type: .healthKit,
-                isConnected: true,
-                lastSync: Date(),
-                workoutCount: 25
-            ),
-            SyncSourceData(
-                id: "strava",
-                type: .strava,
-                isConnected: false,
-                lastSync: nil,
-                workoutCount: 0
-            ),
-            SyncSourceData(
-                id: "garmin",
-                type: .garmin,
-                isConnected: false,
-                lastSync: nil,
-                workoutCount: 0
-            ),
-            SyncSourceData(
-                id: "googlefit",
-                type: .googleFit,
-                isConnected: false,
-                lastSync: nil,
-                workoutCount: 0
-            )
-        ]
-        
-        buildSyncSourcesGrid()
-    }
     
     
     private func buildSyncSourcesGrid() {
@@ -263,40 +259,44 @@ class WorkoutSyncView: UIView {
             return card
         }
         
-        // Layout cards in 2x2 grid format
-        if cards.count >= 4 {
+        // Layout cards - now we have 3 cards: HealthKit on top, Garmin and Google Fit on bottom
+        if cards.count >= 3 {
             let spacing: CGFloat = 12
             
             NSLayoutConstraint.activate([
-                // Row 1: HealthKit (cards[0]) and Strava (cards[1])
-                // HealthKit - top left
+                // Row 1: HealthKit (cards[0]) - full width
                 cards[0].topAnchor.constraint(equalTo: sourcesGridContainer.topAnchor),
                 cards[0].leadingAnchor.constraint(equalTo: sourcesGridContainer.leadingAnchor),
-                cards[0].trailingAnchor.constraint(equalTo: sourcesGridContainer.centerXAnchor, constant: -spacing/2),
+                cards[0].trailingAnchor.constraint(equalTo: sourcesGridContainer.trailingAnchor),
                 cards[0].heightAnchor.constraint(equalToConstant: 70),
                 
-                // Strava - top right  
-                cards[1].topAnchor.constraint(equalTo: sourcesGridContainer.topAnchor),
-                cards[1].leadingAnchor.constraint(equalTo: sourcesGridContainer.centerXAnchor, constant: spacing/2),
-                cards[1].trailingAnchor.constraint(equalTo: sourcesGridContainer.trailingAnchor),
+                // Row 2: Garmin (cards[1]) and Google Fit (cards[2])
+                // Garmin - bottom left
+                cards[1].topAnchor.constraint(equalTo: cards[0].bottomAnchor, constant: spacing),
+                cards[1].leadingAnchor.constraint(equalTo: sourcesGridContainer.leadingAnchor),
+                cards[1].trailingAnchor.constraint(equalTo: sourcesGridContainer.centerXAnchor, constant: -spacing/2),
                 cards[1].heightAnchor.constraint(equalToConstant: 70),
                 
-                // Row 2: Garmin (cards[2]) and Google Fit (cards[3])
-                // Garmin - bottom left
-                cards[2].topAnchor.constraint(equalTo: cards[0].bottomAnchor, constant: spacing),
-                cards[2].leadingAnchor.constraint(equalTo: sourcesGridContainer.leadingAnchor),
-                cards[2].trailingAnchor.constraint(equalTo: sourcesGridContainer.centerXAnchor, constant: -spacing/2),
-                cards[2].heightAnchor.constraint(equalToConstant: 70),
-                
                 // Google Fit - bottom right
-                cards[3].topAnchor.constraint(equalTo: cards[1].bottomAnchor, constant: spacing),
-                cards[3].leadingAnchor.constraint(equalTo: sourcesGridContainer.centerXAnchor, constant: spacing/2),
-                cards[3].trailingAnchor.constraint(equalTo: sourcesGridContainer.trailingAnchor),
-                cards[3].heightAnchor.constraint(equalToConstant: 70)
+                cards[2].topAnchor.constraint(equalTo: cards[0].bottomAnchor, constant: spacing),
+                cards[2].leadingAnchor.constraint(equalTo: sourcesGridContainer.centerXAnchor, constant: spacing/2),
+                cards[2].trailingAnchor.constraint(equalTo: sourcesGridContainer.trailingAnchor),
+                cards[2].heightAnchor.constraint(equalToConstant: 70)
             ])
         }
     }
     
+    func showLoadingState() {
+        // Add a subtle loading indicator or update UI to show loading
+        syncSourcesTitle.text = "Sync Sources (Loading...)"
+        syncSourcesTitle.alpha = 0.6
+    }
+    
+    func hideLoadingState() {
+        // Restore normal state
+        syncSourcesTitle.text = "Sync Sources"
+        syncSourcesTitle.alpha = 1.0
+    }
     
     // MARK: - Actions
     

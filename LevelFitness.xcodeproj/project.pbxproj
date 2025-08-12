@@ -49,11 +49,23 @@
 		COMP8899AABBCCDDEEFF001122334 /* ChatMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = COMP8888999900001111222233334444 /* ChatMessageView.swift */; };
 		D613E78D324148849B773D801477004E /* SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7FEA8665C6A4B22986DA6438533D80C /* SupabaseService.swift */; };
 		F274E58B8DB14A08BD0C0B0C7DD64028 /* AuthenticationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */; };
+		COIN123456789ABCDEF01234567890AB /* CoinOSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = COINABCDEF123456789ABCDEF12345678 /* CoinOSService.swift */; };
+		LIGHT123456789ABCDEF01234567890B /* LightningWalletManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = LIGHTABCDEF123456789ABCDEF123456 /* LightningWalletManager.swift */; };
 		332404E503B442D6AB8B77067842ADCB /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99B4C1E5CC95463981F84EF706BAC273 /* KeychainService.swift */; };
 		HEALTH123456789ABCDEF1234567890AB /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = HEALTHABCDEF1234567890ABCDEF123456 /* HealthKitService.swift */; };
+		ERROR123456789ABCDEF01234567890AB /* ErrorHandlingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ERRORABCDEF123456789ABCDEF123456 /* ErrorHandlingService.swift */; };
+		NETWORK123456789ABCDEF0123456789AB /* NetworkMonitorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NETWORKABCDEF123456789ABCDEF12345 /* NetworkMonitorService.swift */; };
+		OFFLINE123456789ABCDEF0123456789AB /* OfflineDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = OFFLINEABCDEF123456789ABCDEF12345 /* OfflineDataService.swift */; };
 		E87FF620924C4D69A271F8ED9EDC6202 /* TeamDetailEventsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCB683446B2F4C6397E096106C4813E9 /* TeamDetailEventsViewController.swift */; };
 		EE2A80B3C0B7449CA243D4333061A535 /* ChallengeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5801F4E4750540CABC6C94EBB8DD0B79 /* ChallengeCard.swift */; };
 		LOGIN123456789ABCDEF123456789012 /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = LOGIN987654321FEDCBA987654321098 /* LoginViewController.swift */; };
+		WIZARD123456789ABCDEF012345678901 /* TeamCreationWizardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = WIZARD987654321FEDCBA987654321012 /* TeamCreationWizardViewController.swift */; };
+		BASIC123456789ABCDEF0123456789012 /* TeamBasicInfoStepViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BASIC987654321FEDCBA9876543210123 /* TeamBasicInfoStepViewController.swift */; };
+		METRIC123456789ABCDEF012345678901 /* TeamMetricSelectionStepViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = METRIC987654321FEDCBA987654321012 /* TeamMetricSelectionStepViewController.swift */; };
+		LEADER123456789ABCDEF012345678901 /* TeamLeaderboardSetupStepViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = LEADER987654321FEDCBA987654321012 /* TeamLeaderboardSetupStepViewController.swift */; };
+		REVIEW123456789ABCDEF012345678901 /* TeamReviewStepViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = REVIEW987654321FEDCBA987654321012 /* TeamReviewStepViewController.swift */; };
+		LEAGUE123456789ABCDEF012345678901 /* TeamDetailLeagueViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = LEAGUE987654321FEDCBA987654321012 /* TeamDetailLeagueViewController.swift */; };
+		SUBSCR123456789ABCDEF012345678901 /* SubscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SUBSCR987654321FEDCBA987654321012 /* SubscriptionService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -106,8 +118,20 @@
 		LOGIN987654321FEDCBA987654321098 /* LoginViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewController.swift; sourceTree = "<group>"; };
 		A7FEA8665C6A4B22986DA6438533D80C /* SupabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/SupabaseService.swift"; sourceTree = "<group>"; };
 		97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/AuthenticationService.swift"; sourceTree = "<group>"; };
+		COINABCDEF123456789ABCDEF12345678 /* CoinOSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/CoinOSService.swift"; sourceTree = "<group>"; };
+		LIGHTABCDEF123456789ABCDEF123456 /* LightningWalletManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/LightningWalletManager.swift"; sourceTree = "<group>"; };
 		99B4C1E5CC95463981F84EF706BAC273 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/KeychainService.swift"; sourceTree = "<group>"; };
 		HEALTHABCDEF1234567890ABCDEF123456 /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/HealthKitService.swift"; sourceTree = "<group>"; };
+		ERRORABCDEF123456789ABCDEF123456 /* ErrorHandlingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/ErrorHandlingService.swift"; sourceTree = "<group>"; };
+		NETWORKABCDEF123456789ABCDEF12345 /* NetworkMonitorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/NetworkMonitorService.swift"; sourceTree = "<group>"; };
+		OFFLINEABCDEF123456789ABCDEF12345 /* OfflineDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/OfflineDataService.swift"; sourceTree = "<group>"; };
+		WIZARD987654321FEDCBA987654321012 /* TeamCreationWizardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamCreationWizardViewController.swift; sourceTree = "<group>"; };
+		BASIC987654321FEDCBA9876543210123 /* TeamBasicInfoStepViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamBasicInfoStepViewController.swift; sourceTree = "<group>"; };
+		METRIC987654321FEDCBA987654321012 /* TeamMetricSelectionStepViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamMetricSelectionStepViewController.swift; sourceTree = "<group>"; };
+		LEADER987654321FEDCBA987654321012 /* TeamLeaderboardSetupStepViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamLeaderboardSetupStepViewController.swift; sourceTree = "<group>"; };
+		REVIEW987654321FEDCBA987654321012 /* TeamReviewStepViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamReviewStepViewController.swift; sourceTree = "<group>"; };
+		LEAGUE987654321FEDCBA987654321012 /* TeamDetailLeagueViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamDetailLeagueViewController.swift; sourceTree = "<group>"; };
+		SUBSCR987654321FEDCBA987654321012 /* SubscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/SubscriptionService.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -184,8 +208,20 @@
 				COMP8888999900001111222233334444 /* ChatMessageView.swift */,
 				A7FEA8665C6A4B22986DA6438533D80C /* SupabaseService.swift */,
 				97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */,
+				COINABCDEF123456789ABCDEF12345678 /* CoinOSService.swift */,
+				LIGHTABCDEF123456789ABCDEF123456 /* LightningWalletManager.swift */,
 				99B4C1E5CC95463981F84EF706BAC273 /* KeychainService.swift */,
 				HEALTHABCDEF1234567890ABCDEF123456 /* HealthKitService.swift */,
+				ERRORABCDEF123456789ABCDEF123456 /* ErrorHandlingService.swift */,
+				NETWORKABCDEF123456789ABCDEF12345 /* NetworkMonitorService.swift */,
+				OFFLINEABCDEF123456789ABCDEF12345 /* OfflineDataService.swift */,
+				SUBSCR987654321FEDCBA987654321012 /* SubscriptionService.swift */,
+				WIZARD987654321FEDCBA987654321012 /* TeamCreationWizardViewController.swift */,
+				BASIC987654321FEDCBA9876543210123 /* TeamBasicInfoStepViewController.swift */,
+				METRIC987654321FEDCBA987654321012 /* TeamMetricSelectionStepViewController.swift */,
+				LEADER987654321FEDCBA987654321012 /* TeamLeaderboardSetupStepViewController.swift */,
+				REVIEW987654321FEDCBA987654321012 /* TeamReviewStepViewController.swift */,
+				LEAGUE987654321FEDCBA987654321012 /* TeamDetailLeagueViewController.swift */,
 				3D4A1B932C5F7A8F00F3E2B3 /* Assets.xcassets */,
 				3D4A1B952C5F7A8F00F3E2B3 /* LaunchScreen.storyboard */,
 				3D4A1B982C5F7A8F00F3E2B3 /* Info.plist */,
@@ -312,8 +348,20 @@
 				COMP8899AABBCCDDEEFF001122334 /* ChatMessageView.swift in Sources */,
 				D613E78D324148849B773D801477004E /* SupabaseService.swift in Sources */,
 				F274E58B8DB14A08BD0C0B0C7DD64028 /* AuthenticationService.swift in Sources */,
+				COIN123456789ABCDEF01234567890AB /* CoinOSService.swift in Sources */,
+				LIGHT123456789ABCDEF01234567890B /* LightningWalletManager.swift in Sources */,
 				332404E503B442D6AB8B77067842ADCB /* KeychainService.swift in Sources */,
 				HEALTH123456789ABCDEF1234567890AB /* HealthKitService.swift in Sources */,
+				ERROR123456789ABCDEF01234567890AB /* ErrorHandlingService.swift in Sources */,
+				NETWORK123456789ABCDEF0123456789AB /* NetworkMonitorService.swift in Sources */,
+				OFFLINE123456789ABCDEF0123456789AB /* OfflineDataService.swift in Sources */,
+				SUBSCR123456789ABCDEF012345678901 /* SubscriptionService.swift in Sources */,
+				WIZARD123456789ABCDEF012345678901 /* TeamCreationWizardViewController.swift in Sources */,
+				BASIC123456789ABCDEF0123456789012 /* TeamBasicInfoStepViewController.swift in Sources */,
+				METRIC123456789ABCDEF012345678901 /* TeamMetricSelectionStepViewController.swift in Sources */,
+				LEADER123456789ABCDEF012345678901 /* TeamLeaderboardSetupStepViewController.swift in Sources */,
+				REVIEW123456789ABCDEF012345678901 /* TeamReviewStepViewController.swift in Sources */,
+				LEAGUE123456789ABCDEF012345678901 /* TeamDetailLeagueViewController.swift in Sources */,
 				3D4A1B8D2C5F7A8E00F3E2B3 /* AppDelegate.swift in Sources */,
 				LOGIN123456789ABCDEF123456789012 /* LoginViewController.swift in Sources */,
 			);

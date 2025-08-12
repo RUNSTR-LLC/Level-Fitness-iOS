@@ -1,5 +1,15 @@
 import UIKit
 
+struct EarningTransaction {
+    let id: String
+    let workoutType: String
+    let date: Date
+    let points: Int
+    let potentialBitcoinEarning: Double
+    let potentialUSDEarning: Double
+    let source: String
+}
+
 protocol TransactionHistoryViewDelegate: AnyObject {
     func didTapTransaction(_ transaction: TransactionData)
     func didTapFilterButton()
@@ -127,90 +137,48 @@ class TransactionHistoryView: UIView {
     
     // MARK: - Public Methods
     
-    func loadSampleTransactions() {
-        let calendar = Calendar.current
-        let now = Date()
-        
-        transactions = [
-            // Today
+    func loadRealTransactions(_ transactionData: [TransactionData]) {
+        transactions = transactionData
+        groupTransactionsByDate()
+        buildTransactionViews()
+        print("💰 TransactionHistoryView: Loaded \(transactions.count) real Lightning transactions")
+    }
+    
+    func loadTransactionsFromWorkouts(_ earningTransactions: [EarningTransaction]) {
+        // Convert earning transactions to TransactionData format
+        transactions = earningTransactions.map { earning in
             TransactionData(
-                id: "1",
-                title: "Weekend Warrior 10K",
-                source: "Steel City Runners",
-                date: calendar.date(byAdding: .hour, value: -2, to: now)!,
-                bitcoinAmount: 0.0003,
-                usdAmount: 9.05,
-                type: .earning,
-                icon: .challenge
-            ),
-            TransactionData(
-                id: "2",
-                title: "Daily Streak Bonus",
+                id: earning.id,
+                title: formatWorkoutTitle(earning.workoutType),
                 source: "Level Fitness Rewards",
-                date: calendar.date(byAdding: .hour, value: -8, to: now)!,
-                bitcoinAmount: 0.0001,
-                usdAmount: 3.02,
-                type: .earning,
-                icon: .streak
-            ),
-            
-            // Yesterday
-            TransactionData(
-                id: "3",
-                title: "Speed Demon Challenge",
-                source: "Bitcoin Marathoners",
-                date: calendar.date(byAdding: .day, value: -1, to: now)!,
-                bitcoinAmount: 0.0005,
-                usdAmount: 15.08,
+                date: earning.date,
+                bitcoinAmount: earning.potentialBitcoinEarning,
+                usdAmount: earning.potentialUSDEarning,
                 type: .earning,
                 icon: .star
-            ),
-            TransactionData(
-                id: "4",
-                title: "Team Subscription",
-                source: "Steel City Runners",
-                date: calendar.date(byAdding: .day, value: -1, to: calendar.date(bySettingHour: 12, minute: 0, second: 0, of: now)!)!,
-                bitcoinAmount: 0.0001,
-                usdAmount: 3.02,
-                type: .expense,
-                icon: .subscription
-            ),
-            
-            // This week
-            TransactionData(
-                id: "5",
-                title: "Elevation Master",
-                source: "Chain Breakers Cycling",
-                date: calendar.date(byAdding: .day, value: -3, to: now)!,
-                bitcoinAmount: 0.0008,
-                usdAmount: 24.13,
-                type: .earning,
-                icon: .challenge
-            ),
-            TransactionData(
-                id: "6",
-                title: "Withdrawal",
-                source: "To Lightning Address",
-                date: calendar.date(byAdding: .day, value: -4, to: now)!,
-                bitcoinAmount: 0.0020,
-                usdAmount: 60.32,
-                type: .expense,
-                icon: .withdrawal
-            ),
-            TransactionData(
-                id: "7",
-                title: "New Year Marathon",
-                source: "Proof of Work Fitness",
-                date: calendar.date(byAdding: .day, value: -7, to: now)!,
-                bitcoinAmount: 0.0015,
-                usdAmount: 45.24,
-                type: .earning,
-                icon: .event
             )
-        ]
+        }
         
         groupTransactionsByDate()
         buildTransactionViews()
+    }
+    
+    func loadEmptyState() {
+        transactions = []
+        groupedTransactions = []
+        buildTransactionViews()
+    }
+    
+    private func formatWorkoutTitle(_ workoutType: String) -> String {
+        switch workoutType.lowercased() {
+        case "running": return "Running Reward"
+        case "cycling": return "Cycling Reward"
+        case "swimming": return "Swimming Reward" 
+        case "walking": return "Walking Reward"
+        case "yoga": return "Yoga Reward"
+        case "strength_training", "traditional_strength_training": return "Strength Training Reward"
+        default: return "Workout Reward"
+        }
     }
     
     private func groupTransactionsByDate() {

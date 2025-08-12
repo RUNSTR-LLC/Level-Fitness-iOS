@@ -72,16 +72,9 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
         logoContainerView.alpha = 0
         view.addSubview(logoContainerView)
         
-        // Main logo view
-        logoContainerView.addSubview(logoMainView)
-        setupIndustrialLogo()
-        
-        // Decorative gears
-        setupDecorativeGears()
-        
-        // Brand name
+        // Brand name - larger and more prominent
         brandNameLabel.text = "Level Fitness"
-        brandNameLabel.font = UIFont.systemFont(ofSize: 42, weight: .heavy)
+        brandNameLabel.font = UIFont.systemFont(ofSize: 48, weight: .heavy)
         brandNameLabel.textColor = .white
         brandNameLabel.textAlignment = .center
         brandNameLabel.alpha = 0
@@ -89,11 +82,14 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
         
         // Tagline
         taglineLabel.text = "SYNC • STACK • REPEAT"
-        taglineLabel.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        taglineLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
         taglineLabel.textColor = UIColor(white: 0.4, alpha: 1.0)
         taglineLabel.textAlignment = .center
         taglineLabel.alpha = 0
         logoContainerView.addSubview(taglineLabel)
+        
+        // Decorative gears only
+        setupDecorativeGears()
     }
     
     private func setupIndustrialLogo() {
@@ -140,14 +136,15 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
         let path = UIBezierPath()
         let scale: CGFloat = 1.5
         
-        // Main L shape
-        path.move(to: CGPoint(x: 25 * scale, y: 15 * scale))
-        path.addLine(to: CGPoint(x: 35 * scale, y: 15 * scale))
-        path.addLine(to: CGPoint(x: 35 * scale, y: 75 * scale))
-        path.addLine(to: CGPoint(x: 85 * scale, y: 75 * scale))
-        path.addLine(to: CGPoint(x: 85 * scale, y: 85 * scale))
-        path.addLine(to: CGPoint(x: 25 * scale, y: 85 * scale))
-        path.close()
+        // Create a simple, correct L shape
+        // L shape: vertical stroke on the left, horizontal stroke at the bottom
+        path.move(to: CGPoint(x: 25 * scale, y: 15 * scale))       // Top of vertical stroke
+        path.addLine(to: CGPoint(x: 35 * scale, y: 15 * scale))    // Top-right of vertical stroke
+        path.addLine(to: CGPoint(x: 35 * scale, y: 85 * scale))    // Bottom-right of vertical stroke
+        path.addLine(to: CGPoint(x: 85 * scale, y: 85 * scale))    // End of horizontal stroke
+        path.addLine(to: CGPoint(x: 85 * scale, y: 75 * scale))    // Top of horizontal stroke
+        path.addLine(to: CGPoint(x: 25 * scale, y: 75 * scale))    // Inner corner
+        path.close()                                               // Back to start
         
         return path
     }
@@ -321,28 +318,22 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
             logoContainerView.widthAnchor.constraint(equalToConstant: 320),
             logoContainerView.heightAnchor.constraint(equalToConstant: 240),
             
-            // Main logo
-            logoMainView.topAnchor.constraint(equalTo: logoContainerView.topAnchor),
-            logoMainView.centerXAnchor.constraint(equalTo: logoContainerView.centerXAnchor),
-            logoMainView.widthAnchor.constraint(equalToConstant: 120),
-            logoMainView.heightAnchor.constraint(equalToConstant: 120),
-            
-            // Decorative gears
-            gear1View.topAnchor.constraint(equalTo: logoMainView.topAnchor, constant: -20),
-            gear1View.trailingAnchor.constraint(equalTo: logoMainView.trailingAnchor, constant: 20),
-            gear1View.widthAnchor.constraint(equalToConstant: 40),
-            gear1View.heightAnchor.constraint(equalToConstant: 40),
-            
-            gear2View.bottomAnchor.constraint(equalTo: logoMainView.bottomAnchor, constant: 15),
-            gear2View.leadingAnchor.constraint(equalTo: logoMainView.leadingAnchor, constant: -15),
-            gear2View.widthAnchor.constraint(equalToConstant: 30),
-            gear2View.heightAnchor.constraint(equalToConstant: 30),
-            
-            // Brand name
-            brandNameLabel.topAnchor.constraint(equalTo: logoMainView.bottomAnchor, constant: 40),
+            // Brand name - now at the top
+            brandNameLabel.topAnchor.constraint(equalTo: logoContainerView.topAnchor, constant: 20),
             brandNameLabel.centerXAnchor.constraint(equalTo: logoContainerView.centerXAnchor),
             brandNameLabel.leadingAnchor.constraint(greaterThanOrEqualTo: logoContainerView.leadingAnchor, constant: 20),
             brandNameLabel.trailingAnchor.constraint(lessThanOrEqualTo: logoContainerView.trailingAnchor, constant: -20),
+            
+            // Decorative gears - positioned relative to brand name
+            gear1View.topAnchor.constraint(equalTo: brandNameLabel.topAnchor, constant: -10),
+            gear1View.trailingAnchor.constraint(equalTo: logoContainerView.trailingAnchor, constant: -20),
+            gear1View.widthAnchor.constraint(equalToConstant: 40),
+            gear1View.heightAnchor.constraint(equalToConstant: 40),
+            
+            gear2View.bottomAnchor.constraint(equalTo: brandNameLabel.bottomAnchor, constant: 10),
+            gear2View.leadingAnchor.constraint(equalTo: logoContainerView.leadingAnchor, constant: 20),
+            gear2View.widthAnchor.constraint(equalToConstant: 30),
+            gear2View.heightAnchor.constraint(equalToConstant: 30),
             
             // Tagline
             taglineLabel.topAnchor.constraint(equalTo: brandNameLabel.bottomAnchor, constant: 12),

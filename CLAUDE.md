@@ -1,33 +1,33 @@
-# level.fitness - Universal Fitness Rewards Protocol
+# level.fitness - Competitions-as-a-Service for Fitness Communities
 
 ## Project Vision
 
-**level.fitness is the "Honey for fitness apps"** - a universal rewards layer that sits on top of existing fitness platforms, creating value without friction. We're building a fitness economy, not another fitness app.
+**level.fitness is "Stripe for fitness competitions"** - providing the technical infrastructure that enables fitness communities to run competitions and reward systems while maintaining their own brand and customer relationships. We're building the invisible backbone that powers fitness community monetization.
 
 ### Core Value Proposition
-- **For Users**: Get paid for workouts you're already doing
-- **For Fitness Influencers/Captains**: Build recurring revenue from your community  
-- **For Organizations**: Turn communities into monetized platforms
-- **For Fitness Apps**: Increase user engagement and retention
+- **For Users**: Subscribe to fitness clubs you love, compete using your existing workout data, earn Bitcoin rewards
+- **For Fitness Clubs/Influencers**: Turn your community into a subscription business with professional competition tools
+- **For Level Fitness**: Provide SaaS infrastructure that scales with the fitness economy
 
 ## Key Concepts
 
-### The Three-Sided Marketplace
-1. **Users**: Sync workouts from existing apps, earn rewards
-2. **Captains**: Create teams/challenges, earn from member subscriptions  
-3. **Organizations**: Large-scale team management and corporate wellness
+### The B2B2C Model
+1. **Users**: Subscribe to clubs ($3.99/month), sync HealthKit data, compete passively, earn rewards
+2. **Fitness Clubs**: Create teams, run competitions, manage subscribers, earn recurring revenue
+3. **Level Fitness**: Provide platform infrastructure, take SaaS fees + subscription percentage
 
 ### Business Model
-- **Free Tier**: Basic rewards, individual competitions
-- **Premium ($4.99/month)**: Team features, higher reward pools, AI coaching
-- **Captain Tools**: Team creation, member management, revenue sharing
-- **Organization ($49/month)**: Enterprise features, bulk management
+- **SaaS Revenue**: Monthly fees from fitness clubs for platform access
+- **Subscription Revenue**: Percentage of club subscription revenue ($3.99/month per user)
+- **Event Tickets**: Clubs keep 100% of event ticket sales for prize pools/charity
+- **No Commission on Events**: Clean separation between platform fees and event monetization
 
 ### Technical Architecture
 ```
-Existing Fitness Apps → level.fitness Sync Engine → Nostr Protocol Storage
-                                                  → AI Analysis Engine  
-                                                  → Bitcoin Reward Distribution
+HealthKit Data → Background Sync Engine → Club-Specific Competitions
+                                       → Lightning Wallet (CoinOS)
+                                       → Push Notifications
+                                       → Club Analytics Dashboard
 ```
 
 ## Development Philosophy
@@ -39,33 +39,31 @@ Existing Fitness Apps → level.fitness Sync Engine → Nostr Protocol Storage
 - **Clear separation of concerns**
 
 ### Key Principles
-1. **Aggregation over Competition**: Enhance existing apps, don't replace them
-2. **Community First**: Enable creators to monetize their fitness communities
-3. **Verified Data**: Cross-platform correlation for anti-cheat
-4. **Bitcoin-Native**: Real value, not points or badges
+1. **Infrastructure over Platform**: Provide tools, not content - clubs own their communities
+2. **Background Service**: Users interact minimally with app, maximum value from passive participation
+3. **Club-Centric Design**: All notifications and experiences prominently feature club branding
+4. **Bitcoin-Native**: Real rewards through Lightning Network integration
 
 ## Technical Requirements
 
 ### Core Features
-- **One-click sync** from major fitness platforms (Strava, Apple Health, Garmin, etc.)
-- **Automatic team creation** for Captains
-- **Weekly Bitcoin payouts** 
-- **Simple leaderboards** and progress tracking
-- **Basic AI insights** from aggregated data
+- **HealthKit Background Sync**: Automatic workout data collection without user intervention
+- **Club Discovery**: In-app browsing + QR code direct linking for social media marketing
+- **Club-Branded Notifications**: Push notifications prominently display club name and achievements
+- **Lightning Wallet Integration**: CoinOS-powered Bitcoin rewards with minimal user complexity
+- **Club Analytics Dashboard**: Tools for clubs to understand and engage their subscriber base
 
 ### Platform Integrations
-- Apple HealthKit (iOS primary platform)
-- Strava API
-- Garmin Connect
-- Fitbit API
-- MyFitnessPal
-- Nostr protocol for data storage
+- Apple HealthKit (primary data source)
+- CoinOS Lightning Network integration
+- Push notification system with club branding
+- QR code generation for club marketing
 
 ### Anti-Cheat System
-- Cross-platform data verification
+- HealthKit data validation and physiological limits
 - Heart rate correlation with activity intensity
-- GPS data matching across sources
-- Physiologically impossible performance detection
+- Time-based performance analysis for impossible improvements
+- Club-reported suspicious activity flagging
 
 ## App Architecture
 
@@ -73,149 +71,148 @@ Existing Fitness Apps → level.fitness Sync Engine → Nostr Protocol Storage
 ```
 LevelFitness/
 ├── Core/
-│   ├── Models/           # User, Workout, Team, Challenge models
-│   ├── Services/         # API, Sync, Bitcoin services  
-│   └── Storage/          # CoreData, Nostr integration
+│   ├── Models/           # Club, User, Competition, Event models
+│   ├── Services/         # HealthKit sync, CoinOS, Push notifications
+│   └── Storage/          # Local data persistence
 ├── Features/
-│   ├── Sync/            # Platform integrations
-│   ├── Teams/           # Team management, captain tools
-│   ├── Rewards/         # Bitcoin payouts, leaderboards
-│   └── Profile/         # User dashboard, AI insights
+│   ├── Discovery/        # Club browsing, QR code scanning
+│   ├── Clubs/            # Team pages, subscription management
+│   ├── Competitions/     # Leaderboards, event participation
+│   └── Wallet/           # Lightning wallet, reward management
 └── Shared/
-    ├── UI/              # Reusable components
+    ├── UI/              # Reusable components with club branding
     └── Extensions/      # Helper functions
 ```
 
 ### Data Flow
-1. User authorizes platform connections
-2. Background sync pulls workout data
-3. Data normalized and stored on Nostr
-4. AI analyzes patterns and performance
-5. Rewards calculated and distributed weekly
+1. User discovers and subscribes to clubs
+2. HealthKit background sync collects workout data
+3. Data processed for club-specific competitions
+4. Push notifications sent with club branding
+5. Bitcoin rewards distributed through CoinOS integration
 
 ## Revenue Streams
 
 ### Primary
-- Monthly subscriptions ($4.99 Premium)
-- Captain revenue sharing (20% of team earnings)
-- Organization subscriptions ($49/month)
+- **SaaS Fees**: Monthly platform fees from fitness clubs
+- **Subscription Percentage**: Revenue share from club subscription fees ($3.99/month per subscriber)
+- **Event Tickets**: Clubs keep 100% of ticket sales, Level Fitness provides infrastructure only
 
 ### Future Opportunities  
-- Virtual race entry fees (10-20% cut)
-- Premium AI coaching add-on ($9.99/month)
-- White label solutions for gym chains
-- API access for fitness apps
-- Corporate wellness partnerships
+- **Premium Club Tools**: Advanced analytics and automation features for successful clubs
+- **White Label Solutions**: Custom-branded competition platforms for large organizations
+- **Corporate Wellness**: Enterprise tools for company fitness programs
+- **API Access**: Third-party integrations for existing fitness platforms
 
 ## User Experience Priorities
 
 ### Onboarding Flow
-1. Connect one fitness platform (start simple)
-2. Complete first workout sync
-3. Join a beginner-friendly team
-4. First Bitcoin reward (even if small)
+1. **Discover clubs** through in-app browsing or QR code scan
+2. **Subscribe to preferred club** ($3.99/month)
+3. **Authorize HealthKit access** for background sync
+4. **Receive first competition notification** featuring club branding
 
 ### Core User Journey
 ```
-Connect Apps → Sync Workouts → Join/Create Team → Compete → Earn Rewards
+Discover Club → Subscribe → Background Sync → Passive Competition → Bitcoin Rewards
 ```
 
-### Captain Experience
+### Club Experience
 ```  
-Apply for Captain → Create Team → Set Challenges → Recruit Members → Earn Revenue
+Apply for Club Status → Create Team Page → Design Competitions → Market via QR → Earn Revenue
 ```
 
 ## Key Metrics
 
 ### North Star Metric
-**Weekly Active Earners** - Users who synced workouts AND earned rewards
+**Active Club Subscribers** - Users with valid club subscriptions who sync workout data weekly
 
 ### Supporting Metrics
-- Platform sync success rate
-- Team participation rate
-- Captain revenue growth
-- Reward distribution volume
+- HealthKit sync success rate (target: 99%+)
+- Club subscription retention rate
+- Club revenue growth (subscriptions + events)
+- Push notification engagement rate
 
 ## Competitive Positioning
 
 ### What We're NOT
-- Another fitness tracking app
-- A replacement for Strava/Apple Health
-- A traditional fitness content platform
+- A fitness tracking app (users keep their existing apps)
+- A replacement for existing fitness communities
+- A content platform competing with social fitness apps
 
 ### What We ARE  
-- The monetization layer for existing fitness apps
-- A community-driven rewards protocol
-- The "Mint.com of fitness" - aggregating data for insights
-- A creator economy platform for fitness influencers
+- Competition infrastructure for fitness communities
+- The technical backbone that enables club monetization
+- A B2B2C platform connecting clubs with their members
+- The "Shopify for fitness competitions"
 
 ## Development Priorities
 
 ### Phase 1 (MVP)
-- [ ] Apple HealthKit integration
-- [ ] Basic user onboarding
-- [ ] Simple workout syncing
-- [ ] Bitcoin wallet integration
-- [ ] Basic team functionality
+- [ ] Club discovery and subscription system
+- [ ] HealthKit background sync integration
+- [ ] Basic club pages with team branding
+- [ ] CoinOS Lightning wallet integration
+- [ ] Club-branded push notifications
 
 ### Phase 2 (Growth)
-- [ ] Multi-platform sync (Strava, Garmin)
-- [ ] Captain tools and revenue sharing
-- [ ] Advanced leaderboards
-- [ ] AI coaching insights
-- [ ] Anti-cheat system
+- [ ] QR code club marketing system
+- [ ] Advanced club analytics dashboard
+- [ ] Event management tools for clubs
+- [ ] Anti-cheat and validation systems
+- [ ] Club revenue optimization features
 
 ### Phase 3 (Scale)
-- [ ] Organization features
-- [ ] Advanced AI coaching
-- [ ] White label solutions
+- [ ] White label solutions for large organizations
 - [ ] Corporate wellness integrations
+- [ ] API access for third-party fitness platforms
+- [ ] Advanced competition formats and automation
 
 ## Technical Considerations
 
 ### Performance
-- Background sync should not impact device performance
-- Efficient data storage and retrieval
-- Minimal battery usage during tracking
+- HealthKit background sync should not impact device performance
+- Minimal app usage means efficient background processing is critical
+- Push notifications must be reliable and timely
 
 ### Security
-- Encrypted storage of sensitive data
-- Secure API communications
-- Privacy-first approach to health data
+- Encrypted storage of sensitive health and payment data
+- Secure CoinOS Lightning wallet integration
+- Privacy-first approach to club member data
 
 ### Scalability
-- Design for millions of users
-- Efficient Bitcoin distribution system
-- Robust anti-cheat mechanisms
+- Design for millions of users across thousands of clubs
+- Efficient Lightning Network reward distribution
+- Club analytics that scale with member growth
 
 ## Testing Strategy
 
 ### Unit Tests
-- Core business logic
-- Data transformation functions
-- API integration layers
+- HealthKit data processing and validation
+- Club subscription and billing logic
+- Push notification generation and targeting
 
 ### Integration Tests
-- Platform sync workflows
-- Bitcoin transaction flows
-- Team management features
+- HealthKit background sync workflows
+- CoinOS Lightning wallet integration
+- Club analytics data pipeline
 
 ### User Testing
-- Onboarding flow optimization
-- Feature usability validation
-- Performance testing on various devices
+- Club discovery and subscription flow
+- Passive competition experience validation
+- Club owner dashboard usability
 
 ## Success Indicators
 
 ### Technical Success
-- 99%+ workout sync accuracy
-- Sub-2-second app launch time
-- Zero critical security vulnerabilities
+- 99%+ HealthKit sync accuracy
+- <24 hour sync latency for competition updates
+- Zero security vulnerabilities in payment flows
 
 ### Business Success
-- 10,000+ Weekly Active Earners in 6 months
-- $10k+ monthly Captain revenue by month 12
-- 50+ active teams with regular competitions
+- 1,000+ active club subscribers in 6 months
+- 50+ fitness clubs generating revenue by month 12
+- $50k+ monthly platform revenue (SaaS + subscription %)
 
 ## Development Lessons Learned
 
@@ -496,10 +493,10 @@ Apply for Captain → Create Team → Set Challenges → Recruit Members → Ear
 
 ## Notes for Development
 
-- Prioritize simplicity and reliability over feature richness
-- Every feature should serve the three-sided marketplace
-- Build for Bitcoin-native users who value real ownership
-- Focus on community building tools over individual tracking
-- Design for global scale from day one
+- **Prioritize background functionality over in-app features** - users should rarely need to open the app
+- **Club branding must be prominent** in all user-facing communications and experiences
+- **Keep the app simple** - complex features belong in club management dashboards, not user-facing app
+- **Bitcoin integration should be seamless** - users shouldn't need to understand Lightning Network complexity
+- **QR codes are critical for growth** - make it trivial for clubs to share direct signup links
 
-Remember: We're building a fitness economy, not just an app. Every decision should create value for users, captains, and organizations.
+Remember: We're building competition infrastructure, not a fitness app. Every decision should enable clubs to better serve their communities while requiring minimal user attention.

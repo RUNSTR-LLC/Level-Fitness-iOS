@@ -2,14 +2,12 @@ import UIKit
 
 enum SyncSourceType {
     case healthKit
-    case strava
     case garmin
     case googleFit
     
     var displayName: String {
         switch self {
         case .healthKit: return "HealthKit"
-        case .strava: return "Strava"
         case .garmin: return "Garmin"
         case .googleFit: return "Google Fit"
         }
@@ -18,7 +16,6 @@ enum SyncSourceType {
     var systemIcon: String {
         switch self {
         case .healthKit: return "heart.fill"
-        case .strava: return "figure.run"
         case .garmin: return "location.fill"
         case .googleFit: return "plus.circle.fill"
         }
@@ -39,12 +36,19 @@ struct SyncSourceData {
     let isConnected: Bool
     let lastSync: Date?
     let workoutCount: Int
+    let isComingSoon: Bool
     
     var statusText: String {
+        if isComingSoon {
+            return "Coming Soon"
+        }
         return isConnected ? "Connected" : "Not Connected"
     }
     
     var statusColor: UIColor {
+        if isComingSoon {
+            return UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1.0) // Gray for coming soon
+        }
         return isConnected ? type.connectedColor : type.disconnectedColor
     }
 }
@@ -196,7 +200,11 @@ class WorkoutSyncSourceCard: UIView {
         iconImageView.image = UIImage(systemName: sourceData.type.systemIcon)
         
         // Update icon and border colors based on connection status
-        if sourceData.isConnected {
+        if sourceData.isComingSoon {
+            iconImageView.tintColor = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1.0)
+            containerView.layer.borderColor = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 0.3).cgColor
+            containerView.backgroundColor = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 0.05)
+        } else if sourceData.isConnected {
             iconImageView.tintColor = sourceData.type.connectedColor
             containerView.layer.borderColor = sourceData.type.connectedColor.withAlphaComponent(0.3).cgColor
             containerView.backgroundColor = sourceData.type.connectedColor.withAlphaComponent(0.05)
@@ -218,6 +226,20 @@ class WorkoutSyncSourceCard: UIView {
     // MARK: - Actions
     
     @objc private func cardTapped() {
+        // Don't allow tapping coming soon sources
+        if sourceData.isComingSoon {
+            // Show subtle feedback that it's not available yet
+            UIView.animate(withDuration: 0.1, animations: {
+                self.transform = CGAffineTransform(scaleX: 0.98, y: 0.98)
+            }) { _ in
+                UIView.animate(withDuration: 0.1) {
+                    self.transform = .identity
+                }
+            }
+            print("🏃‍♂️ LevelFitness: Coming soon source tapped: \(sourceData.type.displayName)")
+            return
+        }
+        
         // Animation for tap feedback
         UIView.animate(withDuration: 0.1, animations: {
             self.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)

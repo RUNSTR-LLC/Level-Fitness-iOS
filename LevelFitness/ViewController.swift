@@ -8,8 +8,6 @@ class ViewController: UIViewController {
     
     // Header components
     private let headerView = UIView()
-    private let userAvatarButton = UIButton(type: .custom)
-    private let usernameLabel = UILabel()
     private let settingsButton = UIButton(type: .custom)
     
     // Logo section
@@ -24,9 +22,9 @@ class ViewController: UIViewController {
     
     // Stats bar
     private let statsBar = UIView()
-    private let workoutsStat = StatItem(value: "142", label: "Workouts")
-    private let earningsStat = StatItem(value: "0.0042", label: "Earned", isBitcoin: true)
-    private let streakStat = StatItem(value: "7", label: "Streak")
+    private let workoutsStat = StatItem(value: "0", label: "Workouts")
+    private let earningsStat = StatItem(value: "0.0000", label: "Earned", isBitcoin: true)
+    private let streakStat = StatItem(value: "0", label: "Streak")
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -42,7 +40,19 @@ class ViewController: UIViewController {
         setupNavigationGrid()
         setupStatsBar()
         setupConstraints()
+        
+        // Load real user data
+        loadRealUserStats()
+        
         print("🏭 LevelFitness: Industrial UI loaded successfully!")
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        // Refresh stats when returning to dashboard
+        print("🏭 LevelFitness: Refreshing user stats on dashboard return")
+        loadRealUserStats()
     }
     
     // MARK: - Setup Methods
@@ -97,83 +107,25 @@ class ViewController: UIViewController {
     
     private func setupHeader() {
         headerView.translatesAutoresizingMaskIntoConstraints = false
-        
-        // User avatar
-        userAvatarButton.backgroundColor = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1.0)
-        userAvatarButton.setTitle("JD", for: .normal)
-        userAvatarButton.titleLabel?.font = IndustrialDesign.Typography.navTitleFont
-        userAvatarButton.layer.cornerRadius = IndustrialDesign.Sizing.avatarSize / 2
-        userAvatarButton.layer.borderWidth = 2
-        userAvatarButton.layer.borderColor = UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0).cgColor
-        userAvatarButton.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Username
-        usernameLabel.text = "steelrunner"
-        usernameLabel.font = IndustrialDesign.Typography.usernameFont
-        usernameLabel.textColor = IndustrialDesign.Colors.primaryText
-        usernameLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        headerView.addSubview(userAvatarButton)
-        headerView.addSubview(usernameLabel)
         contentView.addSubview(headerView)
     }
     
     private func setupLogo() {
         logoSection.translatesAutoresizingMaskIntoConstraints = false
         
-        // Logo image
-        logoImageView.image = UIImage(named: "LevelFitnessLogo")
-        logoImageView.contentMode = .scaleAspectFit
-        logoImageView.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Debug: Check if logo image loaded
-        if logoImageView.image == nil {
-            print("⚠️ LevelFitness: Logo image 'LevelFitnessLogo' failed to load - creating text fallback")
-            // Create a text-based logo as fallback
-            logoImageView.backgroundColor = UIColor(red: 0.97, green: 0.58, blue: 0.10, alpha: 1.0)
-            logoImageView.layer.cornerRadius = 16
-            logoImageView.layer.borderWidth = 2
-            logoImageView.layer.borderColor = UIColor.white.withAlphaComponent(0.2).cgColor
-            
-            // Add a text label overlay
-            let textLabel = UILabel()
-            textLabel.translatesAutoresizingMaskIntoConstraints = false
-            textLabel.text = "L"
-            textLabel.font = UIFont.systemFont(ofSize: 32, weight: .bold)
-            textLabel.textColor = UIColor.white
-            textLabel.textAlignment = .center
-            
-            logoImageView.addSubview(textLabel)
-            
-            NSLayoutConstraint.activate([
-                textLabel.centerXAnchor.constraint(equalTo: logoImageView.centerXAnchor),
-                textLabel.centerYAnchor.constraint(equalTo: logoImageView.centerYAnchor)
-            ])
-        } else {
-            print("✅ LevelFitness: Logo image loaded successfully")
-        }
-        
-        // Add subtle glow effect to logo image
-        logoImageView.layer.shadowColor = UIColor.white.cgColor
-        logoImageView.layer.shadowOffset = CGSize.zero
-        logoImageView.layer.shadowOpacity = 0.1
-        logoImageView.layer.shadowRadius = 4
-        logoImageView.layer.masksToBounds = false
-        
-        // Logo text with gradient
+        // Logo text with gradient - larger and more prominent
         logoLabel.text = "Level Fitness"
-        logoLabel.font = IndustrialDesign.Typography.logoFont
+        logoLabel.font = UIFont.systemFont(ofSize: 32, weight: .heavy)
         logoLabel.textAlignment = .center
         logoLabel.translatesAutoresizingMaskIntoConstraints = false
         
         // Tagline
-        taglineLabel.text = "sync to earn"
+        taglineLabel.text = "compete to earn"
         taglineLabel.font = IndustrialDesign.Typography.taglineFont
         taglineLabel.textColor = IndustrialDesign.Colors.secondaryText
         taglineLabel.textAlignment = .center
         taglineLabel.translatesAutoresizingMaskIntoConstraints = false
         
-        logoSection.addSubview(logoImageView)
         logoSection.addSubview(logoLabel)
         logoSection.addSubview(taglineLabel)
         contentView.addSubview(logoSection)
@@ -205,23 +157,16 @@ class ViewController: UIViewController {
             }
         )
         
-        let earningsCard = NavigationCard(
-            title: "Rewards",
-            subtitle: "track earnings",
-            iconName: "star.fill",
+        let walletCard = NavigationCard(
+            title: "Wallet",
+            subtitle: "bitcoin earnings",
+            iconName: "bitcoinsign.circle.fill",
             action: { [weak self] in
-                self?.navigateToEarnings()
+                self?.navigateToWallet()
             }
         )
         
-        let competitionsCard = NavigationCard(
-            title: "League",
-            subtitle: "Compete",
-            iconName: "trophy.fill",
-            action: { [weak self] in
-                self?.navigateToCompetitions()
-            }
-        )
+        // Remove Level League - teams handle their own competitions now
         
         let workoutsCard = NavigationCard(
             title: "Stats",
@@ -232,7 +177,7 @@ class ViewController: UIViewController {
             }
         )
         
-        navigationCards = [teamsCard, earningsCard, competitionsCard, workoutsCard]
+        navigationCards = [teamsCard, walletCard, workoutsCard]
         
         for card in navigationCards {
             card.translatesAutoresizingMaskIntoConstraints = false
@@ -283,14 +228,6 @@ class ViewController: UIViewController {
             headerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -IndustrialDesign.Spacing.xLarge),
             headerView.heightAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.avatarSize),
             
-            // Header elements
-            userAvatarButton.leadingAnchor.constraint(equalTo: headerView.leadingAnchor),
-            userAvatarButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-            userAvatarButton.widthAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.avatarSize),
-            userAvatarButton.heightAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.avatarSize),
-            
-            usernameLabel.leadingAnchor.constraint(equalTo: userAvatarButton.trailingAnchor, constant: IndustrialDesign.Spacing.medium),
-            usernameLabel.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
             
             
             // Logo section
@@ -298,13 +235,8 @@ class ViewController: UIViewController {
             logoSection.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             logoSection.widthAnchor.constraint(equalTo: contentView.widthAnchor),
             
-            // Logo image positioned above text
-            logoImageView.topAnchor.constraint(equalTo: logoSection.topAnchor),
-            logoImageView.centerXAnchor.constraint(equalTo: logoSection.centerXAnchor),
-            logoImageView.widthAnchor.constraint(equalToConstant: 64),
-            logoImageView.heightAnchor.constraint(equalToConstant: 64),
-            
-            logoLabel.topAnchor.constraint(equalTo: logoImageView.bottomAnchor, constant: IndustrialDesign.Spacing.medium),
+            // Logo text - now at the top
+            logoLabel.topAnchor.constraint(equalTo: logoSection.topAnchor),
             logoLabel.centerXAnchor.constraint(equalTo: logoSection.centerXAnchor),
             
             taglineLabel.topAnchor.constraint(equalTo: logoLabel.bottomAnchor, constant: IndustrialDesign.Spacing.small),
@@ -315,28 +247,23 @@ class ViewController: UIViewController {
             navigationGrid.topAnchor.constraint(equalTo: logoSection.bottomAnchor, constant: 60),
             navigationGrid.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: IndustrialDesign.Spacing.xLarge),
             navigationGrid.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -IndustrialDesign.Spacing.xLarge),
-            navigationGrid.heightAnchor.constraint(equalToConstant: 300),
+            navigationGrid.heightAnchor.constraint(equalToConstant: 260),
             
-            // Navigation cards - 2x2 grid
+            // Navigation cards - 3 cards layout: Teams (full width), Wallet + Stats (half width each)
             navigationCards[0].topAnchor.constraint(equalTo: navigationGrid.topAnchor),
             navigationCards[0].leadingAnchor.constraint(equalTo: navigationGrid.leadingAnchor),
-            navigationCards[0].trailingAnchor.constraint(equalTo: navigationGrid.centerXAnchor, constant: -10),
+            navigationCards[0].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
             navigationCards[0].heightAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.cardMinHeight),
             
-            navigationCards[1].topAnchor.constraint(equalTo: navigationGrid.topAnchor),
-            navigationCards[1].leadingAnchor.constraint(equalTo: navigationGrid.centerXAnchor, constant: 10),
-            navigationCards[1].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
+            navigationCards[1].topAnchor.constraint(equalTo: navigationCards[0].bottomAnchor, constant: IndustrialDesign.Spacing.large),
+            navigationCards[1].leadingAnchor.constraint(equalTo: navigationGrid.leadingAnchor),
+            navigationCards[1].trailingAnchor.constraint(equalTo: navigationGrid.centerXAnchor, constant: -10),
             navigationCards[1].heightAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.cardMinHeight),
             
             navigationCards[2].topAnchor.constraint(equalTo: navigationCards[0].bottomAnchor, constant: IndustrialDesign.Spacing.large),
-            navigationCards[2].leadingAnchor.constraint(equalTo: navigationGrid.leadingAnchor),
-            navigationCards[2].trailingAnchor.constraint(equalTo: navigationGrid.centerXAnchor, constant: -10),
+            navigationCards[2].leadingAnchor.constraint(equalTo: navigationGrid.centerXAnchor, constant: 10),
+            navigationCards[2].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
             navigationCards[2].heightAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.cardMinHeight),
-            
-            navigationCards[3].topAnchor.constraint(equalTo: navigationCards[1].bottomAnchor, constant: IndustrialDesign.Spacing.large),
-            navigationCards[3].leadingAnchor.constraint(equalTo: navigationGrid.centerXAnchor, constant: 10),
-            navigationCards[3].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
-            navigationCards[3].heightAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.cardMinHeight),
             
             // Stats bar
             statsBar.topAnchor.constraint(equalTo: navigationGrid.bottomAnchor, constant: IndustrialDesign.Spacing.xxxLarge),
@@ -398,18 +325,18 @@ class ViewController: UIViewController {
         print("🏭 LevelFitness: Successfully navigated to Teams page")
     }
     
-    private func navigateToEarnings() {
-        print("💰 LevelFitness: Earnings navigation requested")
+    private func navigateToWallet() {
+        print("💰 LevelFitness: Wallet navigation requested")
         
         guard let navigationController = navigationController else {
-            print("❌ LevelFitness: NavigationController is nil - cannot navigate to Earnings")
+            print("❌ LevelFitness: NavigationController is nil - cannot navigate to Wallet")
             return
         }
         
         let earningsViewController = EarningsViewController()
         navigationController.pushViewController(earningsViewController, animated: true)
         
-        print("💰 LevelFitness: Successfully navigated to Earnings page")
+        print("💰 LevelFitness: Successfully navigated to Wallet page")
     }
     
     private func navigateToWorkouts() {
@@ -426,39 +353,50 @@ class ViewController: UIViewController {
         print("🏃‍♂️ LevelFitness: Successfully navigated to Workouts page")
     }
     
-    private func navigateToCompetitions() {
-        print("🏆 LevelFitness: Competitions navigation requested")
-        
-        guard let navigationController = navigationController else {
-            print("❌ LevelFitness: NavigationController is nil - cannot navigate to Competitions")
-            return
-        }
-        
-        let competitionsViewController = CompetitionsViewController()
-        navigationController.pushViewController(competitionsViewController, animated: true)
-        
-        print("🏆 LevelFitness: Successfully navigated to Competitions page")
-    }
+    // Level League removed - competitions now handled by individual teams
     
     // MARK: - Development Features
     
     #if DEBUG
     @objc private func handleTripleTap() {
-        print("🎨 LevelFitness: Triple tap detected - generating app icons...")
+        print("🎨 LevelFitness: Triple tap detected - generating icons and logos...")
         
         let alert = UIAlertController(
-            title: "Generate App Icons",
-            message: "This will generate app icons and save them to the Documents folder. Continue?",
+            title: "Generate Icons & Logos",
+            message: "This will generate app icons and logo assets. Choose what to generate:",
             preferredStyle: .alert
         )
         
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Generate", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: "App Icons Only", style: .default) { _ in
             IconGenerator.generateAppIcons()
             
             let successAlert = UIAlertController(
-                title: "Icons Generated!",
-                message: "App icons have been generated and saved to the Documents folder. Check the console for file paths.",
+                title: "App Icons Generated!",
+                message: "App icons have been saved to Documents folder. Check the console for file paths.",
+                preferredStyle: .alert
+            )
+            successAlert.addAction(UIAlertAction(title: "OK", style: .default))
+            self.present(successAlert, animated: true)
+        })
+        alert.addAction(UIAlertAction(title: "Logo Assets Only", style: .default) { _ in
+            IconGenerator.generateLogoAssets()
+            
+            let successAlert = UIAlertController(
+                title: "Logo Assets Generated!",
+                message: "Logo assets have been saved to Documents folder. Copy them to Assets.xcassets to fix logo display.",
+                preferredStyle: .alert
+            )
+            successAlert.addAction(UIAlertAction(title: "OK", style: .default))
+            self.present(successAlert, animated: true)
+        })
+        alert.addAction(UIAlertAction(title: "Both", style: .default) { _ in
+            IconGenerator.generateAppIcons()
+            IconGenerator.generateLogoAssets()
+            
+            let successAlert = UIAlertController(
+                title: "All Assets Generated!",
+                message: "App icons and logo assets have been saved to Documents folder. Check the console for file paths.",
                 preferredStyle: .alert
             )
             successAlert.addAction(UIAlertAction(title: "OK", style: .default))
@@ -468,4 +406,141 @@ class ViewController: UIViewController {
         present(alert, animated: true)
     }
     #endif
+}
+
+// MARK: - Real Data Loading
+
+extension ViewController {
+    
+    private func loadRealUserStats() {
+        Task {
+            await loadWorkoutStats()
+            await loadEarningsStats()
+            await loadStreakStats()
+        }
+    }
+    
+    private func loadWorkoutStats() async {
+        do {
+            guard let userSession = AuthenticationService.shared.loadSession() else {
+                print("🏭 LevelFitness: No user session found for workout stats")
+                return
+            }
+            
+            // Fetch user's workouts from Supabase
+            let workouts = try await SupabaseService.shared.fetchWorkouts(userId: userSession.id, limit: 1000)
+            
+            
+            await MainActor.run {
+                let totalWorkouts = workouts.count
+                workoutsStat.updateValue(totalWorkouts > 0 ? "\(totalWorkouts)" : "0")
+                print("🏭 LevelFitness: Updated workout stats: \(totalWorkouts) workouts")
+            }
+            
+        } catch {
+            await MainActor.run {
+                self.handleError(error, context: "loadWorkoutStats", showAlert: false)
+                workoutsStat.updateValue("0")
+            }
+        }
+    }
+    
+    private func loadEarningsStats() async {
+        do {
+            guard let userSession = AuthenticationService.shared.loadSession() else {
+                print("🏭 LevelFitness: No user session found for earnings stats")
+                return
+            }
+            
+            // Fetch user's transactions from Supabase
+            let transactions = try await SupabaseService.shared.fetchTransactions(userId: userSession.id, limit: 1000)
+            
+            
+            await MainActor.run {
+                // Calculate total earnings (positive amounts)
+                let totalEarningsSats = transactions
+                    .filter { $0.type == "earning" || $0.type == "reward" }
+                    .reduce(0) { $0 + $1.amount }
+                
+                let totalEarningsBTC = Double(totalEarningsSats) / 100_000_000.0
+                let formattedEarnings = String(format: "%.6f", totalEarningsBTC)
+                
+                earningsStat.updateValue(formattedEarnings)
+                print("🏭 LevelFitness: Updated earnings stats: ₿\(formattedEarnings)")
+            }
+            
+        } catch {
+            await MainActor.run {
+                self.handleError(error, context: "loadEarningsStats", showAlert: false)
+                earningsStat.updateValue("0.0000")
+            }
+        }
+    }
+    
+    private func loadStreakStats() async {
+        do {
+            guard let userSession = AuthenticationService.shared.loadSession() else {
+                print("🏭 LevelFitness: No user session found for streak stats")
+                return
+            }
+            
+            // Fetch user's recent workouts to calculate streak
+            let workouts = try await SupabaseService.shared.fetchWorkouts(userId: userSession.id, limit: 100)
+            
+            await MainActor.run {
+                let currentStreak = calculateCurrentStreak(from: workouts)
+                streakStat.updateValue("\(currentStreak)")
+                print("🏭 LevelFitness: Updated streak stats: \(currentStreak) day streak")
+            }
+            
+        } catch {
+            await MainActor.run {
+                self.handleError(error, context: "loadStreakStats", showAlert: false)
+                streakStat.updateValue("0")
+            }
+        }
+    }
+    
+    private func calculateCurrentStreak(from workouts: [Workout]) -> Int {
+        guard !workouts.isEmpty else { return 0 }
+        
+        let calendar = Calendar.current
+        let now = Date()
+        var currentStreak = 0
+        var checkDate = calendar.startOfDay(for: now)
+        
+        // Sort workouts by date (most recent first)
+        let sortedWorkouts = workouts.sorted { $0.startedAt > $1.startedAt }
+        
+        // Check if there's a workout today or yesterday (allow for time zones)
+        let hasRecentWorkout = sortedWorkouts.contains { workout in
+            let daysDifference = calendar.dateComponents([.day], from: calendar.startOfDay(for: workout.startedAt), to: checkDate).day ?? 0
+            return daysDifference >= 0 && daysDifference <= 1
+        }
+        
+        if !hasRecentWorkout {
+            return 0 // Streak is broken if no recent workout
+        }
+        
+        // Count consecutive days with workouts
+        while true {
+            let hasWorkoutOnDate = sortedWorkouts.contains { workout in
+                calendar.isDate(workout.startedAt, inSameDayAs: checkDate)
+            }
+            
+            if hasWorkoutOnDate {
+                currentStreak += 1
+                checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate
+            } else {
+                break
+            }
+        }
+        
+        return currentStreak
+    }
+    
+    func refreshUserStats() {
+        // Public method to refresh stats when returning to main dashboard
+        loadRealUserStats()
+    }
 }

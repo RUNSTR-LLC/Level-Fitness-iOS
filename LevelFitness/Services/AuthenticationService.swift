@@ -8,8 +8,67 @@ class AuthenticationService: NSObject {
     private var currentNonce: String?
     private var signInCompletion: ((Result<UserSession, Error>) -> Void)?
     
+    var currentUserId: String? {
+        return KeychainService.shared.load(for: .userId)
+    }
+    
     private override init() {
         super.init()
+        
+        // One-time migration to fix stored user IDs with quotes
+        migrateStoredUserIdIfNeeded()
+    }
+    
+    private func migrateStoredUserIdIfNeeded() {
+        // Check if we have a stored user ID that needs conversion
+        if let storedUserId = KeychainService.shared.load(for: .userId) {
+            // Remove any quotes first
+            let cleanUserId = storedUserId.replacingOccurrences(of: "\"", with: "")
+            
+            // Check if this is an Apple ID format (contains dots but not a valid UUID)
+            if cleanUserId.contains(".") && !isValidUUID(cleanUserId) {
+                // Convert Apple ID to a deterministic UUID
+                let uuid = generateUUIDFromAppleId(cleanUserId)
+                print("AuthenticationService: Converting Apple ID to UUID")
+                print("  From: \(cleanUserId)")
+                print("  To: \(uuid)")
+                KeychainService.shared.save(uuid, for: .userId)
+            } else if cleanUserId != storedUserId {
+                // Just needed quote cleaning
+                print("AuthenticationService: Cleaning user ID quotes")
+                KeychainService.shared.save(cleanUserId, for: .userId)
+            }
+        }
+    }
+    
+    private func isValidUUID(_ string: String) -> Bool {
+        return UUID(uuidString: string) != nil
+    }
+    
+    private func generateUUIDFromAppleId(_ appleId: String) -> String {
+        // Generate a deterministic UUID from the Apple ID using SHA256
+        // This ensures the same Apple ID always maps to the same UUID
+        guard let data = appleId.data(using: .utf8) else {
+            return UUID().uuidString
+        }
+        
+        // Create SHA256 hash of the Apple ID
+        let hash = SHA256.hash(data: data)
+        let hashString = hash.compactMap { String(format: "%02x", $0) }.joined()
+        
+        // Take first 32 characters and format as UUID
+        let hex = String(hashString.prefix(32))
+        
+        // Format as a valid UUID (8-4-4-4-12)
+        let uuid = "\(hex.prefix(8))-\(hex.dropFirst(8).prefix(4))-\(hex.dropFirst(12).prefix(4))-\(hex.dropFirst(16).prefix(4))-\(hex.dropFirst(20).prefix(12))"
+        
+        // Verify it's a valid UUID
+        if UUID(uuidString: uuid) != nil {
+            return uuid.lowercased()
+        }
+        
+        // Fallback to a new UUID if something went wrong
+        return UUID().uuidString
     }
     
     // MARK: - Sign in with Apple
@@ -33,16 +92,25 @@ class AuthenticationService: NSObject {
     // MARK: - Session Management
     
     func saveSession(_ session: UserSession) {
+        // Clean the user ID of any quotes or invalid characters
+        var finalUserId = session.id.replacingOccurrences(of: "\"", with: "")
+        
+        // If this is an Apple ID format, convert it to UUID
+        if finalUserId.contains(".") && !isValidUUID(finalUserId) {
+            finalUserId = generateUUIDFromAppleId(finalUserId)
+            print("AuthenticationService: Converting Apple ID to UUID during save: \(finalUserId)")
+        }
+        
         KeychainService.shared.save(session.accessToken, for: .accessToken)
         KeychainService.shared.save(session.refreshToken, for: .refreshToken)
-        KeychainService.shared.save(session.id, for: .userId)
+        KeychainService.shared.save(finalUserId, for: .userId)
         
         if let email = session.email {
             KeychainService.shared.save(email, for: .userEmail)
         }
         
         UserDefaults.standard.set(true, forKey: "isAuthenticated")
-        print("AuthenticationService: Session saved")
+        print("AuthenticationService: Session saved with user ID: \(finalUserId)")
     }
     
     func loadSession() -> UserSession? {
@@ -53,10 +121,24 @@ class AuthenticationService: NSObject {
             return nil
         }
         
+        // Clean the user ID of any quotes that might have been stored incorrectly
+        var finalUserId = userId.replacingOccurrences(of: "\"", with: "")
+        
+        // Check if this is an Apple ID format that needs conversion to UUID
+        if finalUserId.contains(".") && !isValidUUID(finalUserId) {
+            finalUserId = generateUUIDFromAppleId(finalUserId)
+            print("AuthenticationService: Converting Apple ID to UUID for session")
+            KeychainService.shared.save(finalUserId, for: .userId)
+        } else if finalUserId != userId {
+            // Just needed quote cleaning
+            print("AuthenticationService: Cleaned user ID quotes")
+            KeychainService.shared.save(finalUserId, for: .userId)
+        }
+        
         let email = KeychainService.shared.load(for: .userEmail)
         
         return UserSession(
-            id: userId,
+            id: finalUserId,
             email: email,
             accessToken: accessToken,
             refreshToken: refreshToken
@@ -74,7 +156,15 @@ class AuthenticationService: NSObject {
     }
     
     func signOut() async {
-        // Clear local session (bypassing Supabase for now)
+        do {
+            // Sign out from Supabase first
+            try await SupabaseService.shared.signOut()
+            print("AuthenticationService: Successfully signed out from Supabase")
+        } catch {
+            print("AuthenticationService: Supabase sign out error: \(error)")
+        }
+        
+        // Always clear local session
         clearSession()
         print("AuthenticationService: Local session cleared successfully")
     }
@@ -146,9 +236,13 @@ extension AuthenticationService: ASAuthorizationControllerDelegate {
             }
             
             // Get user info
-            let userId = appleIDCredential.user
+            let appleUserId = appleIDCredential.user
             let email = appleIDCredential.email
             let fullName = appleIDCredential.fullName
+            
+            // Convert Apple ID to UUID format for database compatibility
+            let userId = generateUUIDFromAppleId(appleUserId)
+            print("AuthenticationService: Converting Apple ID '\(appleUserId)' to UUID '\(userId)'")
             
             // Store user info if this is first sign in
             if let email = email {
@@ -162,16 +256,62 @@ extension AuthenticationService: ASAuthorizationControllerDelegate {
                 }
             }
             
-            // Create local session (bypassing Supabase for now)
-            let session = UserSession(
-                id: userId,
-                email: email ?? UserDefaults.standard.string(forKey: "userEmail"),
-                accessToken: idTokenString,
-                refreshToken: "local_refresh_token_\(UUID().uuidString)"
-            )
-            
-            saveSession(session)
-            signInCompletion?(.success(session))
+            // Sign in with Supabase using Apple credentials
+            Task {
+                do {
+                    guard let nonce = self.currentNonce else {
+                        throw AuthError.missingToken
+                    }
+                    
+                    // Sign in with Supabase
+                    let supabaseSession = try await SupabaseService.shared.signInWithApple(
+                        idToken: idTokenString,
+                        nonce: nonce
+                    )
+                    
+                    await MainActor.run {
+                        if let supabaseSession = supabaseSession {
+                            self.saveSession(supabaseSession)
+                            
+                            // Set up Lightning wallet for new users
+                            Task {
+                                await self.setupLightningWalletIfNeeded(userId: supabaseSession.id)
+                            }
+                            
+                            self.signInCompletion?(.success(supabaseSession))
+                            print("AuthenticationService: Successfully signed in with Supabase")
+                        } else {
+                            // Fallback to local session
+                            let localSession = UserSession(
+                                id: userId,
+                                email: email ?? UserDefaults.standard.string(forKey: "userEmail"),
+                                accessToken: idTokenString,
+                                refreshToken: "local_refresh_token_\(UUID().uuidString)"
+                            )
+                            
+                            self.saveSession(localSession)
+                            self.signInCompletion?(.success(localSession))
+                            print("AuthenticationService: Using local session as fallback")
+                        }
+                    }
+                } catch {
+                    print("AuthenticationService: Supabase sign in failed: \(error)")
+                    
+                    await MainActor.run {
+                        // Fallback to local session
+                        let localSession = UserSession(
+                            id: userId,
+                            email: email ?? UserDefaults.standard.string(forKey: "userEmail"),
+                            accessToken: idTokenString,
+                            refreshToken: "local_refresh_token_\(UUID().uuidString)"
+                        )
+                        
+                        self.saveSession(localSession)
+                        self.signInCompletion?(.success(localSession))
+                        print("AuthenticationService: Using local session due to Supabase error")
+                    }
+                }
+            }
         }
     }
     
@@ -194,6 +334,29 @@ extension AuthenticationService: ASAuthorizationControllerPresentationContextPro
         }
         
         return window
+    }
+    
+    // MARK: - Lightning Wallet Setup
+    
+    private func setupLightningWalletIfNeeded(userId: String) async {
+        let lightningWalletManager = LightningWalletManager.shared
+        
+        // Check if user already has a wallet configured
+        let walletExists = await lightningWalletManager.isWalletSetup(for: userId)
+        
+        if !walletExists {
+            do {
+                print("AuthenticationService: Setting up Lightning wallet for new user \(userId)")
+                try await lightningWalletManager.setupWalletForNewUser(userId)
+                print("AuthenticationService: Lightning wallet setup completed successfully")
+            } catch {
+                print("AuthenticationService: Failed to setup Lightning wallet: \(error)")
+                // Don't fail authentication if wallet setup fails
+                // User can set it up later through the app
+            }
+        } else {
+            print("AuthenticationService: User \(userId) already has Lightning wallet configured")
+        }
     }
 }
 

@@ -22,7 +22,7 @@ class TeamDetailChallengesViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupChallengesContainer()
-        loadSampleChallenges()
+        loadRealChallenges()
     }
     
     // MARK: - Setup Methods
@@ -39,45 +39,25 @@ class TeamDetailChallengesViewController: UIViewController {
         ])
     }
     
-    private func loadSampleChallenges() {
-        let challenges = [
-            ChallengeData(
-                title: "January Distance Challenge",
-                type: "Monthly • Running",
-                prize: "₿0.05",
-                progress: 0.65,
-                progressText: "156km / 240km",
-                timeLeft: "12 days left",
-                subtitle: "Push your limits this month"
-            ),
-            ChallengeData(
-                title: "Speed Demon Week",
-                type: "Weekly • Running",
-                prize: "₿0.02",
-                progress: 0.40,
-                progressText: "2 / 5 runs completed",
-                timeLeft: "4 days left",
-                subtitle: "5 runs under 5:00/km pace"
-            ),
-            ChallengeData(
-                title: "Elevation Master",
-                type: "Monthly • Running",
-                prize: "₿0.03",
-                progress: 0.80,
-                progressText: "1,200m / 1,500m elevation",
-                timeLeft: "8 days left",
-                subtitle: "Conquer the hills"
-            ),
-            ChallengeData(
-                title: "Consistency Streak",
-                type: "Daily • All Activities",
-                prize: "₿0.01",
-                progress: 0.25,
-                progressText: "7 / 30 days streak",
-                timeLeft: "Ongoing",
-                subtitle: "Daily activity goal"
-            )
-        ]
+    private func loadRealChallenges() {
+        // TODO: Fetch real challenges from Supabase based on team ID
+        Task {
+            // For now, show empty state until Supabase team_challenges table is set up
+            await MainActor.run {
+                displayChallenges([])
+            }
+        }
+    }
+    
+    private func displayChallenges(_ challenges: [ChallengeData]) {
+        // Clear existing cards
+        challengeCards.forEach { $0.removeFromSuperview() }
+        challengeCards.removeAll()
+        
+        if challenges.isEmpty {
+            showEmptyState("No active challenges")
+            return
+        }
         
         var lastView: UIView? = nil
         
@@ -104,5 +84,23 @@ class TeamDetailChallengesViewController: UIViewController {
         if let lastView = lastView {
             challengesContainer.bottomAnchor.constraint(greaterThanOrEqualTo: lastView.bottomAnchor, constant: IndustrialDesign.Spacing.large).isActive = true
         }
+    }
+    
+    private func showEmptyState(_ message: String) {
+        let emptyLabel = UILabel()
+        emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+        emptyLabel.text = message
+        emptyLabel.textColor = IndustrialDesign.Colors.secondaryText
+        emptyLabel.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        emptyLabel.textAlignment = .center
+        
+        challengesContainer.addSubview(emptyLabel)
+        
+        NSLayoutConstraint.activate([
+            emptyLabel.centerXAnchor.constraint(equalTo: challengesContainer.centerXAnchor),
+            emptyLabel.centerYAnchor.constraint(equalTo: challengesContainer.centerYAnchor),
+            emptyLabel.leadingAnchor.constraint(equalTo: challengesContainer.leadingAnchor, constant: 40),
+            emptyLabel.trailingAnchor.constraint(equalTo: challengesContainer.trailingAnchor, constant: -40)
+        ])
     }
 }

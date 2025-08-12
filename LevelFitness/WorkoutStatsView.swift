@@ -49,6 +49,7 @@ class WorkoutStatsView: UIView {
     private var currentPeriod: StatsPeriod = .weekly
     private var statsData: WorkoutStats?
     private var recentWorkouts: [WorkoutData] = []
+    private var allWorkouts: [HealthKitWorkout] = [] // Store all workouts for period filtering
     
     // MARK: - UI Components
     private let scrollView = UIScrollView()
@@ -291,15 +292,36 @@ class WorkoutStatsView: UIView {
     // MARK: - Public Methods
     
     func loadSampleData() {
-        loadSampleStats()
-        loadSampleRecentWorkouts()
+        // Legacy method name kept for compatibility - show empty state until real data loads
+        showEmptyState()
+    }
+    
+    private func showEmptyState() {
+        statsData = WorkoutStats(
+            period: currentPeriod,
+            totalWorkouts: 0,
+            totalDistance: 0.0,
+            totalTime: 0,
+            averagePace: 0.0
+        )
+        recentWorkouts = []
+        buildStatsGrid()
+        buildRecentWorkoutsList()
     }
     
     func updateWithHealthKitWorkouts(_ workouts: [HealthKitWorkout]) {
         print("🏃‍♂️ LevelFitness: Updating stats view with \(workouts.count) HealthKit workouts")
         
+        // Store all workouts for period filtering
+        allWorkouts = workouts
+        
+        // Update stats for current period
+        updateStatsForCurrentPeriod()
+    }
+    
+    private func updateStatsForCurrentPeriod() {
         // Convert HealthKitWorkouts to WorkoutData format
-        let workoutData = workouts.map { healthKitWorkout in
+        let workoutData = allWorkouts.map { healthKitWorkout in
             WorkoutData(
                 id: healthKitWorkout.id,
                 type: mapWorkoutType(healthKitWorkout.workoutType),
@@ -327,8 +349,8 @@ class WorkoutStatsView: UIView {
             averagePace: averagePace
         )
         
-        // Update recent workouts with real data (last 10)
-        recentWorkouts = Array(workoutData.prefix(10))
+        // Update recent workouts with filtered data (last 10 from period)
+        recentWorkouts = Array(filteredWorkouts.prefix(10))
         
         // Rebuild views with real data
         buildStatsGrid()
@@ -509,14 +531,51 @@ class WorkoutStatsView: UIView {
         currentPeriod = selectedPeriod
         delegate?.didSelectStatsPeriod(selectedPeriod)
         
-        // Update stats for new period
-        loadSampleStats()
+        // Update stats for new period with real data
+        if !allWorkouts.isEmpty {
+            updateStatsForCurrentPeriod()
+        } else {
+            showEmptyState() // Show empty state if no real data
+        }
         updateWorkoutsTitleForPeriod()
         
         print("🏃‍♂️ LevelFitness: Stats period selected: \(selectedPeriod.title)")
     }
     
     private func updateWorkoutsTitleForPeriod() {
+        switch currentPeriod {
+        case .weekly:
+            recentWorkoutsTitle.text = "THIS WEEK'S WORKOUTS"
+        case .monthly:
+            recentWorkoutsTitle.text = "THIS MONTH'S WORKOUTS"
+        case .yearly:
+            recentWorkoutsTitle.text = "THIS YEAR'S WORKOUTS"
+        }
+    }
+    
+    func showLoadingState() {
+        // Update recent workouts title to show loading
+        recentWorkoutsTitle.text = "LOADING WORKOUTS..."
+        recentWorkoutsTitle.alpha = 0.6
+        
+        // Disable period buttons during loading
+        for (_, button) in periodButtons {
+            button.isEnabled = false
+            button.alpha = 0.6
+        }
+    }
+    
+    func hideLoadingState() {
+        // Restore normal state
+        recentWorkoutsTitle.alpha = 1.0
+        
+        // Re-enable period buttons
+        for (_, button) in periodButtons {
+            button.isEnabled = true
+            button.alpha = 1.0
+        }
+        
+        // Update recent workouts title based on current period
         switch currentPeriod {
         case .weekly:
             recentWorkoutsTitle.text = "THIS WEEK'S WORKOUTS"

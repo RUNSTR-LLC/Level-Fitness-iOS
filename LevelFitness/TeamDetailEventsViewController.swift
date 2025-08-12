@@ -22,7 +22,7 @@ class TeamDetailEventsViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupEventsContainer()
-        loadSampleEvents()
+        loadRealEvents()
     }
     
     // MARK: - Setup Methods
@@ -39,41 +39,25 @@ class TeamDetailEventsViewController: UIViewController {
         ])
     }
     
-    private func loadSampleEvents() {
-        let events = [
-            EventData(
-                title: "Virtual Steel City Marathon",
-                date: "February 15, 2025",
-                prize: "₿0.10",
-                participants: "89 registered",
-                entry: "Entry: ₿0.001",
-                description: "26.2 miles through virtual steel cityscapes"
-            ),
-            EventData(
-                title: "Weekend Warrior 10K",
-                date: "This Saturday • 8:00 AM",
-                prize: "₿0.02",
-                participants: "34 registered",
-                entry: "Free Entry",
-                description: "Start your weekend strong with 10K"
-            ),
-            EventData(
-                title: "Night Run Challenge",
-                date: "January 30, 2025 • 7:00 PM",
-                prize: "₿0.03",
-                participants: "56 registered",
-                entry: "Entry: ₿0.0005",
-                description: "5K under the stars, bring a headlamp"
-            ),
-            EventData(
-                title: "Team Relay Race",
-                date: "February 8, 2025",
-                prize: "₿0.05",
-                participants: "12 teams registered",
-                entry: "Entry: ₿0.002/team",
-                description: "4x5K relay, build your team strategy"
-            )
-        ]
+    private func loadRealEvents() {
+        // TODO: Fetch real events from Supabase based on team ID
+        Task {
+            // For now, show empty state until Supabase team_events table is set up
+            await MainActor.run {
+                displayEvents([])
+            }
+        }
+    }
+    
+    private func displayEvents(_ events: [EventData]) {
+        // Clear existing cards
+        eventCards.forEach { $0.removeFromSuperview() }
+        eventCards.removeAll()
+        
+        if events.isEmpty {
+            showEmptyState("No upcoming events")
+            return
+        }
         
         var lastView: UIView? = nil
         
@@ -100,5 +84,23 @@ class TeamDetailEventsViewController: UIViewController {
         if let lastView = lastView {
             eventsContainer.bottomAnchor.constraint(greaterThanOrEqualTo: lastView.bottomAnchor, constant: IndustrialDesign.Spacing.large).isActive = true
         }
+    }
+    
+    private func showEmptyState(_ message: String) {
+        let emptyLabel = UILabel()
+        emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+        emptyLabel.text = message
+        emptyLabel.textColor = IndustrialDesign.Colors.secondaryText
+        emptyLabel.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        emptyLabel.textAlignment = .center
+        
+        eventsContainer.addSubview(emptyLabel)
+        
+        NSLayoutConstraint.activate([
+            emptyLabel.centerXAnchor.constraint(equalTo: eventsContainer.centerXAnchor),
+            emptyLabel.centerYAnchor.constraint(equalTo: eventsContainer.centerYAnchor),
+            emptyLabel.leadingAnchor.constraint(equalTo: eventsContainer.leadingAnchor, constant: 40),
+            emptyLabel.trailingAnchor.constraint(equalTo: eventsContainer.trailingAnchor, constant: -40)
+        ])
     }
 }

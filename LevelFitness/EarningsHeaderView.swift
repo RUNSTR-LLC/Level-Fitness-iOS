@@ -2,7 +2,6 @@ import UIKit
 
 protocol EarningsHeaderViewDelegate: AnyObject {
     func didTapBackButton()
-    func didTapSettingsButton()
 }
 
 class EarningsHeaderView: UIView {
@@ -13,7 +12,6 @@ class EarningsHeaderView: UIView {
     // MARK: - UI Components
     private let backButton = UIButton(type: .custom)
     private let titleLabel = UILabel()
-    private let settingsButton = UIButton(type: .custom)
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -48,15 +46,8 @@ class EarningsHeaderView: UIView {
         titleLabel.font = UIFont.systemFont(ofSize: 24, weight: .bold)
         titleLabel.textAlignment = .center
         
-        // Settings button
-        settingsButton.translatesAutoresizingMaskIntoConstraints = false
-        settingsButton.setImage(UIImage(systemName: "gearshape"), for: .normal)
-        settingsButton.tintColor = IndustrialDesign.Colors.secondaryText
-        settingsButton.addTarget(self, action: #selector(settingsButtonTapped), for: .touchUpInside)
-        
         addSubview(backButton)
         addSubview(titleLabel)
-        addSubview(settingsButton)
         
         // Add gradient to title
         DispatchQueue.main.async {
@@ -75,22 +66,15 @@ class EarningsHeaderView: UIView {
             backButton.heightAnchor.constraint(equalToConstant: 40),
             
             titleLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-            titleLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-            
-            settingsButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -IndustrialDesign.Spacing.large),
-            settingsButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            settingsButton.widthAnchor.constraint(equalToConstant: 40),
-            settingsButton.heightAnchor.constraint(equalToConstant: 40)
+            titleLabel.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
     }
     
     private func setupButtonAnimations() {
-        [backButton, settingsButton].forEach { button in
-            button.addTarget(self, action: #selector(buttonPressed(_:)), for: .touchDown)
-            button.addTarget(self, action: #selector(buttonReleased(_:)), for: .touchUpInside)
-            button.addTarget(self, action: #selector(buttonReleased(_:)), for: .touchUpOutside)
-            button.addTarget(self, action: #selector(buttonReleased(_:)), for: .touchCancel)
-        }
+        backButton.addTarget(self, action: #selector(buttonPressed(_:)), for: .touchDown)
+        backButton.addTarget(self, action: #selector(buttonReleased(_:)), for: .touchUpInside)
+        backButton.addTarget(self, action: #selector(buttonReleased(_:)), for: .touchUpOutside)
+        backButton.addTarget(self, action: #selector(buttonReleased(_:)), for: .touchCancel)
     }
     
     private func applyGradientToLabel(_ label: UILabel) {
@@ -121,10 +105,6 @@ class EarningsHeaderView: UIView {
         delegate?.didTapBackButton()
     }
     
-    @objc private func settingsButtonTapped() {
-        print("💰 LevelFitness: Earnings settings button tapped")
-        delegate?.didTapSettingsButton()
-    }
     
     @objc private func buttonPressed(_ sender: UIButton) {
         UIView.animate(withDuration: 0.1) {

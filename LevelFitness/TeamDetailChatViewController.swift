@@ -4,6 +4,7 @@ class TeamDetailChatViewController: UIViewController {
     
     // MARK: - Properties
     private let teamData: TeamData
+    private var currentMessages: [MessageData] = []
     
     // MARK: - UI Components
     private let chatContainer = UIView()
@@ -24,7 +25,7 @@ class TeamDetailChatViewController: UIViewController {
         super.viewDidLoad()
         setupChatContainer()
         setupMessageInput()
-        loadSampleMessages()
+        loadRealMessages()
     }
     
     // MARK: - Setup Methods
@@ -54,14 +55,73 @@ class TeamDetailChatViewController: UIViewController {
         ])
     }
     
-    private func loadSampleMessages() {
-        let messages = [
-            MessageData(author: "@ironlegs", avatar: "IR", message: "Great job everyone on completing the 10K challenge! Prize distribution happening at midnight UTC 🏃‍♂️⚡", time: "2 hours ago"),
-            MessageData(author: "@runnerboy", avatar: "RB", message: "Just crushed my personal best! 42:15 for 10K. Feeling pumped for tomorrow's event!", time: "1 hour ago"),
-            MessageData(author: "@speedforce", avatar: "SF", message: "Anyone up for an early morning run tomorrow? Meeting at Steel Bridge at 6 AM", time: "45 min ago"),
-            MessageData(author: "@marathonlisa", avatar: "ML", message: "Count me in! Need those miles for the monthly challenge 💪", time: "30 min ago"),
-            MessageData(author: "@trackchamp", avatar: "TC", message: "New challenge idea: Progressive distance week. Start with 5K Monday, add 1K each day. Who's in?", time: "15 min ago")
-        ]
+    private func loadRealMessages() {
+        // Generate team ID based on team name
+        let teamId = "team-\(teamData.name.lowercased().replacingOccurrences(of: " ", with: "-"))"
+        
+        Task {
+            do {
+                let teamMessages = try await SupabaseService.shared.fetchTeamMessages(teamId: teamId, limit: 50)
+                
+                let messageDataArray = teamMessages.map { message in
+                    MessageData(
+                        author: message.username ?? "@anonymous",
+                        avatar: String((message.username ?? "A").prefix(2)).uppercased(),
+                        message: message.message,
+                        time: formatTimestamp(message.createdAt)
+                    )
+                }
+                
+                await MainActor.run {
+                    displayMessages(messageDataArray)
+                    print("🏗️ LevelFitness: Loaded \(messageDataArray.count) team messages from Supabase")
+                }
+                
+                // Subscribe to real-time chat updates
+                SupabaseService.shared.subscribeToTeamChat(teamId: teamId) { [weak self] newMessage in
+                    let newMessageData = MessageData(
+                        author: newMessage.username ?? "@anonymous",
+                        avatar: String((newMessage.username ?? "A").prefix(2)).uppercased(),
+                        message: newMessage.message,
+                        time: self?.formatTimestamp(newMessage.createdAt) ?? ""
+                    )
+                    
+                    DispatchQueue.main.async {
+                        // Add new message to existing messages
+                        var currentMessages = self?.getCurrentMessages() ?? []
+                        currentMessages.append(newMessageData)
+                        self?.displayMessages(currentMessages)
+                        print("🏗️ LevelFitness: New real-time team message: \(newMessage.message)")
+                    }
+                }
+                
+            } catch {
+                print("🏗️ LevelFitness: Error fetching team messages: \(error)")
+                await MainActor.run {
+                    displayMessages([])
+                }
+            }
+        }
+    }
+    
+    private func displayMessages(_ messages: [MessageData]) {
+        currentMessages = messages
+        
+        // Clear existing messages
+        messageViews.forEach { $0.removeFromSuperview() }
+        messageViews.removeAll()
+        
+        // Clear empty state if it exists
+        chatContainer.subviews.forEach { view in
+            if view is UILabel {
+                view.removeFromSuperview()
+            }
+        }
+        
+        if messages.isEmpty {
+            showEmptyState("No messages yet. Be the first to say hello!")
+            return
+        }
         
         var lastView: UIView? = nil
         
@@ -90,6 +150,47 @@ class TeamDetailChatViewController: UIViewController {
         }
     }
     
+    private func getCurrentMessages() -> [MessageData] {
+        return currentMessages
+    }
+    
+    private func formatTimestamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        let timeInterval = Date().timeIntervalSince(date)
+        
+        if timeInterval < 60 {
+            return "now"
+        } else if timeInterval < 3600 {
+            let minutes = Int(timeInterval / 60)
+            return "\(minutes) min ago"
+        } else if timeInterval < 86400 {
+            let hours = Int(timeInterval / 3600)
+            return "\(hours)h ago"
+        } else {
+            formatter.dateFormat = "MMM d"
+            return formatter.string(from: date)
+        }
+    }
+    
+    private func showEmptyState(_ message: String) {
+        let emptyLabel = UILabel()
+        emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+        emptyLabel.text = message
+        emptyLabel.textColor = IndustrialDesign.Colors.secondaryText
+        emptyLabel.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        emptyLabel.textAlignment = .center
+        emptyLabel.numberOfLines = 0
+        
+        chatContainer.addSubview(emptyLabel)
+        
+        NSLayoutConstraint.activate([
+            emptyLabel.centerXAnchor.constraint(equalTo: chatContainer.centerXAnchor),
+            emptyLabel.centerYAnchor.constraint(equalTo: chatContainer.centerYAnchor),
+            emptyLabel.leadingAnchor.constraint(equalTo: chatContainer.leadingAnchor, constant: 40),
+            emptyLabel.trailingAnchor.constraint(equalTo: chatContainer.trailingAnchor, constant: -40)
+        ])
+    }
+    
     // MARK: - Public Methods
     
     func showMessageInput(_ show: Bool) {
@@ -103,7 +204,43 @@ class TeamDetailChatViewController: UIViewController {
 
 extension TeamDetailChatViewController: MessageInputViewDelegate {
     func didSendMessage(_ message: String) {
-        print("🏗️ LevelFitness: Message sent: \(message)")
-        // TODO: Implement message sending
+        print("🏗️ LevelFitness: Sending message: \(message)")
+        
+        guard let userSession = AuthenticationService.shared.loadSession() else {
+            print("🏗️ LevelFitness: No user session found for sending message")
+            return
+        }
+        
+        let teamId = "team-\(teamData.name.lowercased().replacingOccurrences(of: " ", with: "-"))"
+        
+        Task {
+            do {
+                try await SupabaseService.shared.sendTeamMessage(
+                    teamId: teamId,
+                    userId: userSession.id,
+                    message: message,
+                    messageType: "text"
+                )
+                
+                print("🏗️ LevelFitness: Message sent successfully")
+                
+                // Optimistically add message to UI (real-time subscription will also receive it)
+                let newMessageData = MessageData(
+                    author: "@me", // Will be replaced by real username from subscription
+                    avatar: "ME",
+                    message: message,
+                    time: formatTimestamp(Date())
+                )
+                
+                await MainActor.run {
+                    var updatedMessages = getCurrentMessages()
+                    updatedMessages.append(newMessageData)
+                    displayMessages(updatedMessages)
+                }
+                
+            } catch {
+                print("🏗️ LevelFitness: Error sending message: \(error)")
+            }
+        }
     }
 }

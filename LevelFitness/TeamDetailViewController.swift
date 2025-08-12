@@ -4,17 +4,15 @@ class TeamDetailViewController: UIViewController {
     
     // MARK: - Properties
     private let teamData: TeamData
-    private var currentTab: TabType = .chat
+    private var currentTab: TabType = .league
     
     enum TabType: String, CaseIterable {
-        case chat = "Chat"
-        case challenges = "Challenges"
+        case league = "League"
         case events = "Events"
     }
     
     // MARK: - Child View Controllers
-    private lazy var chatViewController = TeamDetailChatViewController(teamData: teamData)
-    private lazy var challengesViewController = TeamDetailChallengesViewController(teamData: teamData)
+    private lazy var leagueViewController = TeamDetailLeagueViewController(teamData: teamData)
     private lazy var eventsViewController = TeamDetailEventsViewController(teamData: teamData)
     
     // MARK: - UI Components
@@ -112,20 +110,17 @@ class TeamDetailViewController: UIViewController {
         contentView.addSubview(tabContentView)
         
         // Add child view controllers
-        addChild(chatViewController)
-        addChild(challengesViewController)
+        addChild(leagueViewController)
         addChild(eventsViewController)
         
-        tabContentView.addSubview(chatViewController.view)
-        tabContentView.addSubview(challengesViewController.view)
+        tabContentView.addSubview(leagueViewController.view)
         tabContentView.addSubview(eventsViewController.view)
         
-        chatViewController.didMove(toParent: self)
-        challengesViewController.didMove(toParent: self)
+        leagueViewController.didMove(toParent: self)
         eventsViewController.didMove(toParent: self)
         
         // Setup constraints for child views
-        [chatViewController.view, challengesViewController.view, eventsViewController.view].forEach { view in
+        [leagueViewController.view, eventsViewController.view].forEach { view in
             view?.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
                 view!.topAnchor.constraint(equalTo: tabContentView.topAnchor),
@@ -135,8 +130,7 @@ class TeamDetailViewController: UIViewController {
             ])
         }
         
-        // Initially hide non-chat tabs
-        challengesViewController.view.alpha = 0
+        // Initially hide non-league tabs
         eventsViewController.view.alpha = 0
     }
     
@@ -197,24 +191,14 @@ class TeamDetailViewController: UIViewController {
         
         UIView.animate(withDuration: 0.3, animations: {
             // Hide all tabs
-            self.chatViewController.view.alpha = 0
-            self.challengesViewController.view.alpha = 0
+            self.leagueViewController.view.alpha = 0
             self.eventsViewController.view.alpha = 0
-            
-            // Show/hide message input for chat
-            if tab == .chat {
-                self.chatViewController.showMessageInput(true)
-            } else {
-                self.chatViewController.showMessageInput(false)
-            }
         }) { _ in
             // Show selected tab
             UIView.animate(withDuration: 0.3) {
                 switch tab {
-                case .chat:
-                    self.chatViewController.view.alpha = 1
-                case .challenges:
-                    self.challengesViewController.view.alpha = 1
+                case .league:
+                    self.leagueViewController.view.alpha = 1
                 case .events:
                     self.eventsViewController.view.alpha = 1
                 }
