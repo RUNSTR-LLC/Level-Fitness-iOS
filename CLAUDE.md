@@ -34,9 +34,12 @@ HealthKit Data → Background Sync Engine → Club-Specific Competitions
 
 ### Code Standards
 - **Files should be under 500 lines of code**
-- **Simple, organized architecture**
+- **Simple, organized architecture**  
 - **Modular components that can be easily understood**
 - **Clear separation of concerns**
+- **NO MOCK OR SAMPLE DATA** - All data must come from real sources (HealthKit, Supabase, user input)
+- **Production-ready code only** - No placeholders, sample data, or fake content in production builds
+- **Real data or empty state** - Show actual workout data or proper empty states, never fake data
 
 ### Key Principles
 1. **Infrastructure over Platform**: Provide tools, not content - clubs own their communities
@@ -490,6 +493,136 @@ Apply for Club Status → Create Team Page → Design Competitions → Market vi
 - Grid pattern overlay maintains industrial aesthetic without overwhelming UI elements
 
 **Key Takeaway**: Large feature implementations benefit greatly from upfront modular decomposition. Breaking a complex Competitions page into 9 focused components makes development, testing, and maintenance much more manageable. Delegate patterns and rich data models create clean architectures that can evolve as features grow. Consistent visual design patterns tie disparate components together into a cohesive user experience.
+
+### Lightning Wallet Implementation Success - Key Achievement
+
+**Context**: Successfully implemented a fully functional Lightning Network wallet using CoinOS integration that enables real Bitcoin transactions for user rewards.
+
+#### 1. **Complete Bitcoin Wallet Functionality Achieved**
+- Individual user wallets created and managed through CoinOS Lightning Network integration
+- Real Bitcoin transaction capability - users can receive actual satoshis as workout rewards
+- Transaction history updates dynamically and accurately reflects all Bitcoin activity
+- Wallet balance displays real-time Lightning Network balance in both sats and USD equivalent
+
+#### 2. **Production-Ready Lightning Network Integration**
+- CoinOS service integration provides reliable Lightning Network access without node management complexity
+- Automatic wallet creation for new users during authentication flow
+- Secure wallet operations with proper error handling and retry mechanisms
+- Lightning invoice generation and payment processing working correctly
+
+#### 3. **Real Bitcoin Rewards System**
+- Users receive actual Bitcoin rewards for workout completion, not fake/demo currency
+- WorkoutRewardCalculator properly calculates sats amounts based on workout intensity and duration
+- Reward distribution happens automatically through Lightning Network transactions
+- Transaction history provides transparent view of all earning and spending activity
+
+#### 4. **User Experience Excellence**
+- Wallet operations seamlessly integrated into app flow without exposing Lightning Network complexity
+- Bitcoin amounts displayed in user-friendly format with proper sats/USD conversion
+- Transaction history shows meaningful descriptions (workout rewards, team challenges, etc.)
+- Industrial design maintained across all wallet interfaces with Bitcoin orange accent color
+
+#### 5. **Technical Architecture Success**
+- LightningWalletManager provides clean abstraction over CoinOS Lightning Network operations
+- Proper separation between wallet operations and UI presentation layers
+- Error handling and offline support ensure robust user experience
+- Modular wallet components allow for easy testing and future enhancements
+
+#### 6. **Business Model Validation**
+- Real Bitcoin integration proves feasibility of "earn Bitcoin for fitness" value proposition
+- Lightning Network enables micro-transactions perfect for workout reward amounts
+- Transaction costs minimal due to Lightning Network efficiency
+- Scalable foundation for competition prize pools and team-based Bitcoin rewards
+
+#### 7. **Security and Reliability**
+- CoinOS integration provides enterprise-grade Lightning Network security
+- User wallet keys managed securely without exposing private key complexity to app
+- Transaction verification and validation prevents double-spending or invalid rewards
+- Proper authentication flow ensures only legitimate users can access wallet functions
+
+#### 8. **Performance and Scalability**
+- Lightning Network transactions settle instantly, providing immediate user satisfaction
+- CoinOS infrastructure handles scaling challenges of Bitcoin blockchain interaction
+- Efficient wallet balance caching reduces API calls while maintaining accuracy
+- Background sync ensures wallet data stays current without blocking UI
+
+#### 9. **Integration with Core App Features**
+- Wallet seamlessly integrates with workout tracking and reward calculation systems
+- Earnings page displays real wallet data alongside estimated HealthKit-based calculations
+- Competition system ready for real Bitcoin prize pool distribution
+- Transaction history provides complete audit trail for all Bitcoin activity
+
+#### 10. **Future-Ready Foundation**
+- Wallet architecture supports planned features like team-based rewards and competition prizes
+- Lightning Network foundation enables expansion to club revenue sharing
+- Real Bitcoin integration validates core business model before scale
+- Modular design allows easy integration of additional payment features
+
+**Key Achievement**: Level Fitness now has a fully functional Lightning Network wallet that enables users to earn and transact real Bitcoin rewards. This validates the core business model and provides a solid foundation for the "earn Bitcoin for fitness" value proposition. Users have individual wallets that can receive Bitcoin, and transaction history updates appropriately, creating a genuine Bitcoin-powered fitness reward system.
+
+**Business Impact**: This implementation proves that Level Fitness can deliver on its promise of real Bitcoin rewards, differentiating it from apps that use fake points or tokens. The Lightning Network integration provides the technical foundation for scaling to thousands of users earning real Bitcoin for their fitness activities.
+
+### Container Height Constraint Bug Fix - Critical Learning
+
+**Context**: Team creation wizard Step 1 showed a blank page despite all UI components being properly created and added to the view hierarchy.
+
+#### 1. **The Root Cause - Zero Height Container**
+- `stepContainer` was constrained between `progressView.bottomAnchor` and `navigationContainer.topAnchor`
+- These constraints alone didn't guarantee any actual height for the container
+- Debug output revealed the critical clue: `view frame: (0.0, 0.0, 393.0, 0.0)` - zero height!
+- The container was waiting for child views to define its height, but child views were waiting for parent space
+
+#### 2. **The Solution That Fixed It**
+```swift
+// Before: Container with only top/bottom anchors
+stepContainer.topAnchor.constraint(equalTo: progressView.bottomAnchor, constant: spacing),
+stepContainer.bottomAnchor.constraint(equalTo: navigationContainer.topAnchor)
+// Problem: No guaranteed height!
+
+// After: Added explicit minimum height
+stepContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 400)
+// Success: Container now has guaranteed space for content
+```
+
+#### 3. **Why This Matters for ScrollView Hierarchies**
+- ScrollViews don't provide intrinsic content size to their children
+- Container views between ScrollView and content need explicit sizing
+- Common pattern that fails:
+  ```
+  ScrollView → ContentView → Container (no height) → Child Views
+  ```
+- Pattern that works:
+  ```
+  ScrollView → ContentView → Container (min height: 400) → Child Views
+  ```
+
+#### 4. **Debug Strategy That Revealed the Issue**
+```swift
+override func viewDidLayoutSubviews() {
+    super.viewDidLayoutSubviews()
+    print("📝 Layout completed - view frame: \(view.frame)")
+    print("📝 ScrollView frame: \(scrollView.frame)")
+    print("📝 ContentView frame: \(contentView.frame)")
+}
+```
+- Always log frame dimensions when UI doesn't appear
+- Zero width or height immediately reveals constraint issues
+
+#### 5. **Prevention Pattern for Future Views**
+When creating multi-level view hierarchies:
+1. Start with explicit size constraints on containers
+2. Use `greaterThanOrEqualToConstant` for minimum sizes
+3. Add frame logging during development
+4. Test with different content sizes
+5. Remove ambiguity by being explicit about container dimensions
+
+#### 6. **Where This Pattern Applies**
+- All wizard/multi-step forms (Event Creation, Team Creation)
+- Tab containers within ScrollViews
+- Dynamic content areas that load different child views
+- Any view controller container pattern
+
+**Key Learning**: Never assume container views will get height from their position constraints alone. Always provide either explicit dimensions or ensure child views have intrinsic size with proper priority.
 
 ## Notes for Development
 

@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "LevelFitness",
+    name: "RunstrRewards",
     platforms: [
         .iOS(.v15)
     ],
@@ -13,7 +13,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "LevelFitness",
+            name: "RunstrRewards",
             dependencies: [
                 .product(name: "Supabase", package: "supabase-swift")
             ]

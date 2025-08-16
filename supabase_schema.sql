@@ -1105,6 +1105,183 @@ ON CONFLICT (name) DO NOTHING;
 -- ON CONFLICT (id) DO NOTHING;
 
 -- ========================================
+-- PHASE 1 BACKGROUND SERVICES TABLES
+-- ========================================
+
+-- Event criteria storage for flexible rule-based matching
+CREATE TABLE IF NOT EXISTS event_criteria (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    rules JSONB NOT NULL,
+    auto_entry BOOLEAN DEFAULT false,
+    start_date TIMESTAMPTZ NOT NULL,
+    end_date TIMESTAMPTZ NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    -- Ensure one criteria per event
+    CONSTRAINT event_criteria_event_id_unique UNIQUE(event_id)
+);
+
+-- User leaderboard position tracking for change detection
+CREATE TABLE IF NOT EXISTS user_leaderboard_positions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    leaderboard_type VARCHAR(50) NOT NULL, -- 'weekly', 'monthly', 'all_time', 'team', 'event'
+    leaderboard_id VARCHAR(255), -- For team/event specific leaderboards
+    position INTEGER NOT NULL,
+    previous_position INTEGER,
+    points INTEGER DEFAULT 0,
+    rank_change INTEGER DEFAULT 0, -- Positive = moved up, negative = moved down
+    last_calculated TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    -- Ensure one position per user per leaderboard
+    CONSTRAINT user_leaderboard_unique UNIQUE(user_id, leaderboard_type, leaderboard_id)
+);
+
+-- Notification intelligence profiles for smart notification filtering
+CREATE TABLE IF NOT EXISTS notification_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE UNIQUE,
+    timezone VARCHAR(50) DEFAULT 'UTC',
+    sleep_start_hour INTEGER DEFAULT 22, -- 10 PM
+    sleep_end_hour INTEGER DEFAULT 7,   -- 7 AM
+    max_daily_notifications INTEGER DEFAULT 5,
+    notification_score_threshold DECIMAL DEFAULT 0.5, -- 0.0 to 1.0
+    last_notification_sent TIMESTAMPTZ,
+    daily_notification_count INTEGER DEFAULT 0,
+    last_reset_date DATE DEFAULT CURRENT_DATE,
+    engagement_score DECIMAL DEFAULT 0.5, -- Based on notification interaction history
+    preferences JSONB DEFAULT '{}', -- Custom notification preferences
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Extended event participants table with progress tracking
+-- This extends the existing event_participants table
+ALTER TABLE event_participants 
+ADD COLUMN IF NOT EXISTS progress_history JSONB DEFAULT '[]',
+ADD COLUMN IF NOT EXISTS last_progress_update TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS qualification_status VARCHAR(50) DEFAULT 'pending', -- 'pending', 'qualified', 'in_progress', 'not_qualified'
+ADD COLUMN IF NOT EXISTS auto_entered BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS criteria_matched JSONB DEFAULT '[]'; -- Which criteria rules were matched
+
+-- ========================================
+-- PHASE 1 INDEXES FOR PERFORMANCE
+-- ========================================
+
+-- Event criteria indexes
+CREATE INDEX IF NOT EXISTS idx_event_criteria_active ON event_criteria(is_active, start_date, end_date) 
+WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_event_criteria_rules ON event_criteria USING GIN(rules);
+CREATE INDEX IF NOT EXISTS idx_event_criteria_event_id ON event_criteria(event_id);
+
+-- Leaderboard position indexes
+CREATE INDEX IF NOT EXISTS idx_user_leaderboard_positions_user_id ON user_leaderboard_positions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_leaderboard_positions_type ON user_leaderboard_positions(leaderboard_type);
+CREATE INDEX IF NOT EXISTS idx_user_leaderboard_positions_calculated ON user_leaderboard_positions(last_calculated);
+CREATE INDEX IF NOT EXISTS idx_user_leaderboard_positions_rank_change ON user_leaderboard_positions(rank_change) 
+WHERE rank_change != 0;
+
+-- Notification profile indexes
+CREATE INDEX IF NOT EXISTS idx_notification_profiles_user_id ON notification_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_notification_profiles_last_sent ON notification_profiles(last_notification_sent);
+CREATE INDEX IF NOT EXISTS idx_notification_profiles_daily_count ON notification_profiles(daily_notification_count);
+
+-- Event participants extended indexes
+CREATE INDEX IF NOT EXISTS idx_event_participants_qualification ON event_participants(qualification_status);
+CREATE INDEX IF NOT EXISTS idx_event_participants_auto_entered ON event_participants(auto_entered);
+CREATE INDEX IF NOT EXISTS idx_event_participants_progress_update ON event_participants(last_progress_update);
+
+-- ========================================
+-- PHASE 1 ROW LEVEL SECURITY POLICIES
+-- ========================================
+
+-- Enable RLS on new tables
+ALTER TABLE event_criteria ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_leaderboard_positions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification_profiles ENABLE ROW LEVEL SECURITY;
+
+-- Event criteria policies (admin/service role only)
+CREATE POLICY "Service role can manage event criteria" ON event_criteria
+    FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Users can view active event criteria" ON event_criteria
+    FOR SELECT USING (is_active = true);
+
+-- Leaderboard position policies
+CREATE POLICY "Users can view own leaderboard positions" ON user_leaderboard_positions
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage leaderboard positions" ON user_leaderboard_positions
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- Notification profile policies
+CREATE POLICY "Users can manage own notification profile" ON notification_profiles
+    FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage notification profiles" ON notification_profiles
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- ========================================
+-- PHASE 1 TRIGGERS AND FUNCTIONS
+-- ========================================
+
+-- Auto-create notification profile for new users
+CREATE OR REPLACE FUNCTION create_notification_profile_for_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO notification_profiles (user_id)
+    VALUES (NEW.id)
+    ON CONFLICT (user_id) DO NOTHING;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Add to existing user creation trigger
+DROP TRIGGER IF EXISTS create_notification_profile_trigger ON profiles;
+CREATE TRIGGER create_notification_profile_trigger
+    AFTER INSERT ON profiles
+    FOR EACH ROW EXECUTE FUNCTION create_notification_profile_for_user();
+
+-- Reset daily notification count at midnight
+CREATE OR REPLACE FUNCTION reset_daily_notification_counts()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.last_reset_date != CURRENT_DATE THEN
+        NEW.daily_notification_count = 0;
+        NEW.last_reset_date = CURRENT_DATE;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS reset_notification_counts_trigger ON notification_profiles;
+CREATE TRIGGER reset_notification_counts_trigger
+    BEFORE UPDATE ON notification_profiles
+    FOR EACH ROW EXECUTE FUNCTION reset_daily_notification_counts();
+
+-- Apply updated_at triggers to new tables
+DROP TRIGGER IF EXISTS update_event_criteria_updated_at ON event_criteria;
+CREATE TRIGGER update_event_criteria_updated_at
+    BEFORE UPDATE ON event_criteria
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_user_leaderboard_positions_updated_at ON user_leaderboard_positions;
+CREATE TRIGGER update_user_leaderboard_positions_updated_at
+    BEFORE UPDATE ON user_leaderboard_positions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_notification_profiles_updated_at ON notification_profiles;
+CREATE TRIGGER update_notification_profiles_updated_at
+    BEFORE UPDATE ON notification_profiles
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ========================================
 -- FINAL NOTES
 -- ========================================
 
