@@ -93,6 +93,10 @@
 		EVENTCRIT123456789ABCDEF012345678 /* EventCriteriaEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = EVENTCRITABCDEF123456789ABCDEF1234 /* EventCriteriaEngine.swift */; };
 		LEADERBOARD123456789ABCDEF0123456 /* LeaderboardTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = LEADERBOARDABCDEF123456789ABCDEF12 /* LeaderboardTracker.swift */; };
 		NOTIFICATIONINTEL123456789ABCDEF01 /* NotificationIntelligence.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIFICATIONINTELABCDEF123456789A /* NotificationIntelligence.swift */; };
+		C75521C627A54C32BB23F04747C93904 /* TeamWalletManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D1C429144B94E6C8D4033C9820099DF /* TeamWalletManager.swift */; };
+		DE42FDED15D942AD9989C6FADB52EEEC /* TeamWalletAccessController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B493D1F9F45E49D19563503FA6B517A8 /* TeamWalletAccessController.swift */; };
+		9142EE11903943E194EDFE7B90263D59 /* TeamWalletBalanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC4FF82330A24A959EBD2C8C2B1E6E55 /* TeamWalletBalanceView.swift */; };
+		AB7C74C0F5414E4C8F3C9DF8BFF84B5C /* TeamWalletFundingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F08D7F38987A496B9E9ED7591DDA5299 /* TeamWalletFundingViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -186,6 +190,10 @@
 		EVENTCRITABCDEF123456789ABCDEF1234 /* EventCriteriaEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/EventCriteriaEngine.swift"; sourceTree = "<group>"; };
 		LEADERBOARDABCDEF123456789ABCDEF12 /* LeaderboardTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/LeaderboardTracker.swift"; sourceTree = "<group>"; };
 		NOTIFICATIONINTELABCDEF123456789A /* NotificationIntelligence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/NotificationIntelligence.swift"; sourceTree = "<group>"; };
+		2D1C429144B94E6C8D4033C9820099DF /* TeamWalletManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/TeamWalletManager.swift"; sourceTree = "<group>"; };
+		B493D1F9F45E49D19563503FA6B517A8 /* TeamWalletAccessController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/TeamWalletAccessController.swift"; sourceTree = "<group>"; };
+		CC4FF82330A24A959EBD2C8C2B1E6E55 /* TeamWalletBalanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamWalletBalanceView.swift; sourceTree = "<group>"; };
+		F08D7F38987A496B9E9ED7591DDA5299 /* TeamWalletFundingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamWalletFundingViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -305,6 +313,10 @@
 				EVENTCRITABCDEF123456789ABCDEF1234 /* EventCriteriaEngine.swift */,
 				LEADERBOARDABCDEF123456789ABCDEF12 /* LeaderboardTracker.swift */,
 				NOTIFICATIONINTELABCDEF123456789A /* NotificationIntelligence.swift */,
+				2D1C429144B94E6C8D4033C9820099DF /* TeamWalletManager.swift */,
+				B493D1F9F45E49D19563503FA6B517A8 /* TeamWalletAccessController.swift */,
+				CC4FF82330A24A959EBD2C8C2B1E6E55 /* TeamWalletBalanceView.swift */,
+				F08D7F38987A496B9E9ED7591DDA5299 /* TeamWalletFundingViewController.swift */,
 			);
 			path = RunstrRewards;
 			sourceTree = "<group>";
@@ -468,6 +480,10 @@
 				EVENTCRIT123456789ABCDEF012345678 /* EventCriteriaEngine.swift in Sources */,
 				LEADERBOARD123456789ABCDEF0123456 /* LeaderboardTracker.swift in Sources */,
 				NOTIFICATIONINTEL123456789ABCDEF01 /* NotificationIntelligence.swift in Sources */,
+				C75521C627A54C32BB23F04747C93904 /* TeamWalletManager.swift in Sources */,
+				DE42FDED15D942AD9989C6FADB52EEEC /* TeamWalletAccessController.swift in Sources */,
+				9142EE11903943E194EDFE7B90263D59 /* TeamWalletBalanceView.swift in Sources */,
+				AB7C74C0F5414E4C8F3C9DF8BFF84B5C /* TeamWalletFundingViewController.swift in Sources */,
 				3D4A1B8D2C5F7A8E00F3E2B3 /* AppDelegate.swift in Sources */,
 				LOGIN123456789ABCDEF123456789012 /* LoginViewController.swift in Sources */,
 			);

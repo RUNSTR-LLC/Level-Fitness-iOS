@@ -21,8 +21,11 @@ CREATE TABLE IF NOT EXISTS profiles (
     total_earnings DECIMAL DEFAULT 0,
     bitcoin_address TEXT, -- CoinOS wallet address
     lightning_wallet_id TEXT, -- CoinOS wallet ID
-    subscription_tier TEXT DEFAULT 'free', -- 'free', 'premium', 'captain', 'organization'
+    subscription_tier TEXT DEFAULT 'free', -- 'free', 'member', 'captain'
     subscription_expires_at TIMESTAMPTZ,
+    is_captain BOOLEAN DEFAULT false,
+    captain_subscription_expires TIMESTAMPTZ,
+    captain_team_id UUID REFERENCES teams(id), -- The one team a captain can create
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -36,6 +39,8 @@ CREATE TABLE IF NOT EXISTS teams (
     member_count INTEGER DEFAULT 0,
     max_members INTEGER DEFAULT 50,
     total_earnings DECIMAL DEFAULT 0,
+    team_wallet_id UUID, -- References lightning_wallets(id) for team wallet
+    team_wallet_balance INTEGER DEFAULT 0, -- Cached team wallet balance in satoshis
     image_url TEXT,
     invite_code TEXT UNIQUE DEFAULT generate_random_uuid()::TEXT,
     is_public BOOLEAN DEFAULT true,
@@ -146,10 +151,12 @@ CREATE TABLE IF NOT EXISTS challenge_participants (
 -- BITCOIN & TRANSACTIONS
 -- ========================================
 
--- Lightning wallets
+-- Lightning wallets (supports both user and team wallets)
 CREATE TABLE IF NOT EXISTS lightning_wallets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE UNIQUE NOT NULL,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE, -- NULL for team wallets
+    team_id UUID REFERENCES teams(id) ON DELETE CASCADE, -- NULL for user wallets
+    wallet_type TEXT NOT NULL DEFAULT 'user', -- 'user', 'team'
     provider TEXT NOT NULL DEFAULT 'coinos', -- 'coinos', 'lnbits', 'strike'
     wallet_id TEXT NOT NULL, -- Provider's wallet ID
     address TEXT NOT NULL, -- Lightning address or username
@@ -157,15 +164,28 @@ CREATE TABLE IF NOT EXISTS lightning_wallets (
     credentials_encrypted TEXT, -- Encrypted provider credentials
     status TEXT DEFAULT 'active', -- 'active', 'inactive', 'error'
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    -- Constraints to ensure exactly one of user_id or team_id is set
+    CONSTRAINT lightning_wallets_owner_check CHECK (
+        (user_id IS NOT NULL AND team_id IS NULL AND wallet_type = 'user') OR 
+        (user_id IS NULL AND team_id IS NOT NULL AND wallet_type = 'team')
+    ),
+    
+    -- Unique constraints
+    CONSTRAINT lightning_wallets_user_unique UNIQUE (user_id) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT lightning_wallets_team_unique UNIQUE (team_id) DEFERRABLE INITIALLY DEFERRED
 );
 
 -- Transactions table (for Bitcoin rewards and payments)
 CREATE TABLE IF NOT EXISTS transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE, -- NULL for team wallet transactions
+    team_id UUID REFERENCES teams(id) ON DELETE CASCADE, -- NULL for user transactions
     wallet_id UUID REFERENCES lightning_wallets(id) ON DELETE SET NULL,
-    type TEXT NOT NULL, -- 'workout_reward', 'team_reward', 'welcome_bonus', 'withdrawal', 'payment'
+    from_wallet_id UUID REFERENCES lightning_wallets(id) ON DELETE SET NULL, -- Source wallet for transfers
+    to_wallet_id UUID REFERENCES lightning_wallets(id) ON DELETE SET NULL, -- Destination wallet for transfers
+    type TEXT NOT NULL, -- 'workout_reward', 'team_reward', 'team_funding', 'competition_prize', 'team_transfer', 'welcome_bonus', 'withdrawal', 'payment'
     amount INTEGER NOT NULL, -- satoshis
     usd_amount DECIMAL, -- USD equivalent at time of transaction
     description TEXT,
@@ -173,7 +193,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     transaction_hash TEXT, -- Lightning payment hash
     preimage TEXT, -- Lightning preimage (proof of payment)
     invoice_data JSONB, -- Full invoice/payment data
-    metadata JSONB, -- Additional transaction data
+    metadata JSONB, -- Additional transaction data (team_id, competition_id, etc.)
     processed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -645,6 +665,38 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Team subscriptions junction table
+CREATE TABLE IF NOT EXISTS team_subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+    team_id UUID REFERENCES teams(id) ON DELETE CASCADE NOT NULL,
+    product_id TEXT NOT NULL, -- com.runstrrewards.team.monthly
+    transaction_id TEXT UNIQUE NOT NULL,
+    original_transaction_id TEXT,
+    purchase_date TIMESTAMPTZ NOT NULL,
+    expiration_date TIMESTAMPTZ,
+    status TEXT NOT NULL DEFAULT 'active', -- 'active', 'cancelled', 'expired', 'pending'
+    auto_renewing BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, team_id)
+);
+
+-- Captain subscriptions ($19.99 for platform access)  
+CREATE TABLE IF NOT EXISTS captain_subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE UNIQUE NOT NULL,
+    product_id TEXT DEFAULT 'com.runstrrewards.captain',
+    transaction_id TEXT UNIQUE NOT NULL,
+    original_transaction_id TEXT,
+    purchase_date TIMESTAMPTZ NOT NULL,
+    expiration_date TIMESTAMPTZ,
+    status TEXT DEFAULT 'active', -- 'active', 'expired', 'cancelled'
+    auto_renewing BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Clubs table (separate from teams for subscription-based communities)
 CREATE TABLE IF NOT EXISTS clubs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -811,6 +863,17 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_product_id ON subscriptions(product
 CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_transaction_id ON subscriptions(transaction_id);
 
+-- Team subscription indexes
+CREATE INDEX IF NOT EXISTS idx_team_subscriptions_user_id ON team_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_team_subscriptions_team_id ON team_subscriptions(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_subscriptions_status ON team_subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_team_subscriptions_transaction_id ON team_subscriptions(transaction_id);
+
+-- Captain subscription indexes
+CREATE INDEX IF NOT EXISTS idx_captain_subscriptions_user_id ON captain_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_captain_subscriptions_status ON captain_subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_captain_subscriptions_transaction_id ON captain_subscriptions(transaction_id);
+
 -- Club indexes
 CREATE INDEX IF NOT EXISTS idx_clubs_owner_id ON clubs(owner_id);
 CREATE INDEX IF NOT EXISTS idx_clubs_category ON clubs(category);
@@ -929,6 +992,8 @@ GROUP BY ve.id, ve.name, ve.type, c.name, ve.max_participants, ve.participant_co
 
 -- Enable RLS on new tables
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE captain_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clubs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE club_memberships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE club_invitations ENABLE ROW LEVEL SECURITY;
@@ -945,6 +1010,26 @@ CREATE POLICY "Users can view own subscriptions" ON subscriptions
 
 CREATE POLICY "Service role can manage subscriptions" ON subscriptions
     FOR ALL USING (auth.role() = 'service_role');
+
+-- Team subscription policies
+CREATE POLICY "Users can view own team subscriptions" ON team_subscriptions
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage team subscriptions" ON team_subscriptions
+    FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Users can insert own team subscriptions" ON team_subscriptions
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Captain subscription policies
+CREATE POLICY "Users can view own captain subscription" ON captain_subscriptions
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage captain subscriptions" ON captain_subscriptions
+    FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Users can insert own captain subscription" ON captain_subscriptions
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Club policies
 CREATE POLICY "Public clubs viewable by everyone" ON clubs
@@ -1280,6 +1365,50 @@ DROP TRIGGER IF EXISTS update_notification_profiles_updated_at ON notification_p
 CREATE TRIGGER update_notification_profiles_updated_at
     BEFORE UPDATE ON notification_profiles
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ========================================
+-- TEAM WALLET CONSTRAINTS AND INDEXES
+-- ========================================
+
+-- Add foreign key constraint for team_wallet_id in teams table
+ALTER TABLE teams ADD CONSTRAINT teams_team_wallet_fk 
+    FOREIGN KEY (team_wallet_id) REFERENCES lightning_wallets(id) ON DELETE SET NULL;
+
+-- Team wallet specific indexes
+CREATE INDEX IF NOT EXISTS idx_lightning_wallets_team_id ON lightning_wallets(team_id) WHERE team_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_lightning_wallets_wallet_type ON lightning_wallets(wallet_type);
+CREATE INDEX IF NOT EXISTS idx_teams_team_wallet_id ON teams(team_wallet_id) WHERE team_wallet_id IS NOT NULL;
+
+-- Transaction indexes for team wallet operations
+CREATE INDEX IF NOT EXISTS idx_transactions_team_id ON transactions(team_id) WHERE team_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_transactions_from_wallet ON transactions(from_wallet_id) WHERE from_wallet_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_transactions_to_wallet ON transactions(to_wallet_id) WHERE to_wallet_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_transactions_team_wallet_type ON transactions(type) WHERE type IN ('team_funding', 'team_reward', 'team_transfer', 'competition_prize');
+
+-- Team wallet RLS policies
+CREATE POLICY "Team captains can manage team wallets" ON lightning_wallets
+    FOR ALL USING (
+        wallet_type = 'team' AND EXISTS (
+            SELECT 1 FROM teams WHERE id = lightning_wallets.team_id AND captain_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Team members can view team wallet balance" ON lightning_wallets
+    FOR SELECT USING (
+        wallet_type = 'team' AND EXISTS (
+            SELECT 1 FROM team_members WHERE team_id = lightning_wallets.team_id AND user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Team wallet transactions viewable by team members" ON transactions
+    FOR SELECT USING (
+        team_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM team_members WHERE team_id = transactions.team_id AND user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Service role can manage team wallet transactions" ON transactions
+    FOR ALL USING (auth.role() = 'service_role' AND team_id IS NOT NULL);
 
 -- ========================================
 -- FINAL NOTES

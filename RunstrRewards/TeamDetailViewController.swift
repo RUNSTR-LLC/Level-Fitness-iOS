@@ -30,6 +30,7 @@ class TeamDetailViewController: UIViewController {
     // Enhanced components
     private let teamMembersView = TeamMembersListView()
     private let teamActivityView = TeamActivityFeedView()
+    private let teamWalletBalanceView: TeamWalletBalanceView
     
     // Captain-only UI elements
     private var eventsCreateButton: UIButton?
@@ -47,6 +48,7 @@ class TeamDetailViewController: UIViewController {
     // MARK: - Initialization
     init(teamData: TeamData) {
         self.teamData = teamData
+        self.teamWalletBalanceView = TeamWalletBalanceView(teamId: teamData.id)
         super.init(nibName: nil, bundle: nil)
     }
     
@@ -65,6 +67,7 @@ class TeamDetailViewController: UIViewController {
         setupHeader()
         setupAboutSection()
         setupSubscriptionStatusView()
+        setupTeamWalletBalanceView()
         setupSimpleComponents()
         setupConstraints()
         setupSimpleConstraints()
@@ -136,6 +139,12 @@ class TeamDetailViewController: UIViewController {
         )
     }
     
+    private func setupTeamWalletBalanceView() {
+        teamWalletBalanceView.translatesAutoresizingMaskIntoConstraints = false
+        teamWalletBalanceView.delegate = self
+        contentView.addSubview(teamWalletBalanceView)
+    }
+    
     private func setupEnhancedComponents() {
         // Team members view
         teamMembersView.translatesAutoresizingMaskIntoConstraints = false
@@ -182,7 +191,13 @@ class TeamDetailViewController: UIViewController {
             // Subscription status view
             subscriptionStatusView.topAnchor.constraint(equalTo: aboutSection.bottomAnchor, constant: 16),
             subscriptionStatusView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
-            subscriptionStatusView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24)
+            subscriptionStatusView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
+            
+            // Team wallet balance view
+            teamWalletBalanceView.topAnchor.constraint(equalTo: subscriptionStatusView.bottomAnchor, constant: 16),
+            teamWalletBalanceView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
+            teamWalletBalanceView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
+            teamWalletBalanceView.heightAnchor.constraint(equalToConstant: 200)
             
             // Note: Additional constraints for stats, members, leaderboard, events are set up in setupSimpleConstraints()
         ])
@@ -1254,5 +1269,49 @@ extension TeamDetailViewController: TeamActivityFeedViewDelegate {
                 return "₿\(String(format: "%.2f", amount))"
             }
         }
+    }
+}
+
+// MARK: - TeamWalletBalanceViewDelegate
+
+extension TeamDetailViewController: TeamWalletBalanceViewDelegate {
+    func didTapFundWallet(_ view: TeamWalletBalanceView, teamId: String) {
+        print("🏗️ RunstrRewards: Fund wallet tapped for team \(teamId)")
+        
+        let fundingVC = TeamWalletFundingViewController(teamId: teamId, teamName: teamData.name)
+        fundingVC.onCompletion = { [weak self] success in
+            if success {
+                // Refresh wallet balance after funding
+                self?.teamWalletBalanceView.refreshBalance()
+            }
+        }
+        
+        present(fundingVC, animated: true)
+    }
+    
+    func didTapViewTransactions(_ view: TeamWalletBalanceView, teamId: String) {
+        print("🏗️ RunstrRewards: View transactions tapped for team \(teamId)")
+        
+        // TODO: Implement team wallet transaction history view
+        let alert = UIAlertController(
+            title: "Transaction History",
+            message: "Team wallet transaction history coming soon. You'll be able to see all funding, rewards, and prize distributions here.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+    
+    func didTapDistributeRewards(_ view: TeamWalletBalanceView, teamId: String) {
+        print("🏗️ RunstrRewards: Distribute rewards tapped for team \(teamId)")
+        
+        // TODO: Implement reward distribution interface
+        let alert = UIAlertController(
+            title: "Distribute Rewards",
+            message: "Team reward distribution coming soon. You'll be able to send Bitcoin rewards to team members for competitions and achievements.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 }

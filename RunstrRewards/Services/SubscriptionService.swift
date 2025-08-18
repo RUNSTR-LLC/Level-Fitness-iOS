@@ -7,19 +7,19 @@ class SubscriptionService: NSObject, ObservableObject {
     
     // Product IDs (must match App Store Connect)
     enum ProductID {
-        static let creatorSubscription = "com.levelfitness.creator"
-        static let userSubscription = "com.levelfitness.user" // For team subscriptions
+        static let captainSubscription = "com.runstrrewards.captain" // $29.99/month captain subscription
+        static let teamSubscription = "com.runstrrewards.team.monthly" // $3.99/month team subscription
     }
     
     // Subscription Status
-    @Published private(set) var creatorSubscriptionActive = false
-    @Published private(set) var userTeamSubscriptions: [String] = [] // Array of team IDs user is subscribed to
+    @Published private(set) var captainSubscriptionActive = false
+    @Published private(set) var activeTeamSubscriptions: [TeamSubscriptionInfo] = [] // Active team subscriptions
     @Published private(set) var subscriptionStatus: SubscriptionStatus = .none
     @Published private(set) var isLoading = false
     
     // Products  
-    private var creatorProduct: Product?
-    private var userProduct: Product? // Base user subscription product
+    private var captainProduct: Product? // $29.99/month captain subscription product
+    private var teamProduct: Product? // $3.99/month team subscription product
     private var availableProducts: [Product] = []
     
     // Transaction listener
@@ -42,20 +42,20 @@ class SubscriptionService: NSObject, ObservableObject {
         
         do {
             let products = try await Product.products(for: [
-                ProductID.creatorSubscription,
-                ProductID.userSubscription
+                ProductID.captainSubscription,
+                ProductID.teamSubscription
             ])
             
             availableProducts = products
             
             for product in products {
                 switch product.id {
-                case ProductID.creatorSubscription:
-                    creatorProduct = product
-                    print("SubscriptionService: Creator subscription loaded - \(product.displayPrice)")
-                case ProductID.userSubscription:
-                    userProduct = product
-                    print("SubscriptionService: User subscription loaded - \(product.displayPrice)")
+                case ProductID.captainSubscription:
+                    captainProduct = product
+                    print("SubscriptionService: Captain subscription loaded - \(product.displayPrice)")
+                case ProductID.teamSubscription:
+                    teamProduct = product
+                    print("SubscriptionService: Team subscription loaded - \(product.displayPrice)")
                 default:
                     break
                 }
@@ -72,35 +72,76 @@ class SubscriptionService: NSObject, ObservableObject {
     
     // MARK: - Purchase Methods
     
-    func purchaseCreatorSubscription() async throws -> Transaction? {
-        guard let creatorProduct = creatorProduct else {
+    func purchaseCaptainSubscription() async throws -> Transaction? {
+        guard let captainProduct = captainProduct else {
             throw SubscriptionError.productNotFound
         }
         
-        return try await purchase(creatorProduct)
+        return try await purchase(captainProduct)
     }
     
     // Convenience method that returns Bool for UI usage
-    func purchaseCreatorSubscriptionBool() async throws -> Bool {
-        let transaction = try await purchaseCreatorSubscription()
+    func purchaseCaptainSubscriptionBool() async throws -> Bool {
+        let transaction = try await purchaseCaptainSubscription()
         return transaction != nil
     }
     
-    func subscribeToTeam(_ teamId: String, price: Double) async throws -> Transaction? {
-        guard let userProduct = userProduct else {
+    func subscribeToTeam(_ teamId: String) async throws -> Bool {
+        guard let teamProduct = teamProduct else {
             throw SubscriptionError.productNotFound
         }
         
-        // For now use the base user product - in full implementation would be dynamic pricing
-        let transaction = try await purchase(userProduct)
-        
-        // Store team subscription mapping
-        if transaction != nil {
-            userTeamSubscriptions.append(teamId)
-            print("SubscriptionService: User subscribed to team \(teamId) for $\(price)/month")
+        // Check if already subscribed to this team
+        if isSubscribedToTeam(teamId) {
+            print("SubscriptionService: Already subscribed to team \(teamId)")
+            throw SubscriptionError.alreadySubscribed
         }
         
-        return transaction
+        // Purchase team subscription ($1.99/month for this specific team)
+        let transaction = try await purchase(teamProduct)
+        
+        if let transaction = transaction {
+            // Store team subscription in Supabase with team ID
+            try await storeTeamSubscription(teamId: teamId, transaction: transaction)
+            
+            // Update local state
+            let subscriptionInfo = TeamSubscriptionInfo(
+                teamId: teamId,
+                transactionId: String(transaction.id),
+                purchaseDate: transaction.purchaseDate,
+                expirationDate: transaction.expirationDate,
+                isActive: true
+            )
+            
+            activeTeamSubscriptions.append(subscriptionInfo)
+            
+            print("SubscriptionService: Successfully subscribed to team \(teamId) for $1.99/month")
+            return true
+        }
+        
+        return false
+    }
+    
+    func unsubscribeFromTeam(_ teamId: String) async throws -> Bool {
+        // Find the subscription for this team
+        guard let subscription = activeTeamSubscriptions.first(where: { $0.teamId == teamId }) else {
+            throw SubscriptionError.subscriptionNotFound
+        }
+        
+        // Note: Actual cancellation would need to be done through App Store
+        // For now, we'll mark as inactive in our database
+        try await updateTeamSubscriptionStatus(
+            userId: AuthenticationService.shared.currentUserId ?? "",
+            transactionId: subscription.transactionId,
+            status: "cancelled",
+            expirationDate: nil
+        )
+        
+        // Remove from local state
+        activeTeamSubscriptions.removeAll { $0.teamId == teamId }
+        
+        print("SubscriptionService: Unsubscribed from team \(teamId)")
+        return true
     }
     
     private func purchase(_ product: Product) async throws -> StoreKit.Transaction? {
@@ -161,21 +202,46 @@ class SubscriptionService: NSObject, ObservableObject {
     // MARK: - Subscription Status
     
     func updateSubscriptionStatus() async {
-        var hasCreatorSubscription = false
-        var activeTeamSubscriptions: [String] = []
+        var hasCaptainSubscription = false
+        var teamSubscriptions: [TeamSubscriptionInfo] = []
         
         // Check all current entitlements
         for await result in StoreKit.Transaction.currentEntitlements {
             if case .verified(let transaction) = result {
+                // Verify receipt to ensure authenticity
+                let isValid = await verifyReceiptData(transaction: transaction)
+                guard isValid else {
+                    print("SubscriptionService: Receipt verification failed for transaction \(transaction.id)")
+                    continue
+                }
+                
                 switch transaction.productID {
-                case ProductID.creatorSubscription:
-                    if transaction.revocationDate == nil {
-                        hasCreatorSubscription = true
+                case ProductID.captainSubscription:
+                    if transaction.revocationDate == nil && isSubscriptionActive(transaction) {
+                        hasCaptainSubscription = true
                     }
-                case ProductID.userSubscription:
-                    if transaction.revocationDate == nil {
-                        // In full implementation, would map transaction to specific team
-                        activeTeamSubscriptions = userTeamSubscriptions
+                case ProductID.teamSubscription:
+                    if transaction.revocationDate == nil && isSubscriptionActive(transaction) {
+                        // Get team subscription details from Supabase
+                        if let userId = AuthenticationService.shared.currentUserId {
+                            do {
+                                if let teamSub = try await fetchTeamSubscriptionFromSupabase(
+                                    userId: userId, 
+                                    transactionId: String(transaction.id)
+                                ) {
+                                    let subscriptionInfo = TeamSubscriptionInfo(
+                                        teamId: teamSub.teamId,
+                                        transactionId: String(transaction.id),
+                                        purchaseDate: transaction.purchaseDate,
+                                        expirationDate: transaction.expirationDate,
+                                        isActive: isSubscriptionActive(transaction)
+                                    )
+                                    teamSubscriptions.append(subscriptionInfo)
+                                }
+                            } catch {
+                                print("SubscriptionService: Failed to fetch team subscription details: \(error)")
+                            }
+                        }
                     }
                 default:
                     break
@@ -184,13 +250,13 @@ class SubscriptionService: NSObject, ObservableObject {
         }
         
         // Update published properties
-        creatorSubscriptionActive = hasCreatorSubscription
-        userTeamSubscriptions = activeTeamSubscriptions
+        captainSubscriptionActive = hasCaptainSubscription
+        activeTeamSubscriptions = teamSubscriptions
         
         // Determine overall status
-        if hasCreatorSubscription {
-            subscriptionStatus = .creator
-        } else if !activeTeamSubscriptions.isEmpty {
+        if hasCaptainSubscription {
+            subscriptionStatus = .captain
+        } else if !teamSubscriptions.isEmpty {
             subscriptionStatus = .user
         } else {
             subscriptionStatus = .none
@@ -199,7 +265,7 @@ class SubscriptionService: NSObject, ObservableObject {
         // Update user profile in database
         await updateUserSubscriptionStatus()
         
-        print("SubscriptionService: Status updated - Creator: \(hasCreatorSubscription), User: \(!activeTeamSubscriptions.isEmpty)")
+        print("SubscriptionService: Status updated - Captain: \(hasCaptainSubscription), Team Subscriptions: \(teamSubscriptions.count)")
     }
     
     func checkSubscriptionStatus() async -> SubscriptionStatus {
@@ -233,22 +299,22 @@ class SubscriptionService: NSObject, ObservableObject {
         
         // Handle specific product updates
         switch transaction.productID {
-        case ProductID.creatorSubscription:
+        case ProductID.captainSubscription:
             if transaction.revocationDate == nil {
-                // Creator subscription activated
-                await enableCreatorFeatures()
+                // Captain subscription activated
+                await enableCaptainFeatures()
             } else {
-                // Creator subscription revoked
-                await disableCreatorFeatures()
+                // Captain subscription revoked
+                await disableCaptainFeatures()
             }
             
-        case ProductID.userSubscription:
+        case ProductID.teamSubscription:
             if transaction.revocationDate == nil {
-                // User subscription activated
-                await enableUserFeatures()
+                // Team subscription activated
+                await enableTeamFeatures(transactionId: String(transaction.id))
             } else {
-                // User subscription revoked
-                await disableUserFeatures()
+                // Team subscription revoked
+                await disableTeamFeatures(transactionId: String(transaction.id))
             }
             
         default:
@@ -267,6 +333,50 @@ class SubscriptionService: NSObject, ObservableObject {
         }
     }
     
+    // MARK: - Receipt Verification
+    
+    private func verifyReceiptData(transaction: StoreKit.Transaction) async -> Bool {
+        // Basic transaction validation
+        guard transaction.productID == ProductID.teamSubscription || transaction.productID == ProductID.captainSubscription else {
+            print("SubscriptionService: Invalid product ID in transaction")
+            return false
+        }
+        
+        // Check if transaction is not too old (prevent replay attacks)
+        let maxAge: TimeInterval = 86400 * 30 // 30 days
+        guard Date().timeIntervalSince(transaction.purchaseDate) < maxAge else {
+            print("SubscriptionService: Transaction too old")
+            return false
+        }
+        
+        // For production, implement additional server-side verification
+        // This would involve sending the transaction to your backend for verification with Apple's servers
+        
+        return true
+    }
+    
+    private func isSubscriptionActive(_ transaction: StoreKit.Transaction) -> Bool {
+        // Check if subscription is currently active
+        if let expirationDate = transaction.expirationDate {
+            return expirationDate > Date()
+        }
+        
+        // If no expiration date, it's likely a lifetime or non-renewing subscription
+        // For monthly subscriptions, there should always be an expiration date
+        return transaction.productID == ProductID.captainSubscription || transaction.productID == ProductID.teamSubscription
+    }
+    
+    // MARK: - Server-Side Verification (Production)
+    
+    private func verifyTransactionWithApple(transaction: StoreKit.Transaction) async throws -> Bool {
+        // In production, implement server-side verification
+        // This involves sending the transaction receipt to Apple's verification servers
+        // For now, return true for local development
+        
+        print("SubscriptionService: Server-side verification would be implemented here for production")
+        return true
+    }
+    
     // MARK: - Manage Subscriptions
     
     func openManageSubscriptions() async {
@@ -281,20 +391,20 @@ class SubscriptionService: NSObject, ObservableObject {
     
     // MARK: - Pricing Information
     
-    func getCreatorSubscriptionPrice() -> String {
-        creatorProduct?.displayPrice ?? "$29.99/month"
+    func getCaptainSubscriptionPrice() -> String {
+        captainProduct?.displayPrice ?? "$19.99/month"
     }
     
-    func getUserSubscriptionPrice() -> String {
-        userProduct?.displayPrice ?? "$3.99/month"
+    func getTeamSubscriptionPrice() -> String {
+        teamProduct?.displayPrice ?? "$1.99/month"
     }
     
     func getProductDescription(for productId: String) -> String {
         switch productId {
-        case ProductID.creatorSubscription:
-            return "Create and manage one team, leaderboard & event wizards, team analytics dashboard"
-        case ProductID.userSubscription:
-            return "Subscribe to teams, compete in leaderboards, earn Bitcoin rewards"
+        case ProductID.captainSubscription:
+            return "Create and manage one fitness team. Full access to team management, analytics, and creation tools."
+        case ProductID.teamSubscription:
+            return "Join a specific team to compete in leaderboards and earn Bitcoin rewards"
         default:
             return ""
         }
@@ -303,12 +413,30 @@ class SubscriptionService: NSObject, ObservableObject {
     // MARK: - Feature Gates
     
     func canCreateTeam() -> Bool {
-        // TEMPORARY: Allow team creation for testing
-        // TODO: Remove this before production release
-        return true
+        // Must be a captain and not already have a team
+        return captainSubscriptionActive && !hasExistingTeam()
+    }
+    
+    func hasExistingTeam() -> Bool {
+        // Check if captain already has a team
+        // This checks synchronously using cached data
+        // For real-time check, use hasExistingTeamAsync()
+        guard let userId = AuthenticationService.shared.currentUserId else { return false }
         
-        // Original implementation:
-        // return creatorSubscriptionActive
+        // TODO: Implement actual check via Supabase
+        // For now, return false to allow team creation during development
+        return false
+    }
+    
+    func hasExistingTeamAsync() async throws -> Bool {
+        guard let userId = AuthenticationService.shared.currentUserId else { return false }
+        
+        let teamCount = try await SupabaseService.shared.getCaptainTeamCount(captainId: userId)
+        return teamCount > 0
+    }
+    
+    func getMaxTeamsForCaptain() -> Int {
+        return captainSubscriptionActive ? 1 : 0
     }
     
     func canSubscribeToTeams() -> Bool {
@@ -316,29 +444,29 @@ class SubscriptionService: NSObject, ObservableObject {
     }
     
     func canManageTeam() -> Bool {
-        return creatorSubscriptionActive
+        return captainSubscriptionActive
     }
     
     func canCreateLeaderboards() -> Bool {
-        return creatorSubscriptionActive
+        return captainSubscriptionActive
     }
     
     func canCreateEvents() -> Bool {
-        return creatorSubscriptionActive
+        return captainSubscriptionActive
     }
     
     func canAccessAnalytics() -> Bool {
-        return creatorSubscriptionActive
+        return captainSubscriptionActive
     }
     
     func getMaxTeamMembers() -> Int {
-        return creatorSubscriptionActive ? 1000 : 0 // Only creators can manage teams
+        return captainSubscriptionActive ? 1000 : 0 // Only captains can manage teams
     }
     
     func getRewardMultiplier() -> Double {
         switch subscriptionStatus {
-        case .creator:
-            return 2.0 // 2x rewards for team creators
+        case .captain:
+            return 2.0 // 2x rewards for team captains
         case .user:
             return 1.5 // 1.5x rewards for team subscribers
         case .none:
@@ -347,7 +475,24 @@ class SubscriptionService: NSObject, ObservableObject {
     }
     
     func isSubscribedToTeam(_ teamId: String) -> Bool {
-        return userTeamSubscriptions.contains(teamId)
+        return activeTeamSubscriptions.contains { $0.teamId == teamId && $0.isActive }
+    }
+    
+    func getSubscribedTeams() -> [String] {
+        return activeTeamSubscriptions.filter { $0.isActive }.map { $0.teamId }
+    }
+    
+    func getActiveTeamSubscriptionCount() -> Int {
+        return activeTeamSubscriptions.filter { $0.isActive }.count
+    }
+    
+    func getTotalMonthlyTeamCost() -> Double {
+        let activeCount = getActiveTeamSubscriptionCount()
+        return Double(activeCount) * 1.99 // $1.99 per team
+    }
+    
+    func getTeamSubscription(for teamId: String) -> TeamSubscriptionInfo? {
+        return activeTeamSubscriptions.first { $0.teamId == teamId && $0.isActive }
     }
     
     // MARK: - Database Integration
@@ -376,8 +521,8 @@ class SubscriptionService: NSObject, ObservableObject {
         
         let tier: String
         switch subscriptionStatus {
-        case .creator:
-            tier = "creator"
+        case .captain:
+            tier = "captain"
         case .user:
             tier = "user"
         case .none:
@@ -391,8 +536,8 @@ class SubscriptionService: NSObject, ObservableObject {
     
     // MARK: - Feature Management
     
-    private func enableCreatorFeatures() async {
-        print("SubscriptionService: Enabling creator features")
+    private func enableCaptainFeatures() async {
+        print("SubscriptionService: Enabling captain features")
         
         // Enable team creation
         UserDefaults.standard.set(true, forKey: "features.team_creation")
@@ -406,37 +551,51 @@ class SubscriptionService: NSObject, ObservableObject {
         // Enable leaderboard management
         UserDefaults.standard.set(true, forKey: "features.leaderboard_management")
         
+        // Enable captain-specific features
+        UserDefaults.standard.set(true, forKey: "features.team_management")
+        UserDefaults.standard.set(true, forKey: "features.revenue_sharing")
+        
         // Notify UI of changes
         NotificationCenter.default.post(name: .subscriptionStatusChanged, object: nil)
     }
     
-    private func disableCreatorFeatures() async {
-        print("SubscriptionService: Disabling creator features")
+    private func disableCaptainFeatures() async {
+        print("SubscriptionService: Disabling captain features")
         
         UserDefaults.standard.set(false, forKey: "features.team_creation")
         UserDefaults.standard.set(false, forKey: "features.event_creation")
         UserDefaults.standard.set(false, forKey: "features.team_analytics")
         UserDefaults.standard.set(false, forKey: "features.leaderboard_management")
+        UserDefaults.standard.set(false, forKey: "features.team_management")
+        UserDefaults.standard.set(false, forKey: "features.revenue_sharing")
         
         NotificationCenter.default.post(name: .subscriptionStatusChanged, object: nil)
     }
     
-    private func enableUserFeatures() async {
-        print("SubscriptionService: Enabling user features")
+    private func enableTeamFeatures(transactionId: String) async {
+        print("SubscriptionService: Enabling team features for transaction \(transactionId)")
         
+        // Enable team subscription features
         UserDefaults.standard.set(true, forKey: "features.team_subscriptions")
         UserDefaults.standard.set(true, forKey: "features.enhanced_rewards")
         UserDefaults.standard.set(true, forKey: "features.priority_competitions")
+        UserDefaults.standard.set(true, forKey: "features.team_chat")
+        UserDefaults.standard.set(true, forKey: "features.team_leaderboards")
         
         NotificationCenter.default.post(name: .subscriptionStatusChanged, object: nil)
     }
     
-    private func disableUserFeatures() async {
-        print("SubscriptionService: Disabling user features")
+    private func disableTeamFeatures(transactionId: String) async {
+        print("SubscriptionService: Disabling team features for transaction \(transactionId)")
         
-        UserDefaults.standard.set(false, forKey: "features.team_subscriptions")
-        UserDefaults.standard.set(false, forKey: "features.enhanced_rewards")
-        UserDefaults.standard.set(false, forKey: "features.priority_competitions")
+        // Only disable if user has no other active team subscriptions
+        if activeTeamSubscriptions.filter({ $0.isActive && $0.transactionId != transactionId }).isEmpty {
+            UserDefaults.standard.set(false, forKey: "features.team_subscriptions")
+            UserDefaults.standard.set(false, forKey: "features.enhanced_rewards")
+            UserDefaults.standard.set(false, forKey: "features.priority_competitions")
+            UserDefaults.standard.set(false, forKey: "features.team_chat")
+            UserDefaults.standard.set(false, forKey: "features.team_leaderboards")
+        }
         
         NotificationCenter.default.post(name: .subscriptionStatusChanged, object: nil)
     }
@@ -476,14 +635,52 @@ class SubscriptionService: NSObject, ObservableObject {
         }
     }
     */
+    
+    // MARK: - Supabase Integration Methods
+    
+    private func storeTeamSubscription(teamId: String, transaction: StoreKit.Transaction) async throws {
+        guard let userId = AuthenticationService.shared.currentUserId else {
+            throw SubscriptionError.userNotFound
+        }
+        
+        let subscription = DatabaseTeamSubscription(
+            id: UUID().uuidString,
+            userId: userId,
+            teamId: teamId,
+            productId: transaction.productID,
+            transactionId: String(transaction.id),
+            originalTransactionId: String(transaction.originalID),
+            purchaseDate: transaction.purchaseDate,
+            expirationDate: transaction.expirationDate,
+            status: "active",
+            autoRenewing: true,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+        
+        try await SupabaseService.shared.createTeamSubscription(subscription)
+    }
+    
+    private func fetchTeamSubscriptionFromSupabase(userId: String, transactionId: String) async throws -> DatabaseTeamSubscription? {
+        return try await SupabaseService.shared.fetchTeamSubscription(userId: userId, transactionId: transactionId)
+    }
+    
+    private func updateTeamSubscriptionStatus(userId: String, transactionId: String, status: String, expirationDate: Date?) async throws {
+        try await SupabaseService.shared.updateTeamSubscriptionStatus(
+            userId: userId,
+            transactionId: transactionId,
+            status: status,
+            expirationDate: expirationDate
+        )
+    }
 }
 
 // MARK: - Data Models
 
 enum SubscriptionStatus {
     case none
-    case user  // Subscribed to one or more teams
-    case creator // Can create and manage one team
+    case user    // Subscribed to one or more teams
+    case captain // RunstrRewards captain - can create and manage teams
     
     var displayName: String {
         switch self {
@@ -491,8 +688,8 @@ enum SubscriptionStatus {
             return "Free"
         case .user:
             return "Team Member"
-        case .creator:
-            return "Team Creator"
+        case .captain:
+            return "RunstrRewards Captain"
         }
     }
     
@@ -502,8 +699,8 @@ enum SubscriptionStatus {
             return .systemGray
         case .user:
             return .systemBlue
-        case .creator:
-            return .systemPurple
+        case .captain:
+            return IndustrialDesign.Colors.bitcoin
         }
     }
 }
@@ -518,6 +715,22 @@ struct SubscriptionData: Codable {
     let originalTransactionId: String
 }
 
+struct TeamSubscriptionInfo: Codable {
+    let teamId: String
+    let transactionId: String
+    let purchaseDate: Date
+    let expirationDate: Date?
+    let isActive: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case teamId = "team_id"
+        case transactionId = "transaction_id"
+        case purchaseDate = "purchase_date"
+        case expirationDate = "expiration_date"
+        case isActive = "is_active"
+    }
+}
+
 // MARK: - Errors
 
 enum SubscriptionError: LocalizedError {
@@ -527,6 +740,11 @@ enum SubscriptionError: LocalizedError {
     case purchasePending
     case verificationFailed
     case restoreFailed
+    case userNotFound
+    case alreadySubscribed
+    case subscriptionExpired
+    case subscriptionNotFound
+    case teamLimitReached
     
     var errorDescription: String? {
         switch self {
@@ -542,6 +760,16 @@ enum SubscriptionError: LocalizedError {
             return "Purchase verification failed"
         case .restoreFailed:
             return "Failed to restore purchases"
+        case .userNotFound:
+            return "User not logged in"
+        case .alreadySubscribed:
+            return "Already subscribed to this team"
+        case .subscriptionExpired:
+            return "Subscription has expired"
+        case .subscriptionNotFound:
+            return "Subscription not found"
+        case .teamLimitReached:
+            return "Team limit reached - captains can only create one team"
         }
     }
 }

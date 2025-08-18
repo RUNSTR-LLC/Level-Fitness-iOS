@@ -418,6 +418,22 @@ class TeamCreationWizardViewController: UIViewController {
         
         Task {
             do {
+                // Check captain subscription status
+                let subscriptionStatus = await SubscriptionService.shared.checkSubscriptionStatus()
+                guard subscriptionStatus == .captain else {
+                    throw NSError(domain: "TeamCreation", code: 1004, userInfo: [
+                        NSLocalizedDescriptionKey: "Captain subscription required to create teams"
+                    ])
+                }
+                
+                // Check if captain already has a team
+                let hasExistingTeam = try await SubscriptionService.shared.hasExistingTeamAsync()
+                if hasExistingTeam {
+                    throw NSError(domain: "TeamCreation", code: 1005, userInfo: [
+                        NSLocalizedDescriptionKey: "You can only create one team per captain subscription"
+                    ])
+                }
+                
                 // Show loading state
                 await MainActor.run {
                     nextButton.isEnabled = false
@@ -470,22 +486,50 @@ class TeamCreationWizardViewController: UIViewController {
                 )
                 let team = try await SupabaseService.shared.createTeam(newTeam)
                 
-                await MainActor.run {
-                    print("🧙‍♂️ TeamCreationWizard: Team created successfully with ID: \(team.id)")
-                    
-                    // Show success and dismiss
-                    let successAlert = UIAlertController(
-                        title: "Team Created Successfully! 🎉",
-                        message: "Your team '\(teamData.teamName)' is now live. Start sharing your QR code to get members!",
-                        preferredStyle: .alert
+                print("🧙‍♂️ TeamCreationWizard: Team created successfully with ID: \(team.id)")
+                
+                // Automatically create team wallet for the new team
+                do {
+                    let teamWallet = try await TeamWalletManager.shared.createTeamWallet(
+                        for: team.id,
+                        captainId: userSession.id
                     )
+                    print("🧙‍♂️ TeamCreationWizard: Team wallet created successfully with ID: \(teamWallet.id)")
                     
-                    successAlert.addAction(UIAlertAction(title: "Done", style: .default) { _ in
-                        self.onCompletion?(true)
-                        self.dismiss(animated: true)
-                    })
+                    await MainActor.run {
+                        // Show success and dismiss
+                        let successAlert = UIAlertController(
+                            title: "Team Created Successfully! 🎉",
+                            message: "Your team '\(teamData.teamName)' is now live with a Bitcoin wallet! Start sharing your QR code to get members and fund your team's prize pool.",
+                            preferredStyle: .alert
+                        )
+                        
+                        successAlert.addAction(UIAlertAction(title: "Done", style: .default) { _ in
+                            self.onCompletion?(true)
+                            self.dismiss(animated: true)
+                        })
+                        
+                        self.present(successAlert, animated: true)
+                    }
                     
-                    self.present(successAlert, animated: true)
+                } catch {
+                    print("🧙‍♂️ TeamCreationWizard: Failed to create team wallet: \(error)")
+                    
+                    await MainActor.run {
+                        // Team was created but wallet failed - still show success but with warning
+                        let warningAlert = UIAlertController(
+                            title: "Team Created! ⚠️",
+                            message: "Your team '\(teamData.teamName)' was created, but there was an issue setting up the Bitcoin wallet. You can set this up later in team settings.",
+                            preferredStyle: .alert
+                        )
+                        
+                        warningAlert.addAction(UIAlertAction(title: "Done", style: .default) { _ in
+                            self.onCompletion?(true)
+                            self.dismiss(animated: true)
+                        })
+                        
+                        self.present(warningAlert, animated: true)
+                    }
                 }
                 
             } catch {

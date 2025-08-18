@@ -222,7 +222,66 @@ class AuthenticationService: NSObject {
             saveProfileImageToDocuments(profileImage)
         }
         
-        print("AuthenticationService: Profile data saved for user: \(profile.username)")
+        print("AuthenticationService: Profile data saved locally for user: \(profile.username)")
+        
+        // Sync profile data to Supabase
+        Task {
+            await syncProfileToSupabase(profile)
+        }
+    }
+    
+    private func syncProfileToSupabase(_ profile: UserProfileData) async {
+        guard let currentSession = loadSession() else {
+            print("AuthenticationService: No session found, cannot sync profile to Supabase")
+            return
+        }
+        
+        do {
+            // Use profile.username as both username and fullName for now
+            // This ensures team members display properly with the name the user provided
+            try await SupabaseService.shared.syncLocalProfileToSupabase(
+                userId: currentSession.id,
+                username: profile.username,
+                fullName: profile.username
+            )
+            print("AuthenticationService: Profile synced to Supabase successfully")
+        } catch {
+            print("AuthenticationService: Error syncing profile to Supabase: \(error)")
+            // Don't throw error - local save should still succeed even if remote sync fails
+        }
+    }
+    
+    func migrateProfileToSupabaseIfNeeded() async {
+        guard let profileData = loadProfileData(),
+              let currentSession = loadSession() else {
+            print("AuthenticationService: No profile data or session found for migration")
+            return
+        }
+        
+        // Check if we've already migrated this user's profile
+        let migrationKey = "profile_migrated_\(currentSession.id)"
+        if UserDefaults.standard.bool(forKey: migrationKey) {
+            print("AuthenticationService: Profile already migrated for user \(currentSession.id)")
+            return
+        }
+        
+        print("AuthenticationService: Starting profile migration for user \(currentSession.id)")
+        
+        do {
+            // Sync the local profile data to Supabase
+            try await SupabaseService.shared.syncLocalProfileToSupabase(
+                userId: currentSession.id,
+                username: profileData.username,
+                fullName: profileData.username
+            )
+            
+            // Mark as migrated
+            UserDefaults.standard.set(true, forKey: migrationKey)
+            print("AuthenticationService: Profile migration completed successfully")
+        } catch {
+            print("AuthenticationService: Profile migration failed: \(error)")
+            // Don't mark as migrated if it failed - we'll try again next time
+        }
     }
     
     func loadProfileData() -> UserProfileData? {

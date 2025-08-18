@@ -258,9 +258,11 @@ class SettingsViewController: UIViewController {
             
             usernameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 16),
             usernameLabel.topAnchor.constraint(equalTo: profileCard.topAnchor, constant: 20),
+            usernameLabel.trailingAnchor.constraint(lessThanOrEqualTo: editProfileButton.leadingAnchor, constant: -12),
             
             subscriptionStatusLabel.leadingAnchor.constraint(equalTo: usernameLabel.leadingAnchor),
             subscriptionStatusLabel.topAnchor.constraint(equalTo: usernameLabel.bottomAnchor, constant: 4),
+            subscriptionStatusLabel.trailingAnchor.constraint(lessThanOrEqualTo: editProfileButton.leadingAnchor, constant: -12),
             
             editProfileButton.trailingAnchor.constraint(equalTo: profileCard.trailingAnchor, constant: -20),
             editProfileButton.centerYAnchor.constraint(equalTo: profileCard.centerYAnchor),
@@ -321,18 +323,26 @@ class SettingsViewController: UIViewController {
         // Ensure profile image is circular
         profileImageView.tintColor = IndustrialDesign.Colors.secondaryText
         
-        // Load subscription status and team captain status
+        // Load subscription status and team information
         Task {
             let subscriptionStatus = await SubscriptionService.shared.checkSubscriptionStatus()
-            let captainStatus = await checkCaptainStatus()
+            let teamCount = SubscriptionService.shared.getActiveTeamSubscriptionCount()
+            let totalMonthlyCost = SubscriptionService.shared.getTotalMonthlyTeamCost()
             
             await MainActor.run {
-                // Update subscription status with captain info
+                // Update subscription status with team info
                 let statusText: String
-                if !captainStatus.isEmpty {
-                    statusText = "\(subscriptionStatus.displayName) • Captain of \(captainStatus)"
-                } else {
-                    statusText = subscriptionStatus.displayName
+                switch subscriptionStatus {
+                case .captain:
+                    if teamCount > 0 {
+                        statusText = "Captain • \(teamCount) team subscriptions ($\(String(format: "%.2f", totalMonthlyCost + 19.99))/mo)"
+                    } else {
+                        statusText = "Captain ($19.99/mo)"
+                    }
+                case .user:
+                    statusText = "\(teamCount) team subscriptions ($\(String(format: "%.2f", totalMonthlyCost))/mo)"
+                case .none:
+                    statusText = "Free"
                 }
                 
                 subscriptionStatusLabel.text = statusText

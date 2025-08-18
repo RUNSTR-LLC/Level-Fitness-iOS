@@ -346,14 +346,16 @@ private class TeamMemberView: UIView {
         avatarView.layer.cornerRadius = 16
         avatarView.translatesAutoresizingMaskIntoConstraints = false
         
-        avatarLabel.text = getInitials(from: member.profile.username ?? member.profile.fullName ?? "?")
+        // Better fallback logic for display name and initials
+        let displayName = getDisplayName(from: member.profile)
+        avatarLabel.text = getInitials(from: displayName)
         avatarLabel.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
         avatarLabel.textColor = UIColor(red: 0.97, green: 0.58, blue: 0.10, alpha: 1.0)
         avatarLabel.textAlignment = .center
         avatarLabel.translatesAutoresizingMaskIntoConstraints = false
         
         // Username
-        usernameLabel.text = member.profile.username ?? member.profile.fullName ?? "Unknown"
+        usernameLabel.text = displayName
         usernameLabel.font = UIFont.systemFont(ofSize: 12, weight: .medium)
         usernameLabel.textColor = IndustrialDesign.Colors.primaryText
         usernameLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -429,9 +431,39 @@ private class TeamMemberView: UIView {
         }
     }
     
+    private func getDisplayName(from profile: UserProfile) -> String {
+        // Try username first
+        if let username = profile.username, !username.isEmpty {
+            return username
+        }
+        
+        // Try full name
+        if let fullName = profile.fullName, !fullName.isEmpty {
+            return fullName
+        }
+        
+        // Try email as fallback (extract username part before @)
+        if let email = profile.email, !email.isEmpty {
+            let emailUsername = email.components(separatedBy: "@").first ?? email
+            return emailUsername
+        }
+        
+        // Last resort: use first 8 characters of user ID
+        let shortId = String(profile.id.prefix(8))
+        return "User \(shortId)"
+    }
+    
     private func getInitials(from name: String) -> String {
+        // Handle user ID format (User xxxxxxxx)
+        if name.hasPrefix("User ") {
+            return "U" + String(name.dropFirst(5).prefix(1))
+        }
+        
         let words = name.components(separatedBy: .whitespacesAndNewlines)
         let initials = words.compactMap { $0.first }.map { String($0).uppercased() }
-        return String(initials.prefix(2).joined())
+        let result = String(initials.prefix(2).joined())
+        
+        // Ensure we always return at least one character
+        return result.isEmpty ? "?" : result
     }
 }

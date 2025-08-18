@@ -48,6 +48,11 @@ class ViewController: UIViewController {
         // Load real user data
         loadRealUserStats()
         
+        // Migrate profile data if needed (one-time operation for existing users)
+        Task {
+            await AuthenticationService.shared.migrateProfileToSupabaseIfNeeded()
+        }
+        
         // Listen for team creation notifications
         NotificationCenter.default.addObserver(
             self,

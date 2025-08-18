@@ -279,7 +279,7 @@ class TeamDetailLeagueViewController: UIViewController {
             let subscriptionStatus = await SubscriptionService.shared.checkSubscriptionStatus()
             
             await MainActor.run {
-                let isCreator = (subscriptionStatus == .creator)
+                let isCreator = (subscriptionStatus == .captain)
                 managementSection.isHidden = !isCreator
                 
                 if isCreator {

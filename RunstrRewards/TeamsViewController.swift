@@ -431,11 +431,11 @@ class TeamsViewController: UIViewController {
                 let subscriptionStatus = await SubscriptionService.shared.checkSubscriptionStatus()
                 
                 await MainActor.run {
-                    if subscriptionStatus == .creator {
-                        print("🏗️ RUNSTR: Creator subscription active - launching team creation wizard")
+                    if subscriptionStatus == .captain {
+                        print("🏗️ RUNSTR: Captain subscription active - launching team creation wizard")
                         showTeamCreationWizard()
                     } else {
-                        print("🏗️ RUNSTR: Creator subscription required")
+                        print("🏗️ RUNSTR: Captain subscription required")
                         showCreatorSubscriptionPrompt()
                     }
                 }
@@ -490,7 +490,7 @@ class TeamsViewController: UIViewController {
         
         Task {
             do {
-                let success = try await SubscriptionService.shared.purchaseCreatorSubscriptionBool()
+                let success = try await SubscriptionService.shared.purchaseCaptainSubscriptionBool()
                 
                 await MainActor.run {
                     if success {

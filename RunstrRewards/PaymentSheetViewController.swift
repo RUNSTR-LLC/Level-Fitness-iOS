@@ -65,6 +65,9 @@ class PaymentSheetViewController: UIViewController {
         setupButtons()
         setupConstraints()
         
+        // Load real pricing from StoreKit
+        loadProductPricing()
+        
         print("💳 PaymentSheet: Payment sheet loaded successfully")
     }
     
@@ -329,12 +332,12 @@ class PaymentSheetViewController: UIViewController {
         
         Task {
             do {
-                let transaction = try await SubscriptionService.shared.subscribeToTeam(teamData.id, price: subscriptionPrice)
+                let success = try await SubscriptionService.shared.subscribeToTeam(teamData.id)
                 
                 await MainActor.run {
                     self.setLoadingState(false)
                     
-                    if transaction != nil {
+                    if success {
                         print("💳 PaymentSheet: Payment successful for team: \(self.teamData.name)")
                         self.showPaymentSuccess()
                     } else {
@@ -401,6 +404,14 @@ class PaymentSheetViewController: UIViewController {
         })
         
         present(alert, animated: true)
+    }
+    
+    // MARK: - Product Pricing
+    
+    private func loadProductPricing() {
+        let realPrice = SubscriptionService.shared.getTeamSubscriptionPrice()
+        priceLabel.text = realPrice.replacingOccurrences(of: "/month", with: "")
+        billingLabel.text = "per month • Cancel anytime"
     }
 }
 

@@ -226,16 +226,25 @@ class TeamCard: UIView {
     }
     
     private func updateJoinButton() {
-        if teamData.isJoined {
-            joinButton.setTitle("JOINED", for: .normal)
-            joinButton.backgroundColor = UIColor.clear
-            joinButton.layer.borderColor = IndustrialDesign.Colors.secondaryText.cgColor
-            joinButton.setTitleColor(IndustrialDesign.Colors.secondaryText, for: .normal)
+        updateJoinButtonState()
+    }
+    
+    private func updateJoinButtonState() {
+        let isSubscribed = SubscriptionService.shared.isSubscribedToTeam(teamData.id)
+        
+        if isSubscribed {
+            joinButton.setTitle("SUBSCRIBED", for: .normal)
+            joinButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.2)
+            joinButton.layer.borderColor = UIColor.systemBlue.cgColor
+            joinButton.setTitleColor(UIColor.systemBlue, for: .normal)
+            joinButton.isEnabled = true
         } else {
-            joinButton.setTitle("SUBSCRIBE", for: .normal)
+            let price = SubscriptionService.shared.getTeamSubscriptionPrice()
+            joinButton.setTitle("SUBSCRIBE • \(price)", for: .normal)
             joinButton.backgroundColor = UIColor(red: 0.17, green: 0.17, blue: 0.17, alpha: 1.0)
             joinButton.layer.borderColor = UIColor(red: 0.27, green: 0.27, blue: 0.27, alpha: 1.0).cgColor
             joinButton.setTitleColor(IndustrialDesign.Colors.primaryText, for: .normal)
+            joinButton.isEnabled = true
         }
     }
     
@@ -310,7 +319,45 @@ class TeamCard: UIView {
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
         
-        // TODO: Implement join/leave team functionality
+        // Check if already subscribed
+        if SubscriptionService.shared.isSubscribedToTeam(teamData.id) {
+            print("Already subscribed to team \(teamData.name)")
+            return
+        }
+        
+        // Present payment sheet for team subscription
+        presentPaymentSheet()
+    }
+    
+    private func presentPaymentSheet() {
+        guard let parentViewController = findParentViewController() else {
+            print("Could not find parent view controller")
+            return
+        }
+        
+        let paymentSheet = PaymentSheetViewController(teamData: teamData)
+        paymentSheet.onCompletion = { [weak self] success in
+            if success {
+                print("✅ Team subscription successful for \(self?.teamData.name ?? "unknown")")
+                // Refresh the subscription status
+                self?.updateJoinButtonState()
+            } else {
+                print("❌ Team subscription cancelled or failed")
+            }
+        }
+        
+        parentViewController.present(paymentSheet, animated: true)
+    }
+    
+    private func findParentViewController() -> UIViewController? {
+        var responder: UIResponder? = self
+        while responder != nil {
+            responder = responder?.next
+            if let viewController = responder as? UIViewController {
+                return viewController
+            }
+        }
+        return nil
     }
     
     private func animateTap() {

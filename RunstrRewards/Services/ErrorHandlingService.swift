@@ -11,6 +11,7 @@ enum AppError: LocalizedError, Equatable, CustomStringConvertible {
     case syncFailed(String)
     case walletError(String)
     case unknownError(String)
+    case teamLimitReached
     
     var errorDescription: String? {
         switch self {
@@ -28,6 +29,8 @@ enum AppError: LocalizedError, Equatable, CustomStringConvertible {
             return "Wallet error: \(details)"
         case .unknownError(let details):
             return "An unexpected error occurred: \(details)"
+        case .teamLimitReached:
+            return "Team limit reached. Captains can only create one team."
         }
     }
     
@@ -47,6 +50,8 @@ enum AppError: LocalizedError, Equatable, CustomStringConvertible {
             return "Check your Lightning wallet connection in Settings."
         case .unknownError:
             return "If this continues, please contact support."
+        case .teamLimitReached:
+            return "Each captain subscription allows creating one team. Manage your existing team instead."
         }
     }
     
@@ -75,6 +80,8 @@ enum AppError: LocalizedError, Equatable, CustomStringConvertible {
             return "walletError(\(details))"
         case .unknownError(let details):
             return "unknownError(\(details))"
+        case .teamLimitReached:
+            return "teamLimitReached"
         }
     }
 }

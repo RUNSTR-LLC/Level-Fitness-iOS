@@ -392,6 +392,146 @@ class CoinOSService {
             timestamp: Date()
         )
     }
+    
+    // MARK: - Team Wallet Operations
+    
+    func createTeamWallet(for teamId: String) async throws -> LightningWallet {
+        // Generate unique CoinOS credentials for team wallet
+        let timestamp = String(Int(Date().timeIntervalSince1970)).suffix(8)
+        let randomSuffix = Int.random(in: 1000...9999)
+        let cleanTeamId = teamId.replacingOccurrences(of: "-", with: "").prefix(6)
+        let username = "team\(cleanTeamId)\(timestamp)\(randomSuffix)"
+        let password = generateSecurePassword()
+        
+        print("CoinOSService: Creating team wallet for team \(teamId) with username \(username)")
+        
+        do {
+            // Register new team wallet with CoinOS
+            let authResponse = try await registerUser(username: username, password: password)
+            
+            // Get wallet details
+            let userInfo = try await getCurrentUser()
+            
+            let wallet = LightningWallet(
+                id: authResponse.userId ?? UUID().uuidString,
+                userId: teamId, // Using teamId as the identifier
+                provider: "coinos",
+                balance: userInfo?.balance ?? 0,
+                address: username,
+                createdAt: Date()
+            )
+            
+            print("CoinOSService: Successfully created team wallet for team \(teamId)")
+            return wallet
+            
+        } catch {
+            print("CoinOSService: Failed to create team wallet for team \(teamId): \(error)")
+            throw CoinOSError.walletCreationFailed
+        }
+    }
+    
+    func authenticateWithTeamWallet(username: String, password: String) async throws {
+        print("CoinOSService: Authenticating with team wallet \(username)")
+        
+        do {
+            let authResponse = try await loginUser(username: username, password: password)
+            setAuthToken(authResponse.token)
+            print("CoinOSService: Successfully authenticated with team wallet")
+        } catch {
+            print("CoinOSService: Failed to authenticate with team wallet: \(error)")
+            throw error
+        }
+    }
+    
+    func switchToTeamWalletContext(teamId: String, credentials: TeamWalletCredentials) async throws {
+        print("CoinOSService: Switching to team wallet context for team \(teamId)")
+        
+        try await authenticateWithTeamWallet(username: credentials.username, password: credentials.password)
+    }
+    
+    func switchToUserWalletContext(userId: String) async throws {
+        print("CoinOSService: Switching back to user wallet context for user \(userId)")
+        
+        // Clear current team wallet token
+        clearAuthToken()
+        
+        // Load user's wallet credentials
+        if let username = KeychainService.shared.load(for: .coinOSUsername),
+           let password = KeychainService.shared.load(for: .coinOSPassword) {
+            try await authenticateWithTeamWallet(username: username, password: password)
+        } else {
+            throw CoinOSError.notAuthenticated
+        }
+    }
+    
+    func transferFromTeamToUser(
+        fromTeamId: String,
+        fromCredentials: TeamWalletCredentials,
+        toUserId: String,
+        amount: Int,
+        memo: String
+    ) async throws -> PaymentResult {
+        print("CoinOSService: Transferring \(amount) sats from team \(fromTeamId) to user \(toUserId)")
+        
+        // Step 1: Switch to user context to create invoice
+        try await switchToUserWalletContext(userId: toUserId)
+        let userInvoice = try await addInvoice(amount: amount, memo: memo)
+        
+        // Step 2: Switch to team wallet context to pay invoice
+        try await switchToTeamWalletContext(teamId: fromTeamId, credentials: fromCredentials)
+        let paymentResult = try await payInvoice(userInvoice.paymentRequest)
+        
+        print("CoinOSService: Transfer \(paymentResult.success ? "successful" : "failed")")
+        return paymentResult
+    }
+    
+    func getTeamWalletBalance(teamId: String, credentials: TeamWalletCredentials) async throws -> WalletBalance {
+        print("CoinOSService: Getting team wallet balance for team \(teamId)")
+        
+        // Switch to team wallet context
+        try await switchToTeamWalletContext(teamId: teamId, credentials: credentials)
+        
+        // Get balance
+        let balance = try await getBalance()
+        
+        print("CoinOSService: Team wallet balance: \(balance.total) sats")
+        return balance
+    }
+    
+    func createTeamFundingInvoice(
+        teamId: String,
+        credentials: TeamWalletCredentials,
+        amount: Int,
+        memo: String
+    ) async throws -> LightningInvoice {
+        print("CoinOSService: Creating funding invoice for team \(teamId), amount: \(amount) sats")
+        
+        // Switch to team wallet context
+        try await switchToTeamWalletContext(teamId: teamId, credentials: credentials)
+        
+        // Create funding invoice
+        let invoice = try await addInvoice(amount: amount, memo: "Team funding: \(memo)")
+        
+        print("CoinOSService: Created funding invoice for team \(teamId)")
+        return invoice
+    }
+    
+    func getTeamWalletTransactions(
+        teamId: String,
+        credentials: TeamWalletCredentials,
+        limit: Int = 50
+    ) async throws -> [CoinOSTransaction] {
+        print("CoinOSService: Getting team wallet transactions for team \(teamId)")
+        
+        // Switch to team wallet context
+        try await switchToTeamWalletContext(teamId: teamId, credentials: credentials)
+        
+        // Get transactions
+        let transactions = try await listTransactions(limit: limit)
+        
+        print("CoinOSService: Retrieved \(transactions.count) team wallet transactions")
+        return transactions
+    }
 }
 
 // MARK: - Data Models
@@ -503,6 +643,12 @@ struct CoinOSTransaction: Codable {
     let confirmed: Bool
     let createdAt: Date
     let hash: String
+}
+
+struct TeamWalletCredentials {
+    let username: String
+    let password: String
+    let token: String
 }
 
 private struct CoinOSPaymentData: Codable {

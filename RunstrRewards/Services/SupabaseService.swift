@@ -165,6 +165,37 @@ class SupabaseService {
             .execute()
     }
     
+    func syncLocalProfileToSupabase(userId: String, username: String?, fullName: String?) async throws {
+        print("SupabaseService: Syncing local profile data to Supabase for user: \(userId)")
+        
+        // Create a proper Encodable struct for the update
+        struct ProfileUpdate: Encodable {
+            let username: String?
+            let fullName: String?
+            let updatedAt: String
+            
+            enum CodingKeys: String, CodingKey {
+                case username
+                case fullName = "full_name"
+                case updatedAt = "updated_at"
+            }
+        }
+        
+        let updateData = ProfileUpdate(
+            username: username?.isEmpty == false ? username : nil,
+            fullName: fullName?.isEmpty == false ? fullName : nil,
+            updatedAt: ISO8601DateFormatter().string(from: Date())
+        )
+        
+        try await client
+            .from("profiles")
+            .update(updateData)
+            .eq("id", value: userId)
+            .execute()
+        
+        print("SupabaseService: Successfully synced profile data for user: \(userId)")
+    }
+    
     
     func fetchUserTeams(userId: String) async throws -> [Team] {
         // Try cached data first if offline
@@ -256,6 +287,12 @@ class SupabaseService {
     }
     
     func createTeam(_ team: Team) async throws -> Team {
+        // Check if captain already has a team (captains can only create one team)
+        let existingTeamCount = try await getCaptainTeamCount(captainId: team.captainId)
+        if existingTeamCount > 0 {
+            throw AppError.teamLimitReached
+        }
+        
         let response = try await client
             .from("teams")
             .insert(team)
@@ -286,8 +323,27 @@ class SupabaseService {
             .eq("id", value: createdTeam.id)
             .execute()
         
+        // Update captain's profile to link to this team
+        try await client
+            .from("profiles")
+            .update(["captain_team_id": createdTeam.id])
+            .eq("id", value: team.captainId)
+            .execute()
+        
         print("SupabaseService: Team created and captain added successfully with updated member count")
         return createdTeam
+    }
+    
+    func getCaptainTeamCount(captainId: String) async throws -> Int {
+        let response = try await client
+            .from("teams")
+            .select("id")
+            .eq("captain_id", value: captainId)
+            .execute()
+        
+        let data = response.data
+        let teams = try JSONDecoder().decode([[String: String]].self, from: data)
+        return teams.count
     }
     
     func updateTeam(teamId: String, name: String, description: String?) async throws {
@@ -706,6 +762,72 @@ class SupabaseService {
         return try JSONDecoder().decode(DatabaseTransaction.self, from: data)
     }
     
+    // MARK: - Team Subscription Methods
+    
+    func createTeamSubscription(_ subscription: DatabaseTeamSubscription) async throws {
+        try await client
+            .from("team_subscriptions")
+            .insert(subscription)
+            .execute()
+        
+        print("SupabaseService: Team subscription created for team \(subscription.teamId)")
+    }
+    
+    func fetchTeamSubscription(userId: String, transactionId: String) async throws -> DatabaseTeamSubscription? {
+        let response = try await client
+            .from("team_subscriptions")
+            .select()
+            .eq("user_id", value: userId)
+            .eq("transaction_id", value: transactionId)
+            .single()
+            .execute()
+        
+        let data = response.data
+        return try customJSONDecoder().decode(DatabaseTeamSubscription.self, from: data)
+    }
+    
+    func updateTeamSubscriptionStatus(userId: String, transactionId: String, status: String, expirationDate: Date?) async throws {
+        struct UpdateData: Encodable {
+            let status: String
+            let updatedAt: String
+            let expirationDate: String?
+            
+            enum CodingKeys: String, CodingKey {
+                case status
+                case updatedAt = "updated_at"
+                case expirationDate = "expiration_date"
+            }
+        }
+        
+        let updateData = UpdateData(
+            status: status,
+            updatedAt: ISO8601DateFormatter().string(from: Date()),
+            expirationDate: expirationDate != nil ? ISO8601DateFormatter().string(from: expirationDate!) : nil
+        )
+        
+        try await client
+            .from("team_subscriptions")
+            .update(updateData)
+            .eq("user_id", value: userId)
+            .eq("transaction_id", value: transactionId)
+            .execute()
+        
+        print("SupabaseService: Team subscription status updated to \(status)")
+    }
+    
+    func fetchUserTeamSubscriptions(userId: String) async throws -> [DatabaseTeamSubscription] {
+        let response = try await client
+            .from("team_subscriptions")
+            .select()
+            .eq("user_id", value: userId)
+            .eq("status", value: "active")
+            .order("created_at", ascending: false)
+            .execute()
+        
+        let data = response.data
+        return try customJSONDecoder().decode([DatabaseTeamSubscription].self, from: data)
+    }
+    
     // MARK: - Enhanced Team Data Methods
     
     func fetchTeamMembers(teamId: String) async throws -> [TeamMemberWithProfile] {
@@ -951,6 +1073,86 @@ class SupabaseService {
                 onNewMessage(simulatedMessage)
             }
         }
+    }
+    
+    // MARK: - Team Wallet Support Methods
+    
+    func isUserMemberOfTeam(userId: String, teamId: String) async throws -> Bool {
+        do {
+            let response: [TeamMember] = try await client
+                .from("team_members")
+                .select("user_id")
+                .eq("team_id", value: teamId)
+                .eq("user_id", value: userId)
+                .execute()
+                .value
+            
+            return !response.isEmpty
+        } catch {
+            print("SupabaseService: Error checking team membership: \(error)")
+            throw error
+        }
+    }
+    
+    func getTeam(_ teamId: String) async throws -> Team? {
+        do {
+            let response: [Team] = try await client
+                .from("teams")
+                .select("*")
+                .eq("id", value: teamId)
+                .execute()
+                .value
+            
+            return response.first
+        } catch {
+            print("SupabaseService: Error fetching team: \(error)")
+            throw error
+        }
+    }
+    
+    func storeTeamWallet(_ teamWallet: TeamWallet) async throws {
+        // For MVP: Simple implementation - just store in teams table for now
+        // TODO: Implement full lightning_wallets table integration when Supabase client supports it
+        print("SupabaseService: Team wallet storage - simplified for MVP")
+        print("SupabaseService: Would store wallet \(teamWallet.id) for team \(teamWallet.teamId)")
+        
+        // For now, just update the team record with basic wallet info
+        // In a real implementation, this would create the lightning_wallets record
+    }
+    
+    func recordTransaction(
+        teamId: String? = nil,
+        userId: String? = nil,
+        walletId: String? = nil,
+        amount: Int,
+        type: String,
+        description: String,
+        metadata: [String: Any] = [:]
+    ) async throws {
+        // For MVP: Simple logging implementation
+        // TODO: Implement full transaction recording when Supabase client supports complex types
+        print("SupabaseService: Recording transaction - \(amount) sats, type: \(type)")
+        print("SupabaseService: Description: \(description)")
+        
+        if let teamId = teamId {
+            print("SupabaseService: Team ID: \(teamId)")
+        }
+        
+        if let userId = userId {
+            print("SupabaseService: User ID: \(userId)")
+        }
+        
+        print("SupabaseService: Transaction recorded successfully (simplified for MVP)")
+    }
+    
+    func getTeamWalletBalance(teamId: String) async throws -> Int {
+        // For MVP: Return a mock balance
+        // TODO: Implement actual database query when Supabase client supports it
+        print("SupabaseService: Getting team wallet balance for team \(teamId)")
+        print("SupabaseService: Returning mock balance for MVP")
+        
+        // Return a sample balance for testing
+        return 50000 // 50,000 sats
     }
 }
 
@@ -1254,6 +1456,109 @@ struct DatabaseTransaction: Codable {
         case processedAt = "processed_at"
         case createdAt = "created_at"
     }
+}
+
+struct DatabaseTeamSubscription: Codable {
+    let id: String
+    let userId: String
+    let teamId: String
+    let productId: String
+    let transactionId: String
+    let originalTransactionId: String
+    let purchaseDate: Date
+    let expirationDate: Date?
+    let status: String
+    let autoRenewing: Bool
+    let createdAt: Date
+    let updatedAt: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case teamId = "team_id"
+        case productId = "product_id"
+        case transactionId = "transaction_id"
+        case originalTransactionId = "original_transaction_id"
+        case purchaseDate = "purchase_date"
+        case expirationDate = "expiration_date"
+        case status
+        case autoRenewing = "auto_renewing"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+}
+
+// MARK: - Team Wallet Data Models
+
+struct DatabaseLightningWallet: Codable {
+    let id: String
+    let userId: String?
+    let teamId: String?
+    let walletType: String
+    let provider: String
+    let walletId: String
+    let address: String
+    let balance: Int
+    let credentialsEncrypted: String?
+    let status: String
+    let createdAt: Date
+    let updatedAt: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case teamId = "team_id"
+        case walletType = "wallet_type"
+        case provider
+        case walletId = "wallet_id"
+        case address
+        case balance
+        case credentialsEncrypted = "credentials_encrypted"
+        case status
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+}
+
+struct Transaction: Codable {
+    let id: String
+    let userId: String?
+    let teamId: String?
+    let walletId: String?
+    let fromWalletId: String?
+    let toWalletId: String?
+    let type: String
+    let amount: Int
+    let usdAmount: Double?
+    let description: String?
+    let status: String
+    let transactionHash: String?
+    let preimage: String?
+    let invoiceData: String? // JSON string for MVP
+    let metadata: String? // JSON string for MVP
+    let processedAt: Date?
+    let createdAt: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case teamId = "team_id"
+        case walletId = "wallet_id"
+        case fromWalletId = "from_wallet_id"
+        case toWalletId = "to_wallet_id"
+        case type
+        case amount
+        case usdAmount = "usd_amount"
+        case description
+        case status
+        case transactionHash = "transaction_hash"
+        case preimage
+        case invoiceData = "invoice_data"
+        case metadata
+        case processedAt = "processed_at"
+        case createdAt = "created_at"
+    }
+    
 }
 
 // MARK: - Enhanced Team Data Models

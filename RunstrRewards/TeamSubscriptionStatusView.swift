@@ -106,21 +106,21 @@ class TeamSubscriptionStatusView: UIView {
     private func updateSubscriptionStatus() {
         guard let teamId = teamId else { return }
         
-        // DEVELOPMENT MODE: Always show as subscribed for testing
-        // TODO: Re-enable subscription check for production
-        let isDevelopmentMode = true
-        
-        if isDevelopmentMode {
-            isSubscribed = true
-            showSubscribedState()
+        Task {
+            // Check if user is subscribed to this specific team
+            let isTeamSubscribed = SubscriptionService.shared.isSubscribedToTeam(teamId)
+            let subscriptionStatus = await SubscriptionService.shared.checkSubscriptionStatus()
             
-            // Also check subscription tier for additional context
-            Task {
-                let subscriptionStatus = await SubscriptionService.shared.checkSubscriptionStatus()
+            await MainActor.run {
+                self.isSubscribed = isTeamSubscribed
                 
-                await MainActor.run {
-                    self.updateForSubscriptionTier(subscriptionStatus)
+                if isTeamSubscribed {
+                    self.showSubscribedState()
+                } else {
+                    self.showUnsubscribedState()
                 }
+                
+                self.updateForSubscriptionTier(subscriptionStatus)
             }
         }
     }
@@ -150,7 +150,7 @@ class TeamSubscriptionStatusView: UIView {
         statusLabel.text = "Join Team"
         statusLabel.textColor = IndustrialDesign.Colors.primaryText
         
-        descriptionLabel.text = "Join this team to compete and earn Bitcoin rewards for your workouts."
+        descriptionLabel.text = "Subscribe to this team for $1.99/month to compete and earn Bitcoin rewards."
         
         actionButton.setTitle("Join", for: .normal)
         actionButton.setTitleColor(.white, for: .normal)
@@ -163,20 +163,20 @@ class TeamSubscriptionStatusView: UIView {
     
     private func updateForSubscriptionTier(_ tier: SubscriptionStatus) {
         switch tier {
-        case .creator:
+        case .captain:
             if isSubscribed {
-                descriptionLabel.text = "You're the creator of this team and have full access to all features including analytics and event creation."
-                statusLabel.text = "Team Creator"
+                descriptionLabel.text = "You're the captain of this team and have full access to all features including analytics and event creation."
+                statusLabel.text = "Team Captain"
                 statusIconView.image = UIImage(systemName: "crown.fill")
                 statusIconView.tintColor = IndustrialDesign.Colors.bitcoin
                 statusLabel.textColor = IndustrialDesign.Colors.bitcoin
             }
         case .user:
-            // Standard user subscription - keep existing messaging
+            // Standard team member subscription - keep existing messaging
             break
         case .none:
             if !isSubscribed {
-                descriptionLabel.text = "Join this team to compete and start earning Bitcoin rewards for your workouts."
+                descriptionLabel.text = "Subscribe to this team for $1.99/month to compete and earn Bitcoin rewards for your workouts."
             }
         }
     }
@@ -214,8 +214,102 @@ class TeamSubscriptionStatusView: UIView {
                 await SubscriptionService.shared.openManageSubscriptions()
             }
         } else {
-            // Trigger subscription flow
-            NotificationCenter.default.post(name: .teamSubscriptionRequested, object: teamId)
+            // Start team subscription purchase flow
+            actionButton.setTitle("Loading...", for: .normal)
+            actionButton.isEnabled = false
+            
+            Task {
+                do {
+                    let success = try await SubscriptionService.shared.subscribeToTeam(teamId)
+                    
+                    await MainActor.run {
+                        if success {
+                            self.isSubscribed = true
+                            self.showSubscribedState()
+                            self.showSuccessMessage()
+                        } else {
+                            self.showErrorMessage("Subscription cancelled")
+                            self.resetActionButton()
+                        }
+                    }
+                } catch {
+                    await MainActor.run {
+                        print("TeamSubscriptionStatusView: Subscription error: \(error)")
+                        self.showErrorMessage("Subscription failed: \(error.localizedDescription)")
+                        self.resetActionButton()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func resetActionButton() {
+        if isSubscribed {
+            actionButton.setTitle("Manage", for: .normal)
+        } else {
+            actionButton.setTitle("Join", for: .normal)
+        }
+        actionButton.isEnabled = true
+    }
+    
+    private func showSuccessMessage() {
+        // Create a temporary success indicator
+        let successLabel = UILabel()
+        successLabel.text = "✓ Subscribed!"
+        successLabel.textColor = IndustrialDesign.Colors.bitcoin
+        successLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        successLabel.textAlignment = .center
+        successLabel.translatesAutoresizingMaskIntoConstraints = false
+        successLabel.alpha = 0
+        
+        containerView.addSubview(successLabel)
+        
+        NSLayoutConstraint.activate([
+            successLabel.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+            successLabel.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -8)
+        ])
+        
+        UIView.animate(withDuration: 0.3, animations: {
+            successLabel.alpha = 1
+        }) { _ in
+            UIView.animate(withDuration: 0.3, delay: 2.0, options: [], animations: {
+                successLabel.alpha = 0
+            }) { _ in
+                successLabel.removeFromSuperview()
+            }
+        }
+        
+        resetActionButton()
+    }
+    
+    private func showErrorMessage(_ message: String) {
+        // Create a temporary error indicator
+        let errorLabel = UILabel()
+        errorLabel.text = message
+        errorLabel.textColor = .systemRed
+        errorLabel.font = UIFont.systemFont(ofSize: 12)
+        errorLabel.textAlignment = .center
+        errorLabel.numberOfLines = 0
+        errorLabel.translatesAutoresizingMaskIntoConstraints = false
+        errorLabel.alpha = 0
+        
+        containerView.addSubview(errorLabel)
+        
+        NSLayoutConstraint.activate([
+            errorLabel.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+            errorLabel.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -8),
+            errorLabel.leadingAnchor.constraint(greaterThanOrEqualTo: containerView.leadingAnchor, constant: 20),
+            errorLabel.trailingAnchor.constraint(lessThanOrEqualTo: containerView.trailingAnchor, constant: -20)
+        ])
+        
+        UIView.animate(withDuration: 0.3, animations: {
+            errorLabel.alpha = 1
+        }) { _ in
+            UIView.animate(withDuration: 0.3, delay: 3.0, options: [], animations: {
+                errorLabel.alpha = 0
+            }) { _ in
+                errorLabel.removeFromSuperview()
+            }
         }
     }
     
