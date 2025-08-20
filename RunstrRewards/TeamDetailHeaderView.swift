@@ -43,7 +43,7 @@ class TeamDetailHeaderView: UIView {
         // Add bottom border
         let borderLayer = CALayer()
         borderLayer.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0).cgColor
-        borderLayer.frame = CGRect(x: 0, y: 79, width: UIScreen.main.bounds.width, height: 1)
+        borderLayer.frame = CGRect(x: 0, y: 99, width: UIScreen.main.bounds.width, height: 1)
         layer.addSublayer(borderLayer)
         
         // Back button
@@ -100,7 +100,7 @@ class TeamDetailHeaderView: UIView {
         addSubview(teamNameLabel)
         addSubview(memberCountLabel)
         addSubview(captainBadge)
-        addSubview(subscribeButton)
+        // Subscribe button removed - using the one in subscription card instead
         addSubview(settingsButton)
         
         // Add gradient to team name
@@ -118,14 +118,14 @@ class TeamDetailHeaderView: UIView {
             
             // Team name - constrained to avoid overlap with buttons
             teamNameLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-            teamNameLabel.topAnchor.constraint(equalTo: topAnchor, constant: 20),
+            teamNameLabel.topAnchor.constraint(equalTo: topAnchor, constant: 50),
             teamNameLabel.leadingAnchor.constraint(greaterThanOrEqualTo: backButton.trailingAnchor, constant: 12),
-            teamNameLabel.trailingAnchor.constraint(lessThanOrEqualTo: subscribeButton.leadingAnchor, constant: -12),
+            teamNameLabel.trailingAnchor.constraint(lessThanOrEqualTo: settingsButton.leadingAnchor, constant: -12),
             
             memberCountLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
             memberCountLabel.topAnchor.constraint(equalTo: teamNameLabel.bottomAnchor, constant: 4),
             memberCountLabel.leadingAnchor.constraint(greaterThanOrEqualTo: backButton.trailingAnchor, constant: 12),
-            memberCountLabel.trailingAnchor.constraint(lessThanOrEqualTo: subscribeButton.leadingAnchor, constant: -12),
+            memberCountLabel.trailingAnchor.constraint(lessThanOrEqualTo: settingsButton.leadingAnchor, constant: -12),
             
             // Captain badge (positioned above member count when shown)
             captainBadge.centerXAnchor.constraint(equalTo: centerXAnchor),
@@ -136,10 +136,7 @@ class TeamDetailHeaderView: UIView {
             captainBadgeLabel.centerXAnchor.constraint(equalTo: captainBadge.centerXAnchor),
             captainBadgeLabel.centerYAnchor.constraint(equalTo: captainBadge.centerYAnchor),
             
-            subscribeButton.trailingAnchor.constraint(equalTo: settingsButton.leadingAnchor, constant: -8),
-            subscribeButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            subscribeButton.widthAnchor.constraint(equalToConstant: 55),
-            subscribeButton.heightAnchor.constraint(equalToConstant: 26),
+            // Subscribe button constraints removed - using subscription card instead
             
             settingsButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -IndustrialDesign.Spacing.large),
             settingsButton.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -158,13 +155,7 @@ class TeamDetailHeaderView: UIView {
     func showCaptainBadge(_ show: Bool) {
         isCaptain = show
         captainBadge.isHidden = !show
-        
-        // Hide subscribe button for captains
-        if show {
-            subscribeButton.isHidden = true
-        } else {
-            subscribeButton.isHidden = false
-        }
+        // Subscribe button removed - handled by subscription card
     }
     
     // MARK: - Actions
@@ -183,43 +174,14 @@ class TeamDetailHeaderView: UIView {
     }
     
     // MARK: - Subscription State Management
+    // Subscription state removed - handled by subscription card
     
     func updateSubscriptionState(isSubscribed: Bool, isLoading: Bool = false) {
-        self.isSubscribed = isSubscribed
-        self.isLoading = isLoading
-        
-        UIView.animate(withDuration: 0.3) {
-            if isLoading {
-                self.subscribeButton.setTitle("Joining...", for: .normal)
-                self.subscribeButton.isEnabled = false
-                self.subscribeButton.alpha = 0.6
-            } else if isSubscribed {
-                self.subscribeButton.setTitle("Joined", for: .normal)
-                self.subscribeButton.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 0.6)
-                self.subscribeButton.layer.borderColor = UIColor(red: 0.17, green: 0.17, blue: 0.17, alpha: 1.0).cgColor
-                self.subscribeButton.setTitleColor(IndustrialDesign.Colors.primaryText, for: .normal)
-                self.subscribeButton.isEnabled = true
-                self.subscribeButton.alpha = 1.0
-            } else {
-                self.subscribeButton.setTitle("Join", for: .normal)
-                self.subscribeButton.backgroundColor = IndustrialDesign.Colors.bitcoin
-                self.subscribeButton.layer.borderColor = IndustrialDesign.Colors.bitcoin.cgColor
-                self.subscribeButton.setTitleColor(.white, for: .normal)
-                self.subscribeButton.isEnabled = true
-                self.subscribeButton.alpha = 1.0
-            }
-        }
+        // No longer needed - subscription UI handled by subscription card
     }
     
     func setTeamId(_ teamId: String) {
-        // Check current subscription status
-        Task {
-            let isCurrentlySubscribed = SubscriptionService.shared.isSubscribedToTeam(teamId)
-            
-            await MainActor.run {
-                self.updateSubscriptionState(isSubscribed: isCurrentlySubscribed)
-            }
-        }
+        // No longer needed - subscription checking handled by subscription card
     }
     
     private func applyGradientToLabel(_ label: UILabel) {

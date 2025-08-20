@@ -408,21 +408,61 @@ class SupabaseService {
     }
     
     func deleteTeam(teamId: String) async throws {
+        print("SupabaseService: Starting deletion of team \(teamId)")
+        
         // First delete all team members
-        try await client
-            .from("team_members")
-            .delete()
-            .eq("team_id", value: teamId)
-            .execute()
+        do {
+            _ = try await client
+                .from("team_members")
+                .delete()
+                .eq("team_id", value: teamId)
+                .execute()
+            print("SupabaseService: Deleted team members for team \(teamId)")
+        } catch {
+            print("SupabaseService: Failed to delete team members: \(error)")
+            throw NSError(domain: "TeamDeletion", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Failed to remove team members. \(error.localizedDescription)"])
+        }
         
         // Then delete the team itself
-        try await client
-            .from("teams")
-            .delete()
-            .eq("id", value: teamId)
-            .execute()
+        do {
+            _ = try await client
+                .from("teams")
+                .delete()
+                .eq("id", value: teamId)
+                .execute()
+            print("SupabaseService: Successfully deleted team \(teamId)")
+        } catch {
+            print("SupabaseService: Failed to delete team: \(error)")
+            // Check if it's a permission error
+            let errorMessage = error.localizedDescription.lowercased()
+            if errorMessage.contains("permission") || errorMessage.contains("policy") || errorMessage.contains("denied") {
+                throw NSError(domain: "TeamDeletion", code: 2002, userInfo: [NSLocalizedDescriptionKey: "You don't have permission to delete this team. Only the team captain can delete their team."])
+            } else {
+                throw NSError(domain: "TeamDeletion", code: 2003, userInfo: [NSLocalizedDescriptionKey: "Failed to delete team. \(error.localizedDescription)"])
+            }
+        }
+        
+        // Invalidate teams cache to force fresh fetch
+        OfflineDataService.shared.clearTeamsCache()
         
         print("SupabaseService: Team \(teamId) and all members deleted successfully")
+    }
+    
+    func fetchUsername(userId: String) async throws -> String? {
+        let response = try await client
+            .from("profiles")
+            .select("username")
+            .eq("id", value: userId)
+            .single()
+            .execute()
+        
+        let data = response.data
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let username = json["username"] as? String {
+            return username
+        }
+        
+        return nil
     }
     
     func syncWorkout(_ workout: Workout) async throws {
@@ -1022,6 +1062,7 @@ class SupabaseService {
                 memberCount: 0, 
                 totalEarnings: 0.0,
                 imageUrl: nil,
+                selectedMetrics: nil,
                 createdAt: Date()
             ))
         }
@@ -1186,6 +1227,7 @@ struct Team: Codable {
     let memberCount: Int
     let totalEarnings: Double
     let imageUrl: String?
+    let selectedMetrics: [String]?
     let createdAt: Date
     
     enum CodingKeys: String, CodingKey {
@@ -1194,6 +1236,7 @@ struct Team: Codable {
         case memberCount = "member_count"
         case totalEarnings = "total_earnings"
         case imageUrl = "image_url"
+        case selectedMetrics = "selected_metrics"
         case createdAt = "created_at"
     }
 }

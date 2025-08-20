@@ -30,13 +30,17 @@ class TeamDetailViewController: UIViewController {
     // Enhanced components
     private let teamMembersView = TeamMembersListView()
     private let teamActivityView = TeamActivityFeedView()
-    private let teamWalletBalanceView: TeamWalletBalanceView
     
     // Captain-only UI elements
     private var eventsCreateButton: UIButton?
     
     // Event management
     private var createdEvents: [EventCreationData] = []
+    
+    // Constraint references for dynamic layout management
+    private var teamMembersTopConstraint: NSLayoutConstraint?
+    private var teamMembersToSubscriptionConstraint: NSLayoutConstraint?
+    private var teamMembersToAboutConstraint: NSLayoutConstraint?
     
     // Singleton for event persistence (temporary solution)
     private static var sharedEvents: [String: [EventCreationData]] = [:] // teamId -> events
@@ -48,7 +52,6 @@ class TeamDetailViewController: UIViewController {
     // MARK: - Initialization
     init(teamData: TeamData) {
         self.teamData = teamData
-        self.teamWalletBalanceView = TeamWalletBalanceView(teamId: teamData.id)
         super.init(nibName: nil, bundle: nil)
     }
     
@@ -67,7 +70,6 @@ class TeamDetailViewController: UIViewController {
         setupHeader()
         setupAboutSection()
         setupSubscriptionStatusView()
-        setupTeamWalletBalanceView()
         setupSimpleComponents()
         setupConstraints()
         setupSimpleConstraints()
@@ -139,11 +141,6 @@ class TeamDetailViewController: UIViewController {
         )
     }
     
-    private func setupTeamWalletBalanceView() {
-        teamWalletBalanceView.translatesAutoresizingMaskIntoConstraints = false
-        teamWalletBalanceView.delegate = self
-        contentView.addSubview(teamWalletBalanceView)
-    }
     
     private func setupEnhancedComponents() {
         // Team members view
@@ -164,7 +161,7 @@ class TeamDetailViewController: UIViewController {
     private func setupConstraints() {
         NSLayoutConstraint.activate([
             // ScrollView
-            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -180,7 +177,7 @@ class TeamDetailViewController: UIViewController {
             headerView.topAnchor.constraint(equalTo: contentView.topAnchor),
             headerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             headerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            headerView.heightAnchor.constraint(equalToConstant: 80),
+            headerView.heightAnchor.constraint(equalToConstant: 100),
             
             // About section
             aboutSection.topAnchor.constraint(equalTo: headerView.bottomAnchor),
@@ -191,13 +188,7 @@ class TeamDetailViewController: UIViewController {
             // Subscription status view
             subscriptionStatusView.topAnchor.constraint(equalTo: aboutSection.bottomAnchor, constant: 16),
             subscriptionStatusView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
-            subscriptionStatusView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
-            
-            // Team wallet balance view
-            teamWalletBalanceView.topAnchor.constraint(equalTo: subscriptionStatusView.bottomAnchor, constant: 16),
-            teamWalletBalanceView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
-            teamWalletBalanceView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
-            teamWalletBalanceView.heightAnchor.constraint(equalToConstant: 200)
+            subscriptionStatusView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24)
             
             // Note: Additional constraints for stats, members, leaderboard, events are set up in setupSimpleConstraints()
         ])
@@ -210,12 +201,8 @@ class TeamDetailViewController: UIViewController {
         // Show loading state for about section
         aboutSection.showLoading()
         
-        // IMMEDIATE FIX: Hide subscribe button and show captain badge immediately since edit works
-        // This confirms you are the captain
-        headerView.showCaptainBadge(true)
-        subscriptionStatusView.isHidden = true
-        subscriptionStatusView.removeFromSuperview()
-        print("🏗️ TeamDetailMain: IMMEDIATE FIX applied - hiding subscribe button for captain")
+        // Let team ownership check determine captain status properly
+        print("🏗️ TeamDetailMain: Waiting for team ownership check to determine UI state")
         
         // Check if user is team captain/owner to determine subscription view visibility
         Task {
@@ -335,9 +322,16 @@ class TeamDetailViewController: UIViewController {
         let leaderboardContainer = contentView.viewWithTag(100)!
         let eventsContainer = contentView.viewWithTag(101)!
         
+        // Create both possible constraints but don't activate yet
+        teamMembersToSubscriptionConstraint = teamMembersView.topAnchor.constraint(equalTo: subscriptionStatusView.bottomAnchor, constant: 16)
+        teamMembersToAboutConstraint = teamMembersView.topAnchor.constraint(equalTo: aboutSection.bottomAnchor, constant: 16)
+        
+        // Activate the subscription constraint by default (for non-captains)
+        teamMembersTopConstraint = teamMembersToSubscriptionConstraint
+        
         NSLayoutConstraint.activate([
-            // Team members below subscription/about
-            teamMembersView.topAnchor.constraint(equalTo: subscriptionStatusView.bottomAnchor, constant: 16),
+            // Team members positioning - will be managed dynamically
+            teamMembersTopConstraint!,
             teamMembersView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             teamMembersView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             
@@ -363,7 +357,8 @@ class TeamDetailViewController: UIViewController {
             let currentTeam = teams.first { $0.id == teamData.id }
             
             // Calculate average weekly KM from team workouts
-            let avgWeeklyKm = try await calculateAverageWeeklyKm()
+            // Calculate average weekly km if needed in the future
+            // let avgWeeklyKm = try await calculateAverageWeeklyKm()
             
             await MainActor.run {
                 let description = currentTeam?.description
@@ -372,7 +367,7 @@ class TeamDetailViewController: UIViewController {
                 aboutSection.configure(
                     description: description,
                     prizePool: prizePool,
-                    avgKm: avgWeeklyKm
+                    walletConfigured: false // TODO: Check actual wallet status
                 )
             }
         } catch {
@@ -382,7 +377,7 @@ class TeamDetailViewController: UIViewController {
                 aboutSection.configure(
                     description: "This team doesn't have a description yet.",
                     prizePool: teamData.prizePool,
-                    avgKm: 0.0
+                    walletConfigured: false
                 )
             }
         }
@@ -453,14 +448,14 @@ class TeamDetailViewController: UIViewController {
                 self.isCaptain = isTeamOwner // Store captain status
                 
                 if isTeamOwner {
+                    // Switch to captain layout constraints
+                    teamMembersTopConstraint?.isActive = false
+                    teamMembersTopConstraint = teamMembersToAboutConstraint
+                    teamMembersTopConstraint?.isActive = true
+                    
                     // Hide subscription view for team owners - they don't need to subscribe to their own team
                     subscriptionStatusView.isHidden = true
-                    
-                    // Move other components up by removing the subscription view from layout
                     subscriptionStatusView.removeFromSuperview()
-                    
-                    // Update constraints to connect teamMembersView directly to aboutSection
-                    teamMembersView.topAnchor.constraint(equalTo: aboutSection.bottomAnchor, constant: 16).isActive = true
                     
                     // Show captain badge in header and hide subscribe button
                     headerView.showCaptainBadge(true)
@@ -470,6 +465,11 @@ class TeamDetailViewController: UIViewController {
                     
                     print("🏗️ TeamDetailMain: User IS team captain - showing captain badge, hiding subscribe button, showing create buttons")
                 } else {
+                    // Ensure we're using the subscription constraint for regular members
+                    teamMembersTopConstraint?.isActive = false
+                    teamMembersTopConstraint = teamMembersToSubscriptionConstraint
+                    teamMembersTopConstraint?.isActive = true
+                    
                     // Show subscription view for regular members
                     subscriptionStatusView.configure(teamId: teamData.id)
                     subscriptionStatusView.isHidden = false
@@ -486,20 +486,20 @@ class TeamDetailViewController: UIViewController {
         } catch {
             print("🏗️ TeamDetailMain: Error checking team ownership: \(error)")
             
-            // TEMPORARY FALLBACK: Since edit functionality works, assume captain status for testing
-            print("🏗️ TeamDetailMain: FALLBACK - Assuming captain status due to edit capability")
+            // DO NOT assume captain status - user must be properly authenticated
+            print("🏗️ TeamDetailMain: Could not verify team ownership - defaulting to member view")
             await MainActor.run {
-                self.isCaptain = true // Set captain status in fallback
+                self.isCaptain = false // Default to non-captain for safety
                 
-                // Hide subscription view and show captain badge as fallback
-                subscriptionStatusView.isHidden = true
-                subscriptionStatusView.removeFromSuperview()
-                headerView.showCaptainBadge(true)
+                // Show subscription UI for non-captains
+                subscriptionStatusView.configure(teamId: teamData.id)
+                subscriptionStatusView.isHidden = false
+                headerView.showCaptainBadge(false)
                 
-                // Show captain-only buttons in fallback
-                eventsCreateButton?.isHidden = false
+                // Hide captain-only buttons
+                eventsCreateButton?.isHidden = true
                 
-                print("🏗️ TeamDetailMain: FALLBACK applied - captain badge shown, subscribe button hidden, create buttons shown")
+                print("🏗️ TeamDetailMain: Non-captain view applied - subscribe button shown, captain features hidden")
             }
         }
     }
@@ -854,14 +854,55 @@ extension TeamDetailViewController: TeamDetailHeaderViewDelegate {
     private func deleteTeam() {
         print("🏗️ RUNSTR: Deleting team: \(teamData.id)")
         
+        // Verify user is actually the captain before attempting deletion
+        guard isCaptain else {
+            print("🏗️ RUNSTR: Delete blocked - user is not team captain")
+            showErrorAlert("Only the team captain can delete this team.")
+            return
+        }
+        
         // Show loading indicator
         let loadingAlert = UIAlertController(title: "Deleting Team", message: "Please wait...", preferredStyle: .alert)
         present(loadingAlert, animated: true)
         
         Task {
             do {
+                // Ensure we have a valid Supabase session before attempting deletion
+                guard let userSession = AuthenticationService.shared.loadSession() else {
+                    throw NSError(domain: "TeamDeletion", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again to delete teams."])
+                }
+                
+                // Verify user ID matches captain ID
+                guard userSession.id == teamData.captainId else {
+                    throw NSError(domain: "TeamDeletion", code: 1004, userInfo: [NSLocalizedDescriptionKey: "You are not authorized to delete this team. Only the team captain can delete it."])
+                }
+                
+                // Restore Supabase session if we have valid tokens
+                if userSession.accessToken != "temp_token" && userSession.refreshToken != "temp_refresh_token" {
+                    do {
+                        try await SupabaseService.shared.restoreSession(accessToken: userSession.accessToken, refreshToken: userSession.refreshToken)
+                        print("🏗️ RUNSTR: Successfully restored Supabase session for team deletion")
+                    } catch {
+                        print("🏗️ RUNSTR: Failed to restore Supabase session: \(error)")
+                        throw NSError(domain: "TeamDeletion", code: 1002, userInfo: [NSLocalizedDescriptionKey: "Session expired. Please sign in again to delete teams."])
+                    }
+                }
+                
+                // Verify we have a valid Supabase session
+                let currentSupabaseUser = try await SupabaseService.shared.getCurrentUser()
+                if currentSupabaseUser == nil {
+                    throw NSError(domain: "TeamDeletion", code: 1003, userInfo: [NSLocalizedDescriptionKey: "Session expired. Please sign in again to delete teams."])
+                }
+                
                 // Delete team from Supabase
                 try await SupabaseService.shared.deleteTeam(teamId: teamData.id)
+                
+                // CRITICAL: Verify the team was actually deleted
+                let verificationResult = try? await SupabaseService.shared.getTeam(teamData.id)
+                if verificationResult != nil {
+                    // Team still exists - deletion failed
+                    throw NSError(domain: "TeamDeletion", code: 1005, userInfo: [NSLocalizedDescriptionKey: "Team deletion failed. The team still exists in the database. You may not have permission to delete this team."])
+                }
                 
                 await MainActor.run {
                     loadingAlert.dismiss(animated: true) {
@@ -875,8 +916,11 @@ extension TeamDetailViewController: TeamDetailHeaderViewDelegate {
                         )
                         
                         successAlert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+                            // Post notification to refresh teams list
+                            NotificationCenter.default.post(name: .teamDeleted, object: nil)
+                            
                             // Navigate back to teams list
-                            self.navigationController?.popToRootViewController(animated: true)
+                            self.navigationController?.popViewController(animated: true)
                         })
                         
                         self.present(successAlert, animated: true)
@@ -887,11 +931,57 @@ extension TeamDetailViewController: TeamDetailHeaderViewDelegate {
                     loadingAlert.dismiss(animated: true) {
                         print("🏗️ RUNSTR: Failed to delete team: \(error)")
                         
+                        let errorMessage: String
+                        let errorTitle: String
+                        
+                        // Check if this is an authentication error
+                        if let nsError = error as NSError? {
+                            switch nsError.code {
+                            case 1001, 1002, 1003:
+                                errorTitle = "Authentication Required"
+                                errorMessage = nsError.localizedDescription
+                            case 1004:
+                                errorTitle = "Not Authorized"
+                                errorMessage = nsError.localizedDescription
+                            case 1005:
+                                errorTitle = "Deletion Failed"
+                                errorMessage = nsError.localizedDescription
+                            default:
+                                errorTitle = "Delete Failed"
+                                errorMessage = nsError.localizedDescription
+                            }
+                        } else if error.localizedDescription.contains("refresh_token_already_used") {
+                            errorTitle = "Session Expired"
+                            errorMessage = "Your login session has expired. Please sign out and sign back in to delete teams."
+                        } else {
+                            errorTitle = "Delete Failed"
+                            errorMessage = "Unable to delete the team. Please try again."
+                        }
+                        
                         let errorAlert = UIAlertController(
-                            title: "Delete Failed",
-                            message: "Unable to delete the team. Please try again.",
+                            title: errorTitle,
+                            message: errorMessage,
                             preferredStyle: .alert
                         )
+                        
+                        // Add sign out option for authentication errors
+                        if errorTitle == "Authentication Required" || errorTitle == "Session Expired" {
+                            errorAlert.addAction(UIAlertAction(title: "Sign Out", style: .destructive) { _ in
+                                Task {
+                                    await AuthenticationService.shared.signOut()
+                                    await MainActor.run {
+                                        // Navigate to login screen
+                                        if let window = UIApplication.shared.connectedScenes
+                                            .compactMap({ $0 as? UIWindowScene })
+                                            .first?.windows.first {
+                                            let loginVC = LoginViewController()
+                                            window.rootViewController = loginVC
+                                        }
+                                    }
+                                }
+                            })
+                        }
+                        
                         errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
                         self.present(errorAlert, animated: true)
                     }
@@ -1272,46 +1362,3 @@ extension TeamDetailViewController: TeamActivityFeedViewDelegate {
     }
 }
 
-// MARK: - TeamWalletBalanceViewDelegate
-
-extension TeamDetailViewController: TeamWalletBalanceViewDelegate {
-    func didTapFundWallet(_ view: TeamWalletBalanceView, teamId: String) {
-        print("🏗️ RunstrRewards: Fund wallet tapped for team \(teamId)")
-        
-        let fundingVC = TeamWalletFundingViewController(teamId: teamId, teamName: teamData.name)
-        fundingVC.onCompletion = { [weak self] success in
-            if success {
-                // Refresh wallet balance after funding
-                self?.teamWalletBalanceView.refreshBalance()
-            }
-        }
-        
-        present(fundingVC, animated: true)
-    }
-    
-    func didTapViewTransactions(_ view: TeamWalletBalanceView, teamId: String) {
-        print("🏗️ RunstrRewards: View transactions tapped for team \(teamId)")
-        
-        // TODO: Implement team wallet transaction history view
-        let alert = UIAlertController(
-            title: "Transaction History",
-            message: "Team wallet transaction history coming soon. You'll be able to see all funding, rewards, and prize distributions here.",
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
-    }
-    
-    func didTapDistributeRewards(_ view: TeamWalletBalanceView, teamId: String) {
-        print("🏗️ RunstrRewards: Distribute rewards tapped for team \(teamId)")
-        
-        // TODO: Implement reward distribution interface
-        let alert = UIAlertController(
-            title: "Distribute Rewards",
-            message: "Team reward distribution coming soon. You'll be able to send Bitcoin rewards to team members for competitions and achievements.",
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
-    }
-}

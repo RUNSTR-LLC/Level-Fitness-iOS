@@ -9,7 +9,7 @@ class EventStatCard: UIView {
     private let valueLabel = UILabel()
     
     // MARK: - Properties
-    private var accentColor: UIColor = UIColor.systemBlue
+    private var accentColor: UIColor = IndustrialDesign.Colors.primaryText
     
     // MARK: - Initialization
     

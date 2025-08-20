@@ -623,7 +623,7 @@ extension WorkoutsViewController {
         
         // Create a subtle notification
         let notificationView = UIView()
-        notificationView.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.9)
+        notificationView.backgroundColor = IndustrialDesign.Colors.cardBackground.withAlphaComponent(0.9)
         notificationView.layer.cornerRadius = 16
         notificationView.alpha = 0.0
         notificationView.translatesAutoresizingMaskIntoConstraints = false

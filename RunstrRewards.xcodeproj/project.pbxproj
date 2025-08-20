@@ -20,6 +20,7 @@
 		3D4A1B9F2C5F7AB900F3E2B3 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D4A1B9E2C5F7AB900F3E2B3 /* DesignSystem.swift */; };
 		ICON1234567890ABCDEF1234567890AB /* IconGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = ICONABCDEF1234567890ABCDEF123456 /* IconGenerator.swift */; };
 		3D4A1BA12C5F7AC500F3E2B3 /* NavigationCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D4A1BA02C5F7AC500F3E2B3 /* NavigationCard.swift */; };
+		74B7CE931B24466CB71BFCAC /* LotteryComingSoonViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CEACD8F31B34BB5869F66B4 /* LotteryComingSoonViewController.swift */; };
 		3D4A1BA32C5F7AD100F3E2B3 /* StatItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D4A1BA22C5F7AD100F3E2B3 /* StatItem.swift */; };
 		3D4A1BA52C5F7ADE00F3E2B3 /* IndustrialBackgroundViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D4A1BA42C5F7ADE00F3E2B3 /* IndustrialBackgroundViews.swift */; };
 		3D4A1BA72C5F7B1000F3E2B3 /* TeamsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D4A1BA62C5F7B1000F3E2B3 /* TeamsViewController.swift */; };
@@ -59,6 +60,7 @@
 		COMP8899AABBCCDDEEFF001122334 /* ChatMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = COMP8888999900001111222233334444 /* ChatMessageView.swift */; };
 		D613E78D324148849B773D801477004E /* SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7FEA8665C6A4B22986DA6438533D80C /* SupabaseService.swift */; };
 		REWARD123456789ABCDEF0011223344 /* WorkoutRewardCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CALCULATOR1234567890ABCDEF001122 /* WorkoutRewardCalculator.swift */; };
+		13AE25D6CFEE4E5D868CD870B20FEA83 /* StreakTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5897B15B54C4630970D449B0F5C3F0E /* StreakTracker.swift */; };
 		F274E58B8DB14A08BD0C0B0C7DD64028 /* AuthenticationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */; };
 		COIN123456789ABCDEF01234567890AB /* CoinOSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = COINABCDEF123456789ABCDEF12345678 /* CoinOSService.swift */; };
 		LIGHT123456789ABCDEF01234567890B /* LightningWalletManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = LIGHTABCDEF123456789ABCDEF123456 /* LightningWalletManager.swift */; };
@@ -90,6 +92,19 @@
 		HELP987654321FEDCBA987654321012 /* HelpSupportViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = HELP123456789ABCDEF123456789012 /* HelpSupportViewController.swift */; };
 		WEB987654321FEDCBA9876543210123 /* WebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = WEB123456789ABCDEF1234567890123 /* WebViewController.swift */; };
 		BACKGROUND12345678901234567890123 /* BackgroundTaskManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BACKGROUNDABCDEF123456789012345678 /* BackgroundTaskManager.swift */; };
+		6C3CD0FB6D32487196F886829229BEF3 /* AutoEntryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C3CD0FB6D32487196F886829229BEF2 /* AutoEntryService.swift */; };
+		2150D462B5584B4C99B32078D12ED8A8 /* EventProgressTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2150D462B5584B4C99B32078D12ED8A7 /* EventProgressTracker.swift */; };
+		86AA102591B44D0D986DFFC73F971789 /* RealtimeLeaderboardService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86AA102591B44D0D986DFFC73F971788 /* RealtimeLeaderboardService.swift */; };
+		8F796D55CCA343A6AA5915AE331AC1C0 /* EventNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F796D55CCA343A6AA5915AE331AC1BF /* EventNotificationService.swift */; };
+		FCB896FA291D49A3B8153EDFCB2BEB9B /* TeamPrizeDistributionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB896FA291D49A3B8153EDFCB2BEB9A /* TeamPrizeDistributionService.swift */; };
+		9BC13758727E4834996A1BB4609D8182 /* CompetitionIntegrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BC13758727E4834996A1BB4609D8181 /* CompetitionIntegrationService.swift */; };
+		6E935BC9E90A4A3EA3A2FBB32650EEB0 /* EventProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E935BC9E90A4A3EA3A2FBB32650EEA9 /* EventProgressView.swift */; };
+		CEA52A786269446FB6E160F2B0A120D4 /* LiveLeaderboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEA52A786269446FB6E160F2B0A120D3 /* LiveLeaderboardView.swift */; };
+		8AEC544C016E4F229FFDF6ADF3C6E286 /* PrizeDistributionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AEC544C016E4F229FFDF6ADF3C6E285 /* PrizeDistributionViewController.swift */; };
+		93E5069335D94B0C8BCAF6C21F42FD35 /* PrizePoolTrackerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E5069335D94B0C8BCAF6C21F42FD34 /* PrizePoolTrackerView.swift */; };
+		92E0D65D21C644E7979DFCE433686FF2 /* MemberPayoutHistoryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E0D65D21C644E7979DFCE433686FF1 /* MemberPayoutHistoryViewController.swift */; };
+		WORKSYNCQUEUE123456789ABCDEF01234 /* WorkoutSyncQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = WORKSYNCQUEUEABCDEF123456789ABCDEF /* WorkoutSyncQueue.swift */; };
+		ANTICHEAT123456789ABCDEF0123456789 /* AntiCheatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ANTICHEAT9ABCDEF123456789ABCDEF012 /* AntiCheatService.swift */; };
 		EVENTCRIT123456789ABCDEF012345678 /* EventCriteriaEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = EVENTCRITABCDEF123456789ABCDEF1234 /* EventCriteriaEngine.swift */; };
 		LEADERBOARD123456789ABCDEF0123456 /* LeaderboardTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = LEADERBOARDABCDEF123456789ABCDEF12 /* LeaderboardTracker.swift */; };
 		NOTIFICATIONINTEL123456789ABCDEF01 /* NotificationIntelligence.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIFICATIONINTELABCDEF123456789A /* NotificationIntelligence.swift */; };
@@ -116,6 +131,7 @@
 		3D4A1B9E2C5F7AB900F3E2B3 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		ICONABCDEF1234567890ABCDEF123456 /* IconGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconGenerator.swift; sourceTree = "<group>"; };
 		3D4A1BA02C5F7AC500F3E2B3 /* NavigationCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationCard.swift; sourceTree = "<group>"; };
+		3CEACD8F31B34BB5869F66B4 /* LotteryComingSoonViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LotteryComingSoonViewController.swift; sourceTree = "<group>"; };
 		3D4A1BA22C5F7AD100F3E2B3 /* StatItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatItem.swift; sourceTree = "<group>"; };
 		3D4A1BA42C5F7ADE00F3E2B3 /* IndustrialBackgroundViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndustrialBackgroundViews.swift; sourceTree = "<group>"; };
 		3D4A1BA62C5F7B1000F3E2B3 /* TeamsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamsViewController.swift; sourceTree = "<group>"; };
@@ -159,6 +175,7 @@
 		LOGIN987654321FEDCBA987654321098 /* LoginViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewController.swift; sourceTree = "<group>"; };
 		A7FEA8665C6A4B22986DA6438533D80C /* SupabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/SupabaseService.swift"; sourceTree = "<group>"; };
 		CALCULATOR1234567890ABCDEF001122 /* WorkoutRewardCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/WorkoutRewardCalculator.swift"; sourceTree = "<group>"; };
+		B5897B15B54C4630970D449B0F5C3F0E /* StreakTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/StreakTracker.swift"; sourceTree = "<group>"; };
 		97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/AuthenticationService.swift"; sourceTree = "<group>"; };
 		COINABCDEF123456789ABCDEF12345678 /* CoinOSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/CoinOSService.swift"; sourceTree = "<group>"; };
 		LIGHTABCDEF123456789ABCDEF123456 /* LightningWalletManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/LightningWalletManager.swift"; sourceTree = "<group>"; };
@@ -187,6 +204,19 @@
 		HELP123456789ABCDEF123456789012 /* HelpSupportViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpSupportViewController.swift; sourceTree = "<group>"; };
 		WEB123456789ABCDEF1234567890123 /* WebViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewController.swift; sourceTree = "<group>"; };
 		BACKGROUNDABCDEF123456789012345678 /* BackgroundTaskManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/BackgroundTaskManager.swift"; sourceTree = "<group>"; };
+		6C3CD0FB6D32487196F886829229BEF2 /* AutoEntryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/AutoEntryService.swift"; sourceTree = "<group>"; };
+		2150D462B5584B4C99B32078D12ED8A7 /* EventProgressTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/EventProgressTracker.swift"; sourceTree = "<group>"; };
+		86AA102591B44D0D986DFFC73F971788 /* RealtimeLeaderboardService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/RealtimeLeaderboardService.swift"; sourceTree = "<group>"; };
+		8F796D55CCA343A6AA5915AE331AC1BF /* EventNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/EventNotificationService.swift"; sourceTree = "<group>"; };
+		FCB896FA291D49A3B8153EDFCB2BEB9A /* TeamPrizeDistributionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/TeamPrizeDistributionService.swift"; sourceTree = "<group>"; };
+		9BC13758727E4834996A1BB4609D8181 /* CompetitionIntegrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/CompetitionIntegrationService.swift"; sourceTree = "<group>"; };
+		6E935BC9E90A4A3EA3A2FBB32650EEA9 /* EventProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventProgressView.swift; sourceTree = "<group>"; };
+		CEA52A786269446FB6E160F2B0A120D3 /* LiveLeaderboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveLeaderboardView.swift; sourceTree = "<group>"; };
+		8AEC544C016E4F229FFDF6ADF3C6E285 /* PrizeDistributionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrizeDistributionViewController.swift; sourceTree = "<group>"; };
+		93E5069335D94B0C8BCAF6C21F42FD34 /* PrizePoolTrackerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrizePoolTrackerView.swift; sourceTree = "<group>"; };
+		92E0D65D21C644E7979DFCE433686FF1 /* MemberPayoutHistoryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberPayoutHistoryViewController.swift; sourceTree = "<group>"; };
+		WORKSYNCQUEUEABCDEF123456789ABCDEF /* WorkoutSyncQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/WorkoutSyncQueue.swift"; sourceTree = "<group>"; };
+		ANTICHEAT9ABCDEF123456789ABCDEF012 /* AntiCheatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/AntiCheatService.swift"; sourceTree = "<group>"; };
 		EVENTCRITABCDEF123456789ABCDEF1234 /* EventCriteriaEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/EventCriteriaEngine.swift"; sourceTree = "<group>"; };
 		LEADERBOARDABCDEF123456789ABCDEF12 /* LeaderboardTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/LeaderboardTracker.swift"; sourceTree = "<group>"; };
 		NOTIFICATIONINTELABCDEF123456789A /* NotificationIntelligence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/NotificationIntelligence.swift"; sourceTree = "<group>"; };
@@ -233,6 +263,7 @@
 				3D4A1B9E2C5F7AB900F3E2B3 /* DesignSystem.swift */,
 				ICONABCDEF1234567890ABCDEF123456 /* IconGenerator.swift */,
 				3D4A1BA02C5F7AC500F3E2B3 /* NavigationCard.swift */,
+				3CEACD8F31B34BB5869F66B4 /* LotteryComingSoonViewController.swift */,
 				3D4A1BA22C5F7AD100F3E2B3 /* StatItem.swift */,
 				3D4A1BA42C5F7ADE00F3E2B3 /* IndustrialBackgroundViews.swift */,
 				3D4A1BA62C5F7B1000F3E2B3 /* TeamsViewController.swift */,
@@ -277,6 +308,7 @@
 				COMP8888999900001111222233334444 /* ChatMessageView.swift */,
 				A7FEA8665C6A4B22986DA6438533D80C /* SupabaseService.swift */,
 				CALCULATOR1234567890ABCDEF001122 /* WorkoutRewardCalculator.swift */,
+				B5897B15B54C4630970D449B0F5C3F0E /* StreakTracker.swift */,
 				97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */,
 				COINABCDEF123456789ABCDEF12345678 /* CoinOSService.swift */,
 				LIGHTABCDEF123456789ABCDEF123456 /* LightningWalletManager.swift */,
@@ -310,6 +342,19 @@
 				HELP123456789ABCDEF123456789012 /* HelpSupportViewController.swift */,
 				WEB123456789ABCDEF1234567890123 /* WebViewController.swift */,
 				BACKGROUNDABCDEF123456789012345678 /* BackgroundTaskManager.swift */,
+				6C3CD0FB6D32487196F886829229BEF2 /* AutoEntryService.swift */,
+				2150D462B5584B4C99B32078D12ED8A7 /* EventProgressTracker.swift */,
+				86AA102591B44D0D986DFFC73F971788 /* RealtimeLeaderboardService.swift */,
+				8F796D55CCA343A6AA5915AE331AC1BF /* EventNotificationService.swift */,
+				FCB896FA291D49A3B8153EDFCB2BEB9A /* TeamPrizeDistributionService.swift */,
+				9BC13758727E4834996A1BB4609D8181 /* CompetitionIntegrationService.swift */,
+				6E935BC9E90A4A3EA3A2FBB32650EEA9 /* EventProgressView.swift */,
+				CEA52A786269446FB6E160F2B0A120D3 /* LiveLeaderboardView.swift */,
+				8AEC544C016E4F229FFDF6ADF3C6E285 /* PrizeDistributionViewController.swift */,
+				93E5069335D94B0C8BCAF6C21F42FD34 /* PrizePoolTrackerView.swift */,
+				92E0D65D21C644E7979DFCE433686FF1 /* MemberPayoutHistoryViewController.swift */,
+				WORKSYNCQUEUEABCDEF123456789ABCDEF /* WorkoutSyncQueue.swift */,
+				ANTICHEAT9ABCDEF123456789ABCDEF012 /* AntiCheatService.swift */,
 				EVENTCRITABCDEF123456789ABCDEF1234 /* EventCriteriaEngine.swift */,
 				LEADERBOARDABCDEF123456789ABCDEF12 /* LeaderboardTracker.swift */,
 				NOTIFICATIONINTELABCDEF123456789A /* NotificationIntelligence.swift */,
@@ -402,6 +447,7 @@
 				3D4A1B9F2C5F7AB900F3E2B3 /* DesignSystem.swift in Sources */,
 				ICON1234567890ABCDEF1234567890AB /* IconGenerator.swift in Sources */,
 				3D4A1BA12C5F7AC500F3E2B3 /* NavigationCard.swift in Sources */,
+				74B7CE931B24466CB71BFCAC /* LotteryComingSoonViewController.swift in Sources */,
 				3D4A1BA32C5F7AD100F3E2B3 /* StatItem.swift in Sources */,
 				3D4A1BA52C5F7ADE00F3E2B3 /* IndustrialBackgroundViews.swift in Sources */,
 				3D4A1BA72C5F7B1000F3E2B3 /* TeamsViewController.swift in Sources */,
@@ -448,6 +494,7 @@
 				COMP8899AABBCCDDEEFF001122334 /* ChatMessageView.swift in Sources */,
 				D613E78D324148849B773D801477004E /* SupabaseService.swift in Sources */,
 				REWARD123456789ABCDEF0011223344 /* WorkoutRewardCalculator.swift in Sources */,
+				13AE25D6CFEE4E5D868CD870B20FEA83 /* StreakTracker.swift in Sources */,
 				F274E58B8DB14A08BD0C0B0C7DD64028 /* AuthenticationService.swift in Sources */,
 				COIN123456789ABCDEF01234567890AB /* CoinOSService.swift in Sources */,
 				LIGHT123456789ABCDEF01234567890B /* LightningWalletManager.swift in Sources */,
@@ -477,6 +524,19 @@
 				HELP987654321FEDCBA987654321012 /* HelpSupportViewController.swift in Sources */,
 				WEB987654321FEDCBA9876543210123 /* WebViewController.swift in Sources */,
 				BACKGROUND12345678901234567890123 /* BackgroundTaskManager.swift in Sources */,
+				6C3CD0FB6D32487196F886829229BEF3 /* AutoEntryService.swift in Sources */,
+				2150D462B5584B4C99B32078D12ED8A8 /* EventProgressTracker.swift in Sources */,
+				86AA102591B44D0D986DFFC73F971789 /* RealtimeLeaderboardService.swift in Sources */,
+				8F796D55CCA343A6AA5915AE331AC1C0 /* EventNotificationService.swift in Sources */,
+				FCB896FA291D49A3B8153EDFCB2BEB9B /* TeamPrizeDistributionService.swift in Sources */,
+				9BC13758727E4834996A1BB4609D8182 /* CompetitionIntegrationService.swift in Sources */,
+				6E935BC9E90A4A3EA3A2FBB32650EEB0 /* EventProgressView.swift in Sources */,
+				CEA52A786269446FB6E160F2B0A120D4 /* LiveLeaderboardView.swift in Sources */,
+				8AEC544C016E4F229FFDF6ADF3C6E286 /* PrizeDistributionViewController.swift in Sources */,
+				93E5069335D94B0C8BCAF6C21F42FD35 /* PrizePoolTrackerView.swift in Sources */,
+				92E0D65D21C644E7979DFCE433686FF2 /* MemberPayoutHistoryViewController.swift in Sources */,
+				WORKSYNCQUEUE123456789ABCDEF01234 /* WorkoutSyncQueue.swift in Sources */,
+				ANTICHEAT123456789ABCDEF0123456789 /* AntiCheatService.swift in Sources */,
 				EVENTCRIT123456789ABCDEF012345678 /* EventCriteriaEngine.swift in Sources */,
 				LEADERBOARD123456789ABCDEF0123456 /* LeaderboardTracker.swift in Sources */,
 				NOTIFICATIONINTEL123456789ABCDEF01 /* NotificationIntelligence.swift in Sources */,

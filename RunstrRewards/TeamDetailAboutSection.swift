@@ -7,7 +7,8 @@ class TeamDetailAboutSection: UIView {
     private let aboutDescriptionLabel = UILabel()
     private let statsRow = UIView()
     private let prizePoolStat = StatItem(value: "₿0.00", label: "Prize Pool", isBitcoin: true)
-    private let avgKmStat = StatItem(value: "0", label: "Avg Weekly KM")
+    private let walletStatusIndicator = UIView()
+    private let walletStatusLabel = UILabel()
     private let boltDecoration = UIView()
     
     override init(frame: CGRect) {
@@ -49,7 +50,19 @@ class TeamDetailAboutSection: UIView {
         statsRow.translatesAutoresizingMaskIntoConstraints = false
         
         prizePoolStat.translatesAutoresizingMaskIntoConstraints = false
-        avgKmStat.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Wallet status indicator
+        walletStatusIndicator.translatesAutoresizingMaskIntoConstraints = false
+        walletStatusIndicator.backgroundColor = UIColor.systemOrange
+        walletStatusIndicator.layer.cornerRadius = 4
+        walletStatusIndicator.layer.borderWidth = 1
+        walletStatusIndicator.layer.borderColor = UIColor.systemOrange.withAlphaComponent(0.3).cgColor
+        
+        // Wallet status label
+        walletStatusLabel.translatesAutoresizingMaskIntoConstraints = false
+        walletStatusLabel.text = "Wallet not configured"
+        walletStatusLabel.font = UIFont.systemFont(ofSize: 11, weight: .medium)
+        walletStatusLabel.textColor = UIColor.systemOrange
         
         // Bolt decoration
         boltDecoration.backgroundColor = UIColor(red: 0.27, green: 0.27, blue: 0.27, alpha: 1.0)
@@ -63,7 +76,8 @@ class TeamDetailAboutSection: UIView {
         addSubview(boltDecoration)
         
         statsRow.addSubview(prizePoolStat)
-        statsRow.addSubview(avgKmStat)
+        statsRow.addSubview(walletStatusIndicator)
+        statsRow.addSubview(walletStatusLabel)
     }
     
     private func setupConstraints() {
@@ -80,12 +94,18 @@ class TeamDetailAboutSection: UIView {
             statsRow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -IndustrialDesign.Spacing.large),
             statsRow.heightAnchor.constraint(equalToConstant: 40),
             
-            // Stats items
+            // Stats items - Prize pool centered
             prizePoolStat.leadingAnchor.constraint(equalTo: statsRow.leadingAnchor),
             prizePoolStat.centerYAnchor.constraint(equalTo: statsRow.centerYAnchor),
             
-            avgKmStat.trailingAnchor.constraint(equalTo: statsRow.trailingAnchor),
-            avgKmStat.centerYAnchor.constraint(equalTo: statsRow.centerYAnchor)
+            // Wallet status on the right
+            walletStatusIndicator.trailingAnchor.constraint(equalTo: walletStatusLabel.leadingAnchor, constant: -6),
+            walletStatusIndicator.centerYAnchor.constraint(equalTo: statsRow.centerYAnchor),
+            walletStatusIndicator.widthAnchor.constraint(equalToConstant: 8),
+            walletStatusIndicator.heightAnchor.constraint(equalToConstant: 8),
+            
+            walletStatusLabel.trailingAnchor.constraint(equalTo: statsRow.trailingAnchor),
+            walletStatusLabel.centerYAnchor.constraint(equalTo: statsRow.centerYAnchor)
         ])
     }
     
@@ -103,27 +123,31 @@ class TeamDetailAboutSection: UIView {
     
     // MARK: - Configuration
     
-    func configure(description: String?, prizePool: String, avgKm: Double) {
+    func configure(description: String?, prizePool: String, walletConfigured: Bool = false) {
         let displayDescription = description?.isEmpty == false ? description! : "This team doesn't have a description yet."
         aboutDescriptionLabel.text = displayDescription
         
         prizePoolStat.updateValue(prizePool)
         
-        // Format avgKm properly
-        let formattedAvgKm: String
-        if avgKm == 0 {
-            formattedAvgKm = "0"
-        } else if avgKm < 1 {
-            formattedAvgKm = String(format: "%.1f", avgKm)
+        // Update wallet status
+        if walletConfigured {
+            walletStatusIndicator.backgroundColor = IndustrialDesign.Colors.primaryText
+            walletStatusIndicator.layer.borderColor = IndustrialDesign.Colors.primaryText.withAlphaComponent(0.3).cgColor
+            walletStatusLabel.text = "Wallet active"
+            walletStatusLabel.textColor = IndustrialDesign.Colors.primaryText
         } else {
-            formattedAvgKm = String(format: "%.0f", avgKm)
+            walletStatusIndicator.backgroundColor = UIColor.systemOrange
+            walletStatusIndicator.layer.borderColor = UIColor.systemOrange.withAlphaComponent(0.3).cgColor
+            walletStatusLabel.text = "Wallet not configured"
+            walletStatusLabel.textColor = UIColor.systemOrange
         }
-        avgKmStat.updateValue(formattedAvgKm)
     }
     
     func showLoading() {
         aboutDescriptionLabel.text = "Loading team information..."
         prizePoolStat.updateValue("₿0")
-        avgKmStat.updateValue("0")
+        walletStatusLabel.text = "Checking wallet..."
+        walletStatusLabel.textColor = IndustrialDesign.Colors.secondaryText
+        walletStatusIndicator.backgroundColor = IndustrialDesign.Colors.secondaryText
     }
 }

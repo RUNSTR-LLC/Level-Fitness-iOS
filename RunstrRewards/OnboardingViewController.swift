@@ -110,7 +110,7 @@ class OnboardingViewController: UIViewController {
         progressView.translatesAutoresizingMaskIntoConstraints = false
         
         // Progress bar
-        progressBar.progressTintColor = UIColor.systemBlue
+        progressBar.progressTintColor = IndustrialDesign.Colors.primaryText
         progressBar.trackTintColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0)
         progressBar.layer.cornerRadius = 2
         progressBar.clipsToBounds = true
@@ -132,7 +132,7 @@ class OnboardingViewController: UIViewController {
         
         // Step image
         stepImageView.contentMode = .scaleAspectFit
-        stepImageView.tintColor = UIColor.systemBlue
+        stepImageView.tintColor = IndustrialDesign.Colors.primaryText
         stepImageView.translatesAutoresizingMaskIntoConstraints = false
         
         // Step title
@@ -161,10 +161,10 @@ class OnboardingViewController: UIViewController {
         // Next/Continue button
         nextButton.setTitleColor(.white, for: .normal)
         nextButton.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
-        nextButton.backgroundColor = UIColor.systemBlue
+        nextButton.backgroundColor = IndustrialDesign.Colors.cardBackground
         nextButton.layer.cornerRadius = 12
         nextButton.layer.borderWidth = 1
-        nextButton.layer.borderColor = UIColor.systemBlue.cgColor
+        nextButton.layer.borderColor = IndustrialDesign.Colors.cardBorder.cgColor
         nextButton.translatesAutoresizingMaskIntoConstraints = false
         nextButton.addTarget(self, action: #selector(nextButtonTapped), for: .touchUpInside)
         
@@ -278,8 +278,8 @@ class OnboardingViewController: UIViewController {
         // Update button colors for final step
         if currentStep == totalSteps - 1 {
             UIView.animate(withDuration: 0.3) {
-                self.nextButton.backgroundColor = UIColor.systemGreen
-                self.nextButton.layer.borderColor = UIColor.systemGreen.cgColor
+                self.nextButton.backgroundColor = IndustrialDesign.Colors.cardBorderHover
+                self.nextButton.layer.borderColor = IndustrialDesign.Colors.cardBorderHover.cgColor
             }
         }
         

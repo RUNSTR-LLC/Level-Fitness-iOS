@@ -62,12 +62,9 @@ enum PositionChangeType {
     case milestone(position: Int)
 }
 
-enum NotificationPriority {
-    case high    // Top 10, major improvements
-    case medium  // Significant changes (5+ positions)
-    case low     // Minor changes
-    case none    // No notification needed
-}
+// Note: NotificationPriority enum is defined in EventNotificationService.swift
+// We map LeaderboardTracker priorities to EventNotificationService priorities:
+// medium -> normal, none -> low
 
 // MARK: - Leaderboard Tracker Service
 
@@ -335,36 +332,36 @@ class LeaderboardTracker {
     private func determineNotificationPriority(_ position: LeaderboardPosition, changeType: PositionChangeType) -> NotificationPriority {
         switch changeType {
         case .firstEntry:
-            return position.position <= 10 ? .high : .medium
+            return position.position <= 10 ? .high : .normal
             
         case .movedUp(let positions):
             if position.position <= 3 {
                 return .high // Top 3 positions
             } else if position.position <= 10 || positions >= 5 {
-                return .medium // Top 10 or significant improvement
+                return .normal // Top 10 or significant improvement
             } else if positions >= 3 {
                 return .low // Minor but notable improvement
             } else {
-                return .none // Very small improvement
+                return .low // Very small improvement
             }
             
         case .movedDown(let positions):
             if positions >= 10 {
-                return .medium // Significant drop
+                return .normal // Significant drop
             } else if positions >= 5 {
                 return .low // Moderate drop
             } else {
-                return .none // Minor drop
+                return .low // Minor drop
             }
             
         case .newHighScore:
-            return .medium
+            return .normal
             
         case .milestone(let milestonePosition):
-            return milestonePosition <= 10 ? .high : .medium
+            return milestonePosition <= 10 ? .high : .normal
             
         case .noChange:
-            return .none
+            return .low
         }
     }
     
@@ -372,7 +369,7 @@ class LeaderboardTracker {
     
     func processPositionChanges(_ events: [PositionChangeEvent]) async {
         for event in events {
-            if event.notificationPriority != .none {
+            if event.notificationPriority != .low {
                 await generateNotification(for: event)
             }
         }

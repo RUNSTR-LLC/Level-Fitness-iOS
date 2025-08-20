@@ -49,7 +49,7 @@ class EventManagementCell: UITableViewCell {
         
         // Event type
         eventTypeLabel.font = UIFont.systemFont(ofSize: 12, weight: .medium)
-        eventTypeLabel.textColor = UIColor.systemBlue
+        eventTypeLabel.textColor = IndustrialDesign.Colors.accentText
         eventTypeLabel.translatesAutoresizingMaskIntoConstraints = false
         
         // Status badge

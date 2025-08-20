@@ -1,4 +1,5 @@
 import UIKit
+import Foundation
 
 protocol TeamWalletBalanceViewDelegate: AnyObject {
     func didTapFundWallet(_ view: TeamWalletBalanceView, teamId: String)
@@ -12,6 +13,9 @@ class TeamWalletBalanceView: UIView {
     private let teamId: String
     private var userRole: TeamRole = .none
     private var currentBalance: Int = 0
+    private var teamWallet: TeamWalletBalance?
+    private var pendingDistributions: [PrizeDistribution] = []
+    private let distributionService = TeamPrizeDistributionService.shared
     weak var delegate: TeamWalletBalanceViewDelegate?
     
     // MARK: - UI Components
@@ -25,6 +29,15 @@ class TeamWalletBalanceView: UIView {
     private let balanceLabel = UILabel()
     private let balanceValueLabel = UILabel()
     private let usdValueLabel = UILabel()
+    private let availableBalanceLabel = UILabel()
+    private let pendingLabel = UILabel()
+    
+    // Pending distributions section
+    private let pendingContainer = UIView()
+    private let pendingTitleLabel = UILabel()
+    private let pendingAmountLabel = UILabel()
+    private let pendingCountLabel = UILabel()
+    private let pendingIndicator = UIView()
     
     // Actions section
     private let actionsContainer = UIView()
@@ -100,6 +113,7 @@ class TeamWalletBalanceView: UIView {
         // Header setup
         setupHeader()
         setupBalance()
+        setupPendingDistributions()
         setupActions()
         setupLoadingAndError()
         setupBoltDecoration()
@@ -107,6 +121,7 @@ class TeamWalletBalanceView: UIView {
         addSubview(containerView)
         containerView.addSubview(headerContainer)
         containerView.addSubview(balanceContainer)
+        containerView.addSubview(pendingContainer)
         containerView.addSubview(actionsContainer)
         containerView.addSubview(loadingIndicator)
         containerView.addSubview(errorLabel)
@@ -124,10 +139,10 @@ class TeamWalletBalanceView: UIView {
         
         // Status indicator
         statusIndicator.translatesAutoresizingMaskIntoConstraints = false
-        statusIndicator.backgroundColor = UIColor.systemGreen
+        statusIndicator.backgroundColor = IndustrialDesign.Colors.primaryText
         statusIndicator.layer.cornerRadius = 4
         statusIndicator.layer.borderWidth = 1
-        statusIndicator.layer.borderColor = UIColor.systemGreen.withAlphaComponent(0.3).cgColor
+        statusIndicator.layer.borderColor = IndustrialDesign.Colors.primaryText.withAlphaComponent(0.3).cgColor
         
         headerContainer.addSubview(titleLabel)
         headerContainer.addSubview(statusIndicator)
@@ -158,9 +173,70 @@ class TeamWalletBalanceView: UIView {
         usdValueLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
         usdValueLabel.textColor = IndustrialDesign.Colors.secondaryText
         
+        // Available balance label
+        availableBalanceLabel.translatesAutoresizingMaskIntoConstraints = false
+        availableBalanceLabel.text = "Available: ₿0"
+        availableBalanceLabel.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+        availableBalanceLabel.textColor = UIColor.systemGreen
+        
+        // Pending label
+        pendingLabel.translatesAutoresizingMaskIntoConstraints = false
+        pendingLabel.text = "Pending: ₿0"
+        pendingLabel.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+        pendingLabel.textColor = UIColor.systemOrange
+        
         balanceContainer.addSubview(balanceLabel)
         balanceContainer.addSubview(balanceValueLabel)
         balanceContainer.addSubview(usdValueLabel)
+        balanceContainer.addSubview(availableBalanceLabel)
+        balanceContainer.addSubview(pendingLabel)
+    }
+    
+    private func setupPendingDistributions() {
+        pendingContainer.translatesAutoresizingMaskIntoConstraints = false
+        pendingContainer.backgroundColor = UIColor(red: 0.08, green: 0.08, blue: 0.08, alpha: 0.8)
+        pendingContainer.layer.cornerRadius = 8
+        pendingContainer.layer.borderWidth = 1
+        pendingContainer.layer.borderColor = UIColor.systemOrange.withAlphaComponent(0.3).cgColor
+        pendingContainer.isHidden = true // Initially hidden
+        
+        // Pending title
+        pendingTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        pendingTitleLabel.text = "PENDING DISTRIBUTIONS"
+        pendingTitleLabel.font = UIFont.systemFont(ofSize: 10, weight: .semibold)
+        pendingTitleLabel.textColor = UIColor.systemOrange
+        pendingTitleLabel.letterSpacing = 1.0
+        
+        // Pending amount
+        pendingAmountLabel.translatesAutoresizingMaskIntoConstraints = false
+        pendingAmountLabel.text = "₿0"
+        pendingAmountLabel.font = UIFont.systemFont(ofSize: 16, weight: .bold)
+        pendingAmountLabel.textColor = UIColor.systemOrange
+        
+        // Pending count
+        pendingCountLabel.translatesAutoresizingMaskIntoConstraints = false
+        pendingCountLabel.text = "0 distributions"
+        pendingCountLabel.font = UIFont.systemFont(ofSize: 12)
+        pendingCountLabel.textColor = IndustrialDesign.Colors.secondaryText
+        
+        // Pending indicator (pulsing dot)
+        pendingIndicator.translatesAutoresizingMaskIntoConstraints = false
+        pendingIndicator.backgroundColor = UIColor.systemOrange
+        pendingIndicator.layer.cornerRadius = 3
+        
+        // Add pulsing animation
+        let pulseAnimation = CABasicAnimation(keyPath: "opacity")
+        pulseAnimation.fromValue = 0.3
+        pulseAnimation.toValue = 1.0
+        pulseAnimation.duration = 1.0
+        pulseAnimation.autoreverses = true
+        pulseAnimation.repeatCount = .infinity
+        pendingIndicator.layer.add(pulseAnimation, forKey: "pulse")
+        
+        pendingContainer.addSubview(pendingTitleLabel)
+        pendingContainer.addSubview(pendingAmountLabel)
+        pendingContainer.addSubview(pendingCountLabel)
+        pendingContainer.addSubview(pendingIndicator)
     }
     
     private func setupActions() {
@@ -189,7 +265,7 @@ class TeamWalletBalanceView: UIView {
             distributeButton,
             title: "Distribute",
             icon: "arrow.down.circle.fill",
-            backgroundColor: UIColor.systemBlue,
+            backgroundColor: IndustrialDesign.Colors.cardBackground,
             action: #selector(distributeButtonTapped)
         )
         
@@ -239,10 +315,10 @@ class TeamWalletBalanceView: UIView {
         
         // Error label
         errorLabel.translatesAutoresizingMaskIntoConstraints = false
-        errorLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
-        errorLabel.textColor = UIColor.systemRed
+        errorLabel.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+        errorLabel.textColor = UIColor.systemOrange
         errorLabel.textAlignment = .center
-        errorLabel.numberOfLines = 0
+        errorLabel.numberOfLines = 1
         errorLabel.isHidden = true
     }
     
@@ -290,10 +366,36 @@ class TeamWalletBalanceView: UIView {
             
             usdValueLabel.topAnchor.constraint(equalTo: balanceValueLabel.bottomAnchor, constant: 4),
             usdValueLabel.leadingAnchor.constraint(equalTo: balanceContainer.leadingAnchor),
-            usdValueLabel.bottomAnchor.constraint(equalTo: balanceContainer.bottomAnchor),
+            
+            availableBalanceLabel.topAnchor.constraint(equalTo: usdValueLabel.bottomAnchor, constant: 8),
+            availableBalanceLabel.leadingAnchor.constraint(equalTo: balanceContainer.leadingAnchor),
+            
+            pendingLabel.topAnchor.constraint(equalTo: usdValueLabel.bottomAnchor, constant: 8),
+            pendingLabel.trailingAnchor.constraint(equalTo: balanceContainer.trailingAnchor),
+            pendingLabel.bottomAnchor.constraint(equalTo: balanceContainer.bottomAnchor),
+            
+            // Pending distributions container
+            pendingContainer.topAnchor.constraint(equalTo: balanceContainer.bottomAnchor, constant: 12),
+            pendingContainer.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
+            pendingContainer.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
+            pendingContainer.heightAnchor.constraint(equalToConstant: 60),
+            
+            pendingTitleLabel.topAnchor.constraint(equalTo: pendingContainer.topAnchor, constant: 8),
+            pendingTitleLabel.leadingAnchor.constraint(equalTo: pendingContainer.leadingAnchor, constant: 12),
+            
+            pendingIndicator.centerYAnchor.constraint(equalTo: pendingTitleLabel.centerYAnchor),
+            pendingIndicator.trailingAnchor.constraint(equalTo: pendingContainer.trailingAnchor, constant: -12),
+            pendingIndicator.widthAnchor.constraint(equalToConstant: 6),
+            pendingIndicator.heightAnchor.constraint(equalToConstant: 6),
+            
+            pendingAmountLabel.topAnchor.constraint(equalTo: pendingTitleLabel.bottomAnchor, constant: 4),
+            pendingAmountLabel.leadingAnchor.constraint(equalTo: pendingContainer.leadingAnchor, constant: 12),
+            
+            pendingCountLabel.centerYAnchor.constraint(equalTo: pendingAmountLabel.centerYAnchor),
+            pendingCountLabel.trailingAnchor.constraint(equalTo: pendingIndicator.leadingAnchor, constant: -8),
             
             // Actions
-            actionsContainer.topAnchor.constraint(equalTo: balanceContainer.bottomAnchor, constant: 20),
+            actionsContainer.topAnchor.constraint(equalTo: pendingContainer.bottomAnchor, constant: 12),
             actionsContainer.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
             actionsContainer.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
             actionsContainer.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -20),
@@ -316,10 +418,10 @@ class TeamWalletBalanceView: UIView {
             loadingIndicator.centerXAnchor.constraint(equalTo: balanceContainer.centerXAnchor),
             loadingIndicator.centerYAnchor.constraint(equalTo: balanceContainer.centerYAnchor),
             
-            errorLabel.topAnchor.constraint(equalTo: balanceContainer.topAnchor),
-            errorLabel.leadingAnchor.constraint(equalTo: balanceContainer.leadingAnchor),
-            errorLabel.trailingAnchor.constraint(equalTo: balanceContainer.trailingAnchor),
-            errorLabel.bottomAnchor.constraint(equalTo: balanceContainer.bottomAnchor)
+            errorLabel.topAnchor.constraint(equalTo: headerContainer.bottomAnchor, constant: 4),
+            errorLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
+            errorLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
+            errorLabel.heightAnchor.constraint(equalToConstant: 20)
         ])
     }
     
@@ -328,41 +430,82 @@ class TeamWalletBalanceView: UIView {
     private func loadWalletData() {
         showLoadingState()
         
-        Task {
-            do {
-                // Get user role
-                userRole = try await TeamWalletAccessController.shared.getUserRoleInTeam(
-                    teamId: teamId,
-                    userId: AuthenticationService.shared.loadSession()?.id ?? ""
-                )
-                
-                // Get wallet balance
-                let balance = try await TeamWalletManager.shared.getTeamWalletBalance(teamId: teamId)
-                currentBalance = balance.total
-                
-                await MainActor.run {
-                    updateBalanceDisplay(balance: balance.total)
-                    updateButtonVisibility()
-                    hideLoadingState()
-                }
-                
-            } catch {
-                await MainActor.run {
-                    showErrorState(error: error)
-                }
+        // Load wallet data from TeamPrizeDistributionService
+        if let wallet = distributionService.getTeamWallet(teamId: teamId) {
+            teamWallet = wallet
+            currentBalance = Int(wallet.totalBalance)
+            
+            // Load pending distributions
+            pendingDistributions = distributionService.getDistributionsForTeam(teamId: teamId)
+                .filter { $0.status == .pending || $0.status == .approved || $0.status == .draft }
+            
+            // Simulate user role (in real app, get from authentication)
+            userRole = .captain // For demo purposes
+            
+            DispatchQueue.main.async {
+                self.updateBalanceDisplay(wallet: wallet)
+                self.updatePendingDistributions()
+                self.updateButtonVisibility()
+                self.hideLoadingState()
+            }
+        } else {
+            DispatchQueue.main.async {
+                self.showErrorState(error: TeamWalletError.teamWalletNotFound)
             }
         }
     }
     
     // MARK: - UI Updates
     
-    private func updateBalanceDisplay(balance: Int) {
-        let btcAmount = Double(balance) / 100_000_000.0
-        balanceValueLabel.text = "₿\(String(format: "%.8f", btcAmount))"
+    private func updateBalanceDisplay(wallet: TeamWalletBalance) {
+        // Total balance
+        let totalBtc = wallet.totalBalance / 100_000_000.0
+        balanceValueLabel.text = "₿\(String(format: "%.8f", totalBtc))"
+        
+        // Available balance
+        let availableBtc = wallet.availableBalance / 100_000_000.0
+        availableBalanceLabel.text = "Available: ₿\(String(format: "%.6f", availableBtc))"
+        
+        // Pending amount
+        let pendingBtc = wallet.pendingDistributions / 100_000_000.0
+        pendingLabel.text = "Pending: ₿\(String(format: "%.6f", pendingBtc))"
         
         // Estimate USD value (this would typically come from an exchange rate API)
-        let estimatedUSD = Double(balance) * 0.0003 // Rough estimate
+        let estimatedUSD = wallet.totalBalance * 0.0003 // Rough estimate
         usdValueLabel.text = "≈ $\(String(format: "%.2f", estimatedUSD)) USD"
+        
+        // Update colors based on available funds
+        if wallet.availableBalance > 0 {
+            availableBalanceLabel.textColor = UIColor.systemGreen
+        } else {
+            availableBalanceLabel.textColor = UIColor.systemRed
+        }
+    }
+    
+    private func updatePendingDistributions() {
+        let hasPendingDistributions = !pendingDistributions.isEmpty
+        pendingContainer.isHidden = !hasPendingDistributions
+        
+        if hasPendingDistributions {
+            let totalPendingAmount = pendingDistributions.reduce(0) { $0 + $1.totalPrize }
+            let pendingBtc = totalPendingAmount / 100_000_000.0
+            
+            pendingAmountLabel.text = "₿\(String(format: "%.6f", pendingBtc))"
+            
+            let count = pendingDistributions.count
+            pendingCountLabel.text = count == 1 ? "1 distribution" : "\(count) distributions"
+            
+            // Update container border color based on urgency
+            let hasApprovedDistributions = pendingDistributions.contains { $0.status == .approved }
+            let borderColor = hasApprovedDistributions ? UIColor.systemRed : UIColor.systemOrange
+            pendingContainer.layer.borderColor = borderColor.withAlphaComponent(0.3).cgColor
+            
+            // Add tap gesture to view pending distributions
+            if pendingContainer.gestureRecognizers?.isEmpty ?? true {
+                let tapGesture = UITapGestureRecognizer(target: self, action: #selector(pendingDistributionsTapped))
+                pendingContainer.addGestureRecognizer(tapGesture)
+            }
+        }
     }
     
     private func updateButtonVisibility() {
@@ -396,10 +539,20 @@ class TeamWalletBalanceView: UIView {
     
     private func showErrorState(error: Error) {
         loadingIndicator.stopAnimating()
+        
+        // Hide everything when there's an error to avoid UI overlap
         balanceContainer.isHidden = true
         actionsContainer.isHidden = true
         errorLabel.isHidden = false
-        errorLabel.text = "Failed to load wallet: \(error.localizedDescription)"
+        
+        // Show a simple error message
+        if error.localizedDescription.contains("Authentication required") {
+            errorLabel.text = "Wallet not configured"
+            errorLabel.textColor = UIColor.systemOrange
+        } else {
+            errorLabel.text = "Wallet unavailable"
+            errorLabel.textColor = UIColor.systemRed
+        }
     }
     
     // MARK: - Actions
@@ -419,6 +572,46 @@ class TeamWalletBalanceView: UIView {
         delegate?.didTapDistributeRewards(self, teamId: teamId)
     }
     
+    @objc private func pendingDistributionsTapped() {
+        print("TeamWalletBalanceView: Pending distributions tapped - \(pendingDistributions.count) pending")
+        
+        // Show pending distributions alert
+        showPendingDistributionsAlert()
+    }
+    
+    private func showPendingDistributionsAlert() {
+        let alert = UIAlertController(
+            title: "Pending Distributions",
+            message: "\(pendingDistributions.count) distribution(s) awaiting action",
+            preferredStyle: .alert
+        )
+        
+        // Add details for each pending distribution
+        for distribution in pendingDistributions.prefix(3) { // Show first 3
+            let status = String(describing: distribution.status).capitalized
+            let amount = "₿\(String(format: "%.6f", distribution.totalPrize / 100_000_000.0))"
+            let eventName = "Event: \(distribution.eventId)"
+            
+            alert.message = (alert.message ?? "") + "\n\n\(status): \(amount)\n\(eventName)"
+        }
+        
+        if pendingDistributions.count > 3 {
+            alert.message = (alert.message ?? "") + "\n\n... and \(pendingDistributions.count - 3) more"
+        }
+        
+        alert.addAction(UIAlertAction(title: "View All", style: .default) { _ in
+            // In a real implementation, navigate to detailed view
+            print("Navigate to detailed pending distributions view")
+        })
+        
+        alert.addAction(UIAlertAction(title: "Close", style: .cancel))
+        
+        // Present from the view controller containing this view
+        if let viewController = self.findViewController() {
+            viewController.present(alert, animated: true)
+        }
+    }
+    
     // MARK: - Public Methods
     
     func refreshBalance() {
@@ -427,6 +620,18 @@ class TeamWalletBalanceView: UIView {
     
     func updateBalance(_ newBalance: Int) {
         currentBalance = newBalance
-        updateBalanceDisplay(balance: newBalance)
+        if let wallet = teamWallet {
+            let updatedWallet = TeamWalletBalance(
+                teamId: wallet.teamId,
+                totalBalance: Double(newBalance),
+                availableBalance: wallet.availableBalance,
+                pendingDistributions: wallet.pendingDistributions,
+                lastUpdated: Date(),
+                transactions: wallet.transactions
+            )
+            updateBalanceDisplay(wallet: updatedWallet)
+        }
     }
 }
+
+// Note: Helper extensions, TeamWalletError, and TeamRole are defined in other files to avoid duplication

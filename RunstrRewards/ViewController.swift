@@ -10,22 +10,16 @@ class ViewController: UIViewController {
     private let headerView = UIView()
     private let settingsButton = UIButton(type: .custom)
     
-    // Logo section
-    private let logoSection = UIView()
-    private let logoImageView = UIImageView()
-    private let logoLabel = UILabel()
-    private let taglineLabel = UILabel()
+    // Wallet balance section (replaces logo)
+    private let walletSection = UIView()
+    private let walletBalanceLabel = UILabel()
     
     // Navigation grid
     private let navigationGrid = UIView()
     private var navigationCards: [NavigationCard] = []
     private var teamsCard: NavigationCard?  // Keep reference to update with team info
     
-    // Stats bar
-    private let statsBar = UIView()
-    private let workoutsStat = StatItem(value: "0", label: "Workouts")
-    private let earningsStat = StatItem(value: "0", label: "Earned", isBitcoin: true)
-    private let streakStat = StatItem(value: "0", label: "Streak")
+    // Stats bar removed - stats now integrated into navigation cards
     
     // User's active team
     private var userActiveTeam: TeamData?
@@ -40,9 +34,9 @@ class ViewController: UIViewController {
         setupIndustrialBackground()
         setupScrollView()
         setupHeader()
-        setupLogo()
+        setupWalletSection()
         setupNavigationGrid()
-        setupStatsBar()
+        // setupStatsBar() removed
         setupConstraints()
         
         // Load real user data
@@ -109,44 +103,40 @@ class ViewController: UIViewController {
         contentView.addSubview(headerView)
     }
     
-    private func setupLogo() {
-        logoSection.translatesAutoresizingMaskIntoConstraints = false
+    private func setupWalletSection() {
+        walletSection.translatesAutoresizingMaskIntoConstraints = false
         
-        // Logo text with gradient - larger and more prominent
-        logoLabel.text = "RUNSTR REWARDS"
-        logoLabel.font = UIFont.systemFont(ofSize: 32, weight: .heavy)
-        logoLabel.textAlignment = .center
-        logoLabel.translatesAutoresizingMaskIntoConstraints = false
+        // Wallet balance display - don't set initial text to avoid overlap
+        walletBalanceLabel.text = "" // Start empty, will be filled when wallet loads
+        walletBalanceLabel.font = UIFont.systemFont(ofSize: 32, weight: .heavy)
+        walletBalanceLabel.textAlignment = .center
+        walletBalanceLabel.translatesAutoresizingMaskIntoConstraints = false
         
-        // Tagline
-        taglineLabel.text = "Put your workouts to work."
-        taglineLabel.font = IndustrialDesign.Typography.taglineFont
-        taglineLabel.textColor = IndustrialDesign.Colors.secondaryText
-        taglineLabel.textAlignment = .center
-        taglineLabel.translatesAutoresizingMaskIntoConstraints = false
+        walletSection.addSubview(walletBalanceLabel)
+        contentView.addSubview(walletSection)
         
-        logoSection.addSubview(logoLabel)
-        logoSection.addSubview(taglineLabel)
-        contentView.addSubview(logoSection)
-        
-        // Add gradient to logo text
+        // Add gradient to balance text
         DispatchQueue.main.async {
-            self.applyGradientToLabel(self.logoLabel)
+            self.applyGradientToLabel(self.walletBalanceLabel)
         }
+        
+        // Make it tappable to navigate to wallet
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(walletSectionTapped))
+        walletSection.addGestureRecognizer(tapGesture)
+        walletSection.isUserInteractionEnabled = true
         
         // Development feature: Triple tap to generate app icons
         #if DEBUG
         let tripleTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTripleTap))
         tripleTapGesture.numberOfTapsRequired = 3
-        logoSection.addGestureRecognizer(tripleTapGesture)
-        logoSection.isUserInteractionEnabled = true
+        walletSection.addGestureRecognizer(tripleTapGesture)
         #endif
     }
     
     private func setupNavigationGrid() {
         navigationGrid.translatesAutoresizingMaskIntoConstraints = false
         
-        // Create navigation cards
+        // Create navigation cards - 3 cards (Teams, Lottery, and Profile)
         let teamsCard = NavigationCard(
             title: "Teams",
             subtitle: "Join & Create",
@@ -157,27 +147,28 @@ class ViewController: UIViewController {
         )
         self.teamsCard = teamsCard  // Store reference to update later
         
-        let walletCard = NavigationCard(
-            title: "Wallet",
-            subtitle: "earnings",
-            iconName: "wallet.pass.fill",
+        // Lottery card - new feature
+        let lotteryCard = NavigationCard(
+            title: "RUNSTR REWARDS",
+            subtitle: "Lottery",
+            iconName: "ticket.fill",
             action: { [weak self] in
-                self?.navigateToWallet()
+                print("🎰 RunstrRewards: Lottery card tapped")
+                self?.navigateToLottery()
             }
         )
         
-        // Remove Level League - teams handle their own competitions now
-        
-        let workoutsCard = NavigationCard(
-            title: "Stats",
-            subtitle: "sync workouts",
-            iconName: "chart.bar.fill",
+        let profileCard = NavigationCard(
+            title: "Profile",
+            subtitle: "your stats",
+            iconName: "person.fill",
             action: { [weak self] in
-                self?.navigateToWorkouts()
+                print("🔍 DEBUG: Profile card tapped")
+                self?.navigateToProfile()
             }
         )
         
-        navigationCards = [teamsCard, walletCard, workoutsCard]
+        navigationCards = [teamsCard, lotteryCard, profileCard]
         
         for card in navigationCards {
             card.translatesAutoresizingMaskIntoConstraints = false
@@ -187,25 +178,7 @@ class ViewController: UIViewController {
         contentView.addSubview(navigationGrid)
     }
     
-    private func setupStatsBar() {
-        statsBar.translatesAutoresizingMaskIntoConstraints = false
-        statsBar.backgroundColor = IndustrialDesign.Colors.background
-        
-        let borderLayer = CALayer()
-        borderLayer.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0).cgColor
-        borderLayer.frame = CGRect(x: 0, y: 0, width: view.frame.width, height: 1)
-        statsBar.layer.addSublayer(borderLayer)
-        
-        workoutsStat.translatesAutoresizingMaskIntoConstraints = false
-        earningsStat.translatesAutoresizingMaskIntoConstraints = false
-        streakStat.translatesAutoresizingMaskIntoConstraints = false
-        
-        statsBar.addSubview(workoutsStat)
-        statsBar.addSubview(earningsStat)
-        statsBar.addSubview(streakStat)
-        
-        contentView.addSubview(statsBar)
-    }
+    // setupStatsBar method removed - stats no longer displayed at bottom
     
     private func setupConstraints() {
         NSLayoutConstraint.activate([
@@ -234,26 +207,23 @@ class ViewController: UIViewController {
             settingsButton.widthAnchor.constraint(equalToConstant: 40),
             settingsButton.heightAnchor.constraint(equalToConstant: 40),
             
-            // Logo section
-            logoSection.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: IndustrialDesign.Spacing.xxxLarge),
-            logoSection.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            logoSection.widthAnchor.constraint(equalTo: contentView.widthAnchor),
+            // Wallet section
+            walletSection.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: IndustrialDesign.Spacing.xxxLarge),
+            walletSection.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            walletSection.widthAnchor.constraint(equalTo: contentView.widthAnchor),
+            walletSection.heightAnchor.constraint(equalToConstant: 60),
             
-            // Logo text - now at the top
-            logoLabel.topAnchor.constraint(equalTo: logoSection.topAnchor),
-            logoLabel.centerXAnchor.constraint(equalTo: logoSection.centerXAnchor),
-            
-            taglineLabel.topAnchor.constraint(equalTo: logoLabel.bottomAnchor, constant: IndustrialDesign.Spacing.small),
-            taglineLabel.centerXAnchor.constraint(equalTo: logoSection.centerXAnchor),
-            taglineLabel.bottomAnchor.constraint(equalTo: logoSection.bottomAnchor),
+            // Wallet balance text - centered in section
+            walletBalanceLabel.centerXAnchor.constraint(equalTo: walletSection.centerXAnchor),
+            walletBalanceLabel.centerYAnchor.constraint(equalTo: walletSection.centerYAnchor),
             
             // Navigation grid
-            navigationGrid.topAnchor.constraint(equalTo: logoSection.bottomAnchor, constant: 60),
+            navigationGrid.topAnchor.constraint(equalTo: walletSection.bottomAnchor, constant: 60),
             navigationGrid.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: IndustrialDesign.Spacing.xLarge),
             navigationGrid.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -IndustrialDesign.Spacing.xLarge),
-            navigationGrid.heightAnchor.constraint(equalToConstant: 260),
+            navigationGrid.heightAnchor.constraint(equalToConstant: 460), // Increased for 3 cards
             
-            // Navigation cards - 3 cards layout: Teams (full width), Wallet + Stats (half width each)
+            // Navigation cards - 3 cards layout: Teams, Lottery, Profile (all full width)
             navigationCards[0].topAnchor.constraint(equalTo: navigationGrid.topAnchor),
             navigationCards[0].leadingAnchor.constraint(equalTo: navigationGrid.leadingAnchor),
             navigationCards[0].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
@@ -261,33 +231,16 @@ class ViewController: UIViewController {
             
             navigationCards[1].topAnchor.constraint(equalTo: navigationCards[0].bottomAnchor, constant: IndustrialDesign.Spacing.large),
             navigationCards[1].leadingAnchor.constraint(equalTo: navigationGrid.leadingAnchor),
-            navigationCards[1].trailingAnchor.constraint(equalTo: navigationGrid.centerXAnchor, constant: -10),
+            navigationCards[1].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
             navigationCards[1].heightAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.cardMinHeight),
             
-            navigationCards[2].topAnchor.constraint(equalTo: navigationCards[0].bottomAnchor, constant: IndustrialDesign.Spacing.large),
-            navigationCards[2].leadingAnchor.constraint(equalTo: navigationGrid.centerXAnchor, constant: 10),
+            navigationCards[2].topAnchor.constraint(equalTo: navigationCards[1].bottomAnchor, constant: IndustrialDesign.Spacing.large),
+            navigationCards[2].leadingAnchor.constraint(equalTo: navigationGrid.leadingAnchor),
             navigationCards[2].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
             navigationCards[2].heightAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.cardMinHeight),
             
-            // Stats bar
-            statsBar.topAnchor.constraint(equalTo: navigationGrid.bottomAnchor, constant: IndustrialDesign.Spacing.xxxLarge),
-            statsBar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            statsBar.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            statsBar.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-            statsBar.heightAnchor.constraint(equalToConstant: 100),
-            
-            // Stats items
-            workoutsStat.centerYAnchor.constraint(equalTo: statsBar.centerYAnchor),
-            workoutsStat.leadingAnchor.constraint(equalTo: statsBar.leadingAnchor, constant: IndustrialDesign.Spacing.xLarge),
-            workoutsStat.widthAnchor.constraint(equalTo: statsBar.widthAnchor, multiplier: 0.25),
-            
-            earningsStat.centerYAnchor.constraint(equalTo: statsBar.centerYAnchor),
-            earningsStat.centerXAnchor.constraint(equalTo: statsBar.centerXAnchor),
-            earningsStat.widthAnchor.constraint(equalTo: statsBar.widthAnchor, multiplier: 0.25),
-            
-            streakStat.centerYAnchor.constraint(equalTo: statsBar.centerYAnchor),
-            streakStat.trailingAnchor.constraint(equalTo: statsBar.trailingAnchor, constant: -IndustrialDesign.Spacing.xLarge),
-            streakStat.widthAnchor.constraint(equalTo: statsBar.widthAnchor, multiplier: 0.25)
+            // Navigation grid is now the bottom element
+            navigationGrid.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -IndustrialDesign.Spacing.xxxLarge)
         ])
     }
     
@@ -386,18 +339,38 @@ class ViewController: UIViewController {
         print("💰 RunstrRewards: Successfully navigated to Wallet page")
     }
     
-    private func navigateToWorkouts() {
-        print("🏃‍♂️ RunstrRewards: Workouts navigation requested")
+    private func navigateToProfile() {
+        print("👤 RunstrRewards: Profile navigation requested")
         
         guard let navigationController = navigationController else {
-            print("❌ RunstrRewards: NavigationController is nil - cannot navigate to Workouts")
+            print("❌ RunstrRewards: NavigationController is nil - cannot navigate to Profile")
             return
         }
         
+        // Navigate to WorkoutsViewController which contains user stats/profile info
         let workoutsViewController = WorkoutsViewController()
         navigationController.pushViewController(workoutsViewController, animated: true)
         
-        print("🏃‍♂️ RunstrRewards: Successfully navigated to Workouts page")
+        print("👤 RunstrRewards: Successfully navigated to Profile/Workouts page")
+    }
+    
+    private func navigateToLottery() {
+        print("🎰 RunstrRewards: Lottery navigation requested")
+        
+        guard let navigationController = navigationController else {
+            print("❌ RunstrRewards: NavigationController is nil - cannot navigate to Lottery")
+            return
+        }
+        
+        let lotteryViewController = LotteryComingSoonViewController()
+        navigationController.pushViewController(lotteryViewController, animated: true)
+        
+        print("🎰 RunstrRewards: Successfully navigated to Lottery Coming Soon page")
+    }
+    
+    private func navigateToWorkouts() {
+        print("🏃‍♂️ RunstrRewards: Workouts navigation requested")
+        navigateToProfile() // Redirect to profile method
     }
     
     @objc private func settingsButtonTapped() {
@@ -412,6 +385,11 @@ class ViewController: UIViewController {
         navigationController.pushViewController(settingsViewController, animated: true)
         
         print("⚙️ RunstrRewards: Successfully navigated to Settings page")
+    }
+    
+    @objc private func walletSectionTapped() {
+        print("💰 RunstrRewards: Wallet section tapped")
+        navigateToWallet()
     }
     
     // Level League removed - competitions now handled by individual teams
@@ -479,10 +457,8 @@ extension ViewController {
     
     private func loadRealUserStats() {
         Task {
-            await loadWorkoutStats()
-            await loadEarningsStats()
-            await loadStreakStats()
             await loadUserTeam()
+            await loadWalletBalance()
         }
     }
     
@@ -502,6 +478,7 @@ extension ViewController {
                         id: firstTeam.id,
                         name: firstTeam.name,
                         captain: firstTeam.captainId,
+                        captainId: firstTeam.captainId,
                         members: firstTeam.memberCount,
                         prizePool: String(format: "%.0f", firstTeam.totalEarnings),
                         activities: ["Running"],
@@ -530,6 +507,71 @@ extension ViewController {
         }
     }
     
+    private func loadWalletBalance() async {
+        // Check if user is authenticated before trying Lightning wallet
+        guard let userSession = AuthenticationService.shared.loadSession() else {
+            print("🏭 RunstrRewards: No user session found for wallet balance - showing default")
+            await MainActor.run {
+                walletBalanceLabel.text = "0 sats"
+            }
+            return
+        }
+        
+        // Show loading state
+        await MainActor.run {
+            walletBalanceLabel.text = "Loading..."
+            walletBalanceLabel.alpha = 0.5
+        }
+        
+        // Try to get real Lightning wallet balance
+        do {
+            print("🏭 RunstrRewards: Loading real Lightning wallet balance for user: \(userSession.id)")
+            let lightningWalletManager = LightningWalletManager.shared
+            let balance = try await lightningWalletManager.getWalletBalance()
+            
+            await MainActor.run {
+                // Use real Lightning balance (in sats)
+                let totalSats = balance.lightning
+                
+                print("🏭 RunstrRewards: Raw Lightning balance: \(totalSats) sats")
+                
+                // Format as clean sats display
+                let formattedBalance: String
+                if totalSats == 0 {
+                    formattedBalance = "0 sats"
+                } else {
+                    let formatter = NumberFormatter()
+                    formatter.numberStyle = .decimal
+                    formatter.groupingSeparator = ","
+                    let formattedSats = formatter.string(from: NSNumber(value: totalSats)) ?? "\(totalSats)"
+                    formattedBalance = "\(formattedSats) sats"
+                }
+                
+                print("🏭 RunstrRewards: Setting wallet balance text to: '\(formattedBalance)'")
+                walletBalanceLabel.text = formattedBalance
+                walletBalanceLabel.alpha = 1.0 // Restore full opacity
+                
+                // Force layout update to ensure text changes are visible
+                walletBalanceLabel.setNeedsLayout()
+                walletBalanceLabel.layoutIfNeeded()
+                walletSection.setNeedsLayout()
+                walletSection.layoutIfNeeded()
+                
+                print("🏭 RunstrRewards: Wallet balance updated and layout refreshed")
+            }
+            
+        } catch {
+            print("🏭 RunstrRewards: Failed to load Lightning wallet balance: \(error)")
+            
+            await MainActor.run {
+                walletBalanceLabel.text = "0 sats"
+                walletBalanceLabel.alpha = 1.0 // Restore full opacity even on error
+            }
+        }
+    }
+    
+    // Stats loading methods removed since stats bar is no longer displayed
+    /*
     private func loadWorkoutStats() async {
         do {
             guard let userSession = AuthenticationService.shared.loadSession() else {
@@ -854,6 +896,8 @@ extension ViewController {
         
         return currentStreak
     }
+    
+    */
     
     func refreshUserStats() {
         // Public method to refresh stats when returning to main dashboard

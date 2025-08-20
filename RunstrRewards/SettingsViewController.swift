@@ -157,12 +157,9 @@ class SettingsViewController: UIViewController {
             SettingItem(title: "Subscription Status", subtitle: "Manage your subscriptions", icon: "creditcard.fill", action: { [weak self] in
                 self?.manageSubscriptions()
             }),
-            SettingItem(title: "Account Information", subtitle: "Email, security settings", icon: "person.fill", action: { [weak self] in
-                self?.showAccountInfo()
-            }),
             SettingItem(title: "Sign Out", subtitle: "Sign out of your account", icon: "rectangle.portrait.and.arrow.right.fill", action: { [weak self] in
                 self?.signOut()
-            }, isDestructive: true)
+            }, isDestructive: false)
         ]
         
         accountSection.translatesAutoresizingMaskIntoConstraints = false
@@ -197,9 +194,6 @@ class SettingsViewController: UIViewController {
             }),
             SettingItem(title: "Terms of Service", subtitle: "App terms and conditions", icon: "doc.fill", action: { [weak self] in
                 self?.showTermsOfService()
-            }),
-            SettingItem(title: "Background Sync Status", subtitle: "Check background sync health", icon: "arrow.clockwise.circle.fill", action: { [weak self] in
-                self?.showBackgroundSyncStatus()
             }),
             SettingItem(title: "App Version", subtitle: "1.0.0 (Build 1)", icon: "info.circle.fill", action: nil)
         ]
@@ -1012,13 +1006,13 @@ class SettingItemView: UIView {
     
     private func setupViews() {
         iconImageView.image = UIImage(systemName: item.icon)
-        iconImageView.tintColor = item.isDestructive ? UIColor(red: 0.8, green: 0.2, blue: 0.2, alpha: 1.0) : IndustrialDesign.Colors.secondaryText
+        iconImageView.tintColor = (item.title == "Sign Out") ? IndustrialDesign.Colors.bitcoin : (item.isDestructive ? UIColor(red: 0.8, green: 0.2, blue: 0.2, alpha: 1.0) : IndustrialDesign.Colors.secondaryText)
         iconImageView.contentMode = .scaleAspectFit
         iconImageView.translatesAutoresizingMaskIntoConstraints = false
         
         titleLabel.text = item.title
         titleLabel.font = UIFont.systemFont(ofSize: 16, weight: .medium)
-        titleLabel.textColor = item.isDestructive ? UIColor(red: 0.8, green: 0.2, blue: 0.2, alpha: 1.0) : IndustrialDesign.Colors.primaryText
+        titleLabel.textColor = (item.title == "Sign Out") ? IndustrialDesign.Colors.bitcoin : (item.isDestructive ? UIColor(red: 0.8, green: 0.2, blue: 0.2, alpha: 1.0) : IndustrialDesign.Colors.primaryText)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         
         subtitleLabel.text = item.subtitle

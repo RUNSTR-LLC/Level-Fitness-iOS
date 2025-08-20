@@ -137,7 +137,7 @@ class EarningsViewController: UIViewController {
     }
     
     private func configureWithData() {
-        walletBalanceView.configure(with: walletData)
+        // Don't configure wallet balance with zero data - let loadLightningWalletBalance() handle it
         loadRealEarningsData()
         loadLightningWalletBalance()
     }
@@ -277,6 +277,9 @@ class EarningsViewController: UIViewController {
                     // Convert satoshis to Bitcoin (1 BTC = 100,000,000 sats)
                     let bitcoinBalance = Double(balance.lightning) / 100_000_000
                     
+                    print("💰 RunstrRewards: Raw Lightning balance: \(balance.lightning) sats")
+                    print("💰 RunstrRewards: Converted Bitcoin balance: \(bitcoinBalance) BTC")
+                    
                     // Update wallet data with real Lightning balance
                     walletData = WalletData(
                         bitcoinBalance: bitcoinBalance,
@@ -284,10 +287,12 @@ class EarningsViewController: UIViewController {
                         lastUpdated: Date()
                     )
                     
+                    print("💰 RunstrRewards: WalletData updated - Bitcoin: \(walletData.bitcoinBalance), USD: \(walletData.usdBalance)")
+                    
                     // Refresh the wallet balance view with real data
                     walletBalanceView.configure(with: walletData)
                     
-                    print("💰 RunstrRewards: Lightning balance loaded - \(balance.lightning) sats")
+                    print("💰 RunstrRewards: Wallet balance view configured with real data")
                 }
             } catch {
                 await MainActor.run {

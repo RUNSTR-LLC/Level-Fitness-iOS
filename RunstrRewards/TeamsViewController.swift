@@ -10,7 +10,6 @@ class TeamsViewController: UIViewController {
     private let headerView = UIView()
     private let backButton = UIButton(type: .custom)
     private let titleLabel = UILabel()
-    private let createTeamButton = UIButton(type: .custom)
     
     // Search section
     private let searchSection = UIView()
@@ -42,7 +41,37 @@ class TeamsViewController: UIViewController {
         setupTeamsList()
         setupConstraints()
         loadRealTeams()
+        
+        // Set up notification listener for team deletion
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleTeamDeleted),
+            name: .teamDeleted,
+            object: nil
+        )
+        
         print("🏗️ RunstrRewards: Teams page loaded successfully!")
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // Refresh teams list when returning to this view
+        print("🏗️ RunstrRewards: Teams page appearing, refreshing teams list")
+        loadRealTeams()
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    @objc private func handleTeamDeleted() {
+        print("🏗️ RunstrRewards: Team deletion notification received, refreshing teams list")
+        // Clear the cache first to ensure fresh data
+        OfflineDataService.shared.clearTeamsCache()
+        // Add a small delay to ensure database has processed the deletion
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.loadRealTeams()
+        }
     }
     
     // MARK: - Setup Methods
@@ -106,19 +135,8 @@ class TeamsViewController: UIViewController {
         titleLabel.font = IndustrialDesign.Typography.navTitleFont
         titleLabel.textAlignment = .center
         
-        // Create team button
-        createTeamButton.translatesAutoresizingMaskIntoConstraints = false
-        createTeamButton.setImage(UIImage(systemName: "plus"), for: .normal)
-        createTeamButton.tintColor = IndustrialDesign.Colors.secondaryText
-        createTeamButton.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0)
-        createTeamButton.layer.cornerRadius = 8
-        createTeamButton.layer.borderWidth = 1
-        createTeamButton.layer.borderColor = UIColor(red: 0.17, green: 0.17, blue: 0.17, alpha: 1.0).cgColor
-        createTeamButton.addTarget(self, action: #selector(createTeamTapped), for: .touchUpInside)
-        
         headerView.addSubview(backButton)
         headerView.addSubview(titleLabel)
-        headerView.addSubview(createTeamButton)
         contentView.addSubview(headerView)
         
         // Add gradient to title
@@ -259,11 +277,6 @@ class TeamsViewController: UIViewController {
             titleLabel.centerXAnchor.constraint(equalTo: headerView.centerXAnchor),
             titleLabel.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
             
-            createTeamButton.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -IndustrialDesign.Spacing.xLarge),
-            createTeamButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-            createTeamButton.widthAnchor.constraint(equalToConstant: 40),
-            createTeamButton.heightAnchor.constraint(equalToConstant: 40),
-            
             // Search section
             searchSection.topAnchor.constraint(equalTo: headerView.bottomAnchor),
             searchSection.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
@@ -305,8 +318,16 @@ class TeamsViewController: UIViewController {
     private func loadRealTeams() {
         Task {
             do {
+                // Clear cache to ensure fresh data
+                OfflineDataService.shared.clearTeamsCache()
+                
                 let teams = try await SupabaseService.shared.fetchTeams()
                 print("🏗️ RunstrRewards: Fetched \(teams.count) teams from Supabase")
+                
+                // Double-check that we're not getting stale data
+                if teams.isEmpty {
+                    print("🏗️ RunstrRewards: No teams found - showing empty state")
+                }
                 
                 await MainActor.run {
                     displayTeams(teams)
@@ -316,7 +337,8 @@ class TeamsViewController: UIViewController {
                 
                 await MainActor.run {
                     showErrorAlert("Failed to load teams: \(error.localizedDescription)")
-                    // Fallback to empty state or error handling
+                    // Clear existing teams display on error
+                    clearTeamCards()
                 }
             }
         }
@@ -326,19 +348,32 @@ class TeamsViewController: UIViewController {
         // Clear existing team cards
         clearTeamCards()
         
-        // Convert Supabase Team objects to TeamData format
-        let teamDataArray = teams.map { team in
-            TeamData(
-                id: team.id,
-                name: team.name,
-                captain: getCaptainName(for: team.captainId), // TODO: Fetch real captain name
-                members: team.memberCount,
-                prizePool: formatEarnings(team.totalEarnings),
-                activities: getActivitiesForTeam(team.id), // TODO: Fetch real activities from team_activities table
-                isJoined: false // TODO: Check if current user is member
-            )
+        // Fetch captain usernames for all teams asynchronously
+        Task {
+            var teamDataArray: [TeamData] = []
+            
+            for team in teams {
+                let captainUsername = await getCaptainName(for: team.captainId)
+                let teamData = TeamData(
+                    id: team.id,
+                    name: team.name,
+                    captain: captainUsername,
+                    captainId: team.captainId, // Store actual captain ID
+                    members: team.memberCount,
+                    prizePool: formatEarnings(team.totalEarnings),
+                    activities: getActivitiesForTeam(team),
+                    isJoined: false // TODO: Check if current user is member
+                )
+                teamDataArray.append(teamData)
+            }
+            
+            await MainActor.run {
+                createTeamCards(teamDataArray)
+            }
         }
-        
+    }
+    
+    private func createTeamCards(_ teamDataArray: [TeamData]) {
         var lastCard: UIView? = nil
         
         for teamData in teamDataArray {
@@ -375,23 +410,48 @@ class TeamsViewController: UIViewController {
         teamsList.subviews.forEach { $0.removeFromSuperview() }
     }
     
-    private func getCaptainName(for captainId: String) -> String {
-        // TODO: Implement real captain name lookup
-        // For now, return a formatted username
-        return "@captain\(captainId.prefix(4))"
+    private func getCaptainName(for captainId: String) async -> String {
+        do {
+            if let username = try await SupabaseService.shared.fetchUsername(userId: captainId) {
+                return "@\(username)"
+            } else {
+                // Fallback if no username found
+                return "@captain\(captainId.prefix(4))"
+            }
+        } catch {
+            print("🏗️ RunstrRewards: Error fetching captain username: \(error)")
+            // Fallback on error
+            return "@captain\(captainId.prefix(4))"
+        }
     }
     
     private func formatEarnings(_ earnings: Double) -> String {
         if earnings == 0 {
-            return "₿0.00"
+            return "0"
         }
-        return String(format: "₿%.4f", earnings)
+        // Convert to satoshis (assuming earnings is in Bitcoin)
+        let satoshis = Int(earnings * 100_000_000)
+        return "\(satoshis)"
     }
     
-    private func getActivitiesForTeam(_ teamId: String) -> [String] {
-        // TODO: Implement real activities lookup from team_activities table
-        // For now, return default activities based on team
-        return ["Running", "Cycling", "Gym"] // Default activities
+    private func getActivitiesForTeam(_ team: Team) -> [String] {
+        // Check if team has selected metrics stored
+        if let selectedMetrics = team.selectedMetrics, !selectedMetrics.isEmpty {
+            // Map metric IDs to display names
+            return selectedMetrics.compactMap { metricId in
+                switch metricId.lowercased() {
+                case "running": return "RUNNING"
+                case "walking": return "WALKING"
+                case "cycling": return "CYCLING"
+                case "strength": return "STRENGTH TRAINING"
+                case "streaks": return "STREAKS"
+                default: return nil
+                }
+            }
+        }
+        
+        // Fallback to default if no metrics stored
+        return ["RUNNING"]
     }
     
     private func showErrorAlert(_ message: String) {
@@ -415,33 +475,27 @@ class TeamsViewController: UIViewController {
         print("🏗️ RunstrRewards: Successfully navigated back to main dashboard")
     }
     
+    // Create team functionality removed from header - users can create teams through other means
+    /*
     @objc private func createTeamTapped() {
         print("🏗️ RUNSTR: Create team tapped")
         
-        // DEVELOPMENT MODE: Bypassing subscription check for testing
-        // TODO: Re-enable subscription check for production
-        let isDevelopmentMode = true
-        
-        if isDevelopmentMode {
-            print("🏗️ RUNSTR: Development mode - bypassing subscription check")
-            showTeamCreationWizard()
-        } else {
-            // Original subscription check flow
-            Task {
-                let subscriptionStatus = await SubscriptionService.shared.checkSubscriptionStatus()
-                
-                await MainActor.run {
-                    if subscriptionStatus == .captain {
-                        print("🏗️ RUNSTR: Captain subscription active - launching team creation wizard")
-                        showTeamCreationWizard()
-                    } else {
-                        print("🏗️ RUNSTR: Captain subscription required")
-                        showCreatorSubscriptionPrompt()
-                    }
+        // Check if user has captain subscription before allowing team creation
+        Task {
+            let subscriptionStatus = await SubscriptionService.shared.checkSubscriptionStatus()
+            
+            await MainActor.run {
+                if subscriptionStatus == .captain {
+                    print("🏗️ RUNSTR: Captain subscription active - launching team creation wizard")
+                    showTeamCreationWizard()
+                } else {
+                    print("🏗️ RUNSTR: Captain subscription required")
+                    showCreatorSubscriptionPrompt()
                 }
             }
         }
     }
+    */
     
     private func showTeamCreationWizard() {
         print("🏗️ RunstrRewards: Launching team creation wizard")
@@ -470,13 +524,15 @@ class TeamsViewController: UIViewController {
     private func showCreatorSubscriptionPrompt() {
         print("🏗️ RunstrRewards: Showing creator subscription prompt")
         
+        let price = SubscriptionService.shared.getCaptainSubscriptionPrice()
+        
         let alert = UIAlertController(
-            title: "Creator Subscription Required",
-            message: "To create and manage teams, you need a Creator subscription ($29.99/month). This includes team analytics, leaderboard creation, and event management tools.",
+            title: "Captain Subscription Required",
+            message: "To create and manage teams, you need a Captain subscription (\(price)). This includes team creation, analytics, leaderboard management, and event organization tools.",
             preferredStyle: .alert
         )
         
-        alert.addAction(UIAlertAction(title: "Upgrade to Creator", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: "Upgrade to Captain", style: .default) { _ in
             self.purchaseCreatorSubscription()
         })
         
@@ -598,6 +654,7 @@ struct TeamData {
     let id: String
     let name: String
     let captain: String
+    let captainId: String // Store actual captain ID for authorization checks
     let members: Int
     let prizePool: String
     let activities: [String]
@@ -608,4 +665,5 @@ struct TeamData {
 
 extension Notification.Name {
     static let teamCreated = Notification.Name("teamCreated")
+    static let teamDeleted = Notification.Name("teamDeleted")
 }

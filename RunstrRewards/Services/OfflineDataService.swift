@@ -324,6 +324,11 @@ class OfflineDataService {
         print("📱 OfflineDataService: Cleared all cached data")
     }
     
+    func clearTeamsCache() {
+        removeCached(forKey: .teams)
+        print("📱 OfflineDataService: Teams cache cleared")
+    }
+    
     func getCacheInfo() -> String {
         let workoutCount = getCachedWorkouts()?.count ?? 0
         let teamCount = getCachedTeams()?.count ?? 0

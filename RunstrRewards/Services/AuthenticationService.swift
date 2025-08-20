@@ -1,6 +1,7 @@
 import Foundation
 import AuthenticationServices
 import CryptoKit
+import Supabase
 
 class AuthenticationService: NSObject {
     static let shared = AuthenticationService()
@@ -145,6 +146,29 @@ class AuthenticationService: NSObject {
                     print("AuthenticationService: Supabase session restored successfully")
                 } catch {
                     print("AuthenticationService: Failed to restore Supabase session: \(error)")
+                    
+                    // Check if this is a token expiration error
+                    if error.localizedDescription.contains("refresh_token_already_used") {
+                        print("AuthenticationService: Refresh token expired, clearing session")
+                        
+                        // Clear the expired session
+                        DispatchQueue.main.async {
+                            self.clearSession()
+                            
+                            // Navigate to login screen
+                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                               let window = windowScene.windows.first {
+                                let loginViewController = LoginViewController()
+                                let navigationController = UINavigationController(rootViewController: loginViewController)
+                                
+                                UIView.transition(with: window, duration: 0.5, options: .transitionCrossDissolve, animations: {
+                                    window.rootViewController = navigationController
+                                }, completion: nil)
+                                
+                                window.makeKeyAndVisible()
+                            }
+                        }
+                    }
                 }
             }
         }

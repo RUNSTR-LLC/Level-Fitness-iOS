@@ -181,10 +181,10 @@ class HealthKitPermissionViewController: UIViewController {
         permissionButton.setTitle("Connect Health Data", for: .normal)
         permissionButton.setTitleColor(.white, for: .normal)
         permissionButton.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
-        permissionButton.backgroundColor = UIColor.systemBlue
+        permissionButton.backgroundColor = IndustrialDesign.Colors.cardBackground
         permissionButton.layer.cornerRadius = 12
         permissionButton.layer.borderWidth = 1
-        permissionButton.layer.borderColor = UIColor.systemBlue.cgColor
+        permissionButton.layer.borderColor = IndustrialDesign.Colors.cardBorder.cgColor
         permissionButton.translatesAutoresizingMaskIntoConstraints = false
         permissionButton.addTarget(self, action: #selector(requestHealthKitPermission), for: .touchUpInside)
         
@@ -438,7 +438,7 @@ class BenefitItemView: UIView {
     
     private func setupViews(iconName: String, title: String, description: String, isPrivacy: Bool) {
         iconImageView.image = UIImage(systemName: iconName)
-        iconImageView.tintColor = isPrivacy ? UIColor.systemGreen : UIColor.systemBlue
+        iconImageView.tintColor = IndustrialDesign.Colors.primaryText
         iconImageView.contentMode = .scaleAspectFit
         iconImageView.translatesAutoresizingMaskIntoConstraints = false
         

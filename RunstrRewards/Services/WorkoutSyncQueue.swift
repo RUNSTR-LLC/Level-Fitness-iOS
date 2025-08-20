@@ -1,5 +1,6 @@
 import Foundation
 import CoreData
+import HealthKit
 
 class WorkoutSyncQueue {
     static let shared = WorkoutSyncQueue()
@@ -149,6 +150,10 @@ class WorkoutSyncQueue {
                     return item.attempts < maxRetryAttempts
                 case .synced:
                     return false
+                case .pendingReview:
+                    return false // Don't retry items pending manual review
+                case .rejected:
+                    return false // Don't retry rejected items
                 }
             }
             .sorted { $0.priority > $1.priority } // Higher priority first
@@ -157,6 +162,32 @@ class WorkoutSyncQueue {
     private func syncWorkout(_ queuedWorkout: QueuedWorkout) async throws {
         // Update attempt count
         updateWorkoutAttempt(queuedWorkout.id)
+        
+        // Validate workout with anti-cheat before syncing
+        if let hkWorkout = convertToHKWorkout(queuedWorkout.workout) {
+            let validation = await AntiCheatService.shared.validateWorkout(hkWorkout)
+            
+            if !validation.isValid {
+                print("⚠️ WorkoutSyncQueue: Workout failed anti-cheat validation")
+                print("⚠️ Confidence: \(validation.confidence), Issues: \(validation.issues.count)")
+                
+                // Log the cheat report for review
+                let report = AntiCheatService.shared.generateCheatReport(for: hkWorkout, validation: validation)
+                await logCheatReport(report)
+                
+                if validation.requiresManualReview {
+                    // Mark for manual review instead of failing
+                    updateWorkoutStatus(queuedWorkout.id, status: .pendingReview)
+                    print("⚠️ WorkoutSyncQueue: Workout marked for manual review")
+                    return
+                } else if validation.confidence < 0.3 {
+                    // Very low confidence - reject workout
+                    updateWorkoutStatus(queuedWorkout.id, status: .rejected)
+                    print("⚠️ WorkoutSyncQueue: Workout rejected due to anti-cheat detection")
+                    return
+                }
+            }
+        }
         
         // Perform the actual sync
         try await supabaseService.syncWorkout(queuedWorkout.workout)
@@ -176,10 +207,7 @@ class WorkoutSyncQueue {
             errorHandler.logError(
                 error,
                 context: "WorkoutSyncQueue.permanentFailure",
-                metadata: [
-                    "workoutId": updatedWorkout.workout.id,
-                    "attempts": updatedWorkout.attempts
-                ]
+                userId: updatedWorkout.workout.userId
             )
             
             print("WorkoutSyncQueue: Permanent failure for workout \(updatedWorkout.workout.id) after \(updatedWorkout.attempts) attempts")
@@ -194,10 +222,7 @@ class WorkoutSyncQueue {
         errorHandler.logError(
             error,
             context: "WorkoutSyncQueue.syncFailure",
-            metadata: [
-                "workoutId": updatedWorkout.workout.id,
-                "attempt": updatedWorkout.attempts
-            ]
+            userId: updatedWorkout.workout.userId
         )
     }
     
@@ -396,6 +421,92 @@ class WorkoutSyncQueue {
             isCurrentlyConnected: networkMonitor.isCurrentlyConnected()
         )
     }
+    
+    // MARK: - Anti-Cheat Integration
+    
+    private func convertToHKWorkout(_ workout: Workout) -> HKWorkout? {
+        // Convert workout type string to HKWorkoutActivityType
+        let activityType = getHKWorkoutActivityType(from: workout.type)
+        
+        // Create HKQuantity objects for distance and energy
+        var totalDistance: HKQuantity?
+        if let distance = workout.distance {
+            totalDistance = HKQuantity(unit: .meter(), doubleValue: distance)
+        }
+        
+        var totalEnergy: HKQuantity?
+        if let calories = workout.calories {
+            totalEnergy = HKQuantity(unit: .kilocalorie(), doubleValue: Double(calories))
+        }
+        
+        // Calculate end date if not provided
+        let endDate = workout.endedAt ?? workout.startedAt.addingTimeInterval(TimeInterval(workout.duration))
+        
+        // Create HKWorkout object
+        let hkWorkout = HKWorkout(
+            activityType: activityType,
+            start: workout.startedAt,
+            end: endDate,
+            duration: TimeInterval(workout.duration),
+            totalEnergyBurned: totalEnergy,
+            totalDistance: totalDistance,
+            metadata: nil
+        )
+        
+        return hkWorkout
+    }
+    
+    private func getHKWorkoutActivityType(from typeString: String) -> HKWorkoutActivityType {
+        switch typeString.lowercased() {
+        case "running", "run":
+            return .running
+        case "cycling", "bike", "biking":
+            return .cycling
+        case "swimming", "swim":
+            return .swimming
+        case "walking", "walk":
+            return .walking
+        case "yoga":
+            return .yoga
+        case "hiit", "high intensity":
+            return .highIntensityIntervalTraining
+        case "strength", "weights":
+            return .traditionalStrengthTraining
+        case "core":
+            return .coreTraining
+        case "functional":
+            return .functionalStrengthTraining
+        default:
+            return .other
+        }
+    }
+    
+    private func logCheatReport(_ report: CheatReport) async {
+        // Store the cheat report in Supabase for manual review
+        let _ = [
+            "workout_id": report.workoutId,
+            "timestamp": report.timestamp,
+            "workout_type": report.workoutType,
+            "duration": report.duration,
+            "distance": report.distance ?? 0,
+            "is_valid": report.isValid,
+            "confidence": report.confidence,
+            "severity_score": report.severityScore,
+            "requires_review": report.requiresReview
+        ] as [String: Any]
+        
+        // TODO: Store in a cheat_reports table in Supabase
+        // For now, log to console
+        print("🚨 Anti-Cheat Report:")
+        print("  Workout ID: \(report.workoutId)")
+        print("  Confidence: \(report.confidence)")
+        print("  Valid: \(report.isValid)")
+        print("  Severity Score: \(report.severityScore)")
+        print("  Issues:")
+        for issue in report.issues {
+            print("    - [\(issue.severity)] \(issue.description): \(issue.evidence)")
+        }
+    }
 }
 
 // MARK: - Data Models
@@ -415,6 +526,8 @@ enum SyncStatus: String, Codable {
     case retrying = "retrying"
     case synced = "synced"
     case failed = "failed"
+    case pendingReview = "pending_review"
+    case rejected = "rejected"
 }
 
 struct SyncStatistics {
@@ -440,7 +553,6 @@ struct SyncStatistics {
 
 extension Notification.Name {
     static let workoutSyncCompleted = Notification.Name("workoutSyncCompleted")
-    static let networkStatusChanged = Notification.Name("networkStatusChanged")
 }
 
 // MARK: - Background Sync Integration

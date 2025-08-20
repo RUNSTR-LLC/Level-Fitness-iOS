@@ -73,17 +73,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let _ = ErrorHandlingService.shared
         print("AppDelegate: Error handling service initialized")
         
+        // Register background tasks now (required before app finishes launching)
+        BackgroundTaskManager.shared.registerBackgroundTasks()
+        print("AppDelegate: Background tasks registered")
+        
         // Defer these until after authentication:
-        // - Background task manager
+        // - Background task scheduling
         // - HealthKit setup
         // These will be initialized in setupPostAuthenticationServices()
     }
     
     // Call this after user successfully authenticates
     public func setupPostAuthenticationServices() {
-        // Setup background task manager
-        BackgroundTaskManager.shared.setupBackgroundTasks()
-        print("AppDelegate: Background task manager initialized")
+        // Schedule background tasks (registration was done during app launch)
+        BackgroundTaskManager.shared.scheduleAllBackgroundTasks()
+        print("AppDelegate: Background tasks scheduled")
         
         // Setup HealthKit background delivery for automatic workout sync
         setupHealthKitBackgroundDelivery()

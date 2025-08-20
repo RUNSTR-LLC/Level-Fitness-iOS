@@ -482,6 +482,7 @@ class TeamCreationWizardViewController: UIViewController {
                     memberCount: 1, // Start with 1 member (the creator)
                     totalEarnings: 0.0,
                     imageUrl: nil,
+                    selectedMetrics: teamData.selectedMetrics,
                     createdAt: Date()
                 )
                 let team = try await SupabaseService.shared.createTeam(newTeam)

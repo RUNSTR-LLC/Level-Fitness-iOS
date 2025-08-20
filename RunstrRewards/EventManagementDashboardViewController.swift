@@ -129,7 +129,7 @@ class EventManagementDashboardViewController: UIViewController {
         createEventButton.setTitle("+ Create Event", for: .normal)
         createEventButton.setTitleColor(.white, for: .normal)
         createEventButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-        createEventButton.backgroundColor = UIColor.systemBlue
+        createEventButton.backgroundColor = IndustrialDesign.Colors.cardBackground
         createEventButton.layer.cornerRadius = 8
         createEventButton.translatesAutoresizingMaskIntoConstraints = false
         createEventButton.addTarget(self, action: #selector(createEventTapped), for: .touchUpInside)
@@ -148,14 +148,14 @@ class EventManagementDashboardViewController: UIViewController {
             title: "Active Events",
             value: "0",
             icon: "calendar.circle.fill",
-            color: UIColor.systemGreen
+            color: IndustrialDesign.Colors.primaryText
         )
         
         totalParticipantsCard.configure(
             title: "Total Participants",
             value: "0",
             icon: "person.3.fill",
-            color: UIColor.systemBlue
+            color: IndustrialDesign.Colors.primaryText
         )
         
         totalEarningsCard.configure(
@@ -183,7 +183,7 @@ class EventManagementDashboardViewController: UIViewController {
         // Configure filter buttons
         allEventsButton.setTitle("All", for: .normal)
         allEventsButton.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .medium)
-        allEventsButton.backgroundColor = UIColor.systemBlue
+        allEventsButton.backgroundColor = IndustrialDesign.Colors.cardBackground
         allEventsButton.setTitleColor(.white, for: .normal)
         allEventsButton.layer.cornerRadius = 6
         allEventsButton.translatesAutoresizingMaskIntoConstraints = false
@@ -244,7 +244,7 @@ class EventManagementDashboardViewController: UIViewController {
         emptyStateButton.setTitle("Create Your First Event", for: .normal)
         emptyStateButton.setTitleColor(.white, for: .normal)
         emptyStateButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-        emptyStateButton.backgroundColor = UIColor.systemBlue
+        emptyStateButton.backgroundColor = IndustrialDesign.Colors.cardBackground
         emptyStateButton.layer.cornerRadius = 8
         emptyStateButton.translatesAutoresizingMaskIntoConstraints = false
         emptyStateButton.addTarget(self, action: #selector(createEventTapped), for: .touchUpInside)
@@ -495,7 +495,7 @@ class EventManagementDashboardViewController: UIViewController {
             selectedButton = completedEventsButton
         }
         
-        selectedButton.backgroundColor = UIColor.systemBlue
+        selectedButton.backgroundColor = IndustrialDesign.Colors.cardBorderHover
         selectedButton.setTitleColor(.white, for: .normal)
         
         updateEventsList()
@@ -614,7 +614,7 @@ enum EventStatus {
         case .upcoming:
             return UIColor.systemOrange
         case .active:
-            return UIColor.systemGreen
+            return IndustrialDesign.Colors.primaryText
         case .completed:
             return UIColor.systemGray
         }

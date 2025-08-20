@@ -5,20 +5,20 @@
 **level.fitness is "Stripe for fitness competitions"** - providing the technical infrastructure that enables fitness communities to run competitions and reward systems while maintaining their own brand and customer relationships. We're building the invisible backbone that powers fitness community monetization.
 
 ### Core Value Proposition
-- **For Users**: Subscribe to fitness clubs you love, compete using your existing workout data, earn Bitcoin rewards
+- **For Users**: Subscribe to fitness clubs you love ($1.99/month), compete using your existing workout data, earn Bitcoin rewards
 - **For Fitness Clubs/Influencers**: Turn your community into a subscription business with professional competition tools
 - **For Level Fitness**: Provide SaaS infrastructure that scales with the fitness economy
 
 ## Key Concepts
 
 ### The B2B2C Model
-1. **Users**: Subscribe to clubs ($3.99/month), sync HealthKit data, compete passively, earn rewards
+1. **Users**: Subscribe to clubs ($1.99/month), sync HealthKit data, compete passively, earn rewards
 2. **Fitness Clubs**: Create teams, run competitions, manage subscribers, earn recurring revenue
 3. **Level Fitness**: Provide platform infrastructure, take SaaS fees + subscription percentage
 
 ### Business Model
 - **SaaS Revenue**: Monthly fees from fitness clubs for platform access
-- **Subscription Revenue**: Percentage of club subscription revenue ($3.99/month per user)
+- **Subscription Revenue**: Percentage of club subscription revenue ($1.99/month per user)
 - **Event Tickets**: Clubs keep 100% of event ticket sales for prize pools/charity
 - **No Commission on Events**: Clean separation between platform fees and event monetization
 
@@ -111,7 +111,7 @@ LevelFitness/
 
 ### Onboarding Flow
 1. **Discover clubs** through in-app browsing or QR code scan
-2. **Subscribe to preferred club** ($3.99/month)
+2. **Subscribe to preferred club** ($1.99/month)
 3. **Authorize HealthKit access** for background sync
 4. **Receive first competition notification** featuring club branding
 

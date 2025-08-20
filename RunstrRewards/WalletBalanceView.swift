@@ -187,18 +187,29 @@ class WalletBalanceView: UIView {
         // Convert BTC to sats (1 BTC = 100,000,000 sats)
         let satsBalance = Int(data.bitcoinBalance * 100_000_000)
         
+        print("💰 WalletBalanceView: configure called with BTC: \(data.bitcoinBalance), sats: \(satsBalance)")
+        
         // Format sats balance to show clean integers
         if satsBalance == 0 {
             balanceValueLabel.text = "0"
+            print("💰 WalletBalanceView: Setting balance text to '0'")
         } else {
             // Use number formatter for larger amounts with commas
             let formatter = NumberFormatter()
             formatter.numberStyle = .decimal
             formatter.groupingSeparator = ","
-            balanceValueLabel.text = formatter.string(from: NSNumber(value: satsBalance)) ?? "\(satsBalance)"
+            let formattedText = formatter.string(from: NSNumber(value: satsBalance)) ?? "\(satsBalance)"
+            balanceValueLabel.text = formattedText
+            print("💰 WalletBalanceView: Setting balance text to '\(formattedText)'")
         }
         
-        usdLabel.text = "≈ $\(String(format: "%.2f", data.usdBalance)) USD"
+        let usdText = "≈ $\(String(format: "%.2f", data.usdBalance)) USD"
+        usdLabel.text = usdText
+        print("💰 WalletBalanceView: Setting USD text to '\(usdText)'")
+        
+        // Force layout update to ensure text changes are visible
+        setNeedsLayout()
+        layoutIfNeeded()
     }
     
     // MARK: - Actions

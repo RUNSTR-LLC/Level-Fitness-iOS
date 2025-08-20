@@ -463,7 +463,7 @@ class PrivacySettingView: UIView {
         descriptionLabel.translatesAutoresizingMaskIntoConstraints = false
         
         settingSwitch.isOn = settingData.isEnabled
-        settingSwitch.onTintColor = UIColor.systemGreen
+        settingSwitch.onTintColor = IndustrialDesign.Colors.primaryText
         settingSwitch.translatesAutoresizingMaskIntoConstraints = false
         settingSwitch.addTarget(self, action: #selector(switchToggled), for: .valueChanged)
         

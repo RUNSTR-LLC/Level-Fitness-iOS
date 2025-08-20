@@ -1,5 +1,6 @@
 import Foundation
 import StoreKit
+import UIKit
 
 @MainActor
 class SubscriptionService: NSObject, ObservableObject {
@@ -7,8 +8,8 @@ class SubscriptionService: NSObject, ObservableObject {
     
     // Product IDs (must match App Store Connect)
     enum ProductID {
-        static let captainSubscription = "com.runstrrewards.captain" // $29.99/month captain subscription
-        static let teamSubscription = "com.runstrrewards.team.monthly" // $3.99/month team subscription
+        static let captainSubscription = "com.runstrrewards.captain" // $19.99/month captain subscription
+        static let teamSubscription = "com.runstrrewards.team.monthly" // $1.99/month team subscription
     }
     
     // Subscription Status
@@ -40,13 +41,21 @@ class SubscriptionService: NSObject, ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
+        print("SubscriptionService: Loading products...")
+        
         do {
             let products = try await Product.products(for: [
                 ProductID.captainSubscription,
                 ProductID.teamSubscription
             ])
             
+            print("SubscriptionService: Loaded \(products.count) products from StoreKit")
             availableProducts = products
+            
+            if products.isEmpty {
+                print("SubscriptionService: WARNING - No products loaded from StoreKit")
+                print("SubscriptionService: Check StoreKit configuration file")
+            }
             
             for product in products {
                 switch product.id {
@@ -57,22 +66,44 @@ class SubscriptionService: NSObject, ObservableObject {
                     teamProduct = product
                     print("SubscriptionService: Team subscription loaded - \(product.displayPrice)")
                 default:
+                    print("SubscriptionService: Unknown product loaded: \(product.id)")
                     break
                 }
             }
             
             // Check current subscription status
-            await updateSubscriptionStatus()
+            try await updateSubscriptionStatus()
             
         } catch {
             print("SubscriptionService: Failed to load products: \(error)")
+            print("SubscriptionService: Error details: \(error.localizedDescription)")
+            
+            // Try to use cached subscription status if products can't be loaded
+            let cachedStatus = loadCachedSubscriptionStatus()
+            if cachedStatus.isValid && !cachedStatus.isExpired {
+                print("SubscriptionService: Using cached subscription status due to product loading failure")
+                captainSubscriptionActive = cachedStatus.hasCaptain
+                activeTeamSubscriptions = cachedStatus.teamSubscriptions
+                
+                if cachedStatus.hasCaptain {
+                    subscriptionStatus = .captain
+                } else if !cachedStatus.teamSubscriptions.isEmpty {
+                    subscriptionStatus = .user
+                } else {
+                    subscriptionStatus = .none
+                }
+                
+                // Don't throw error if we have valid cached data
+                return
+            }
+            
             throw SubscriptionError.productsNotLoaded
         }
     }
     
     // MARK: - Purchase Methods
     
-    func purchaseCaptainSubscription() async throws -> Transaction? {
+    func purchaseCaptainSubscription() async throws -> StoreKit.Transaction? {
         guard let captainProduct = captainProduct else {
             throw SubscriptionError.productNotFound
         }
@@ -102,7 +133,12 @@ class SubscriptionService: NSObject, ObservableObject {
         
         if let transaction = transaction {
             // Store team subscription in Supabase with team ID
-            try await storeTeamSubscription(teamId: teamId, transaction: transaction)
+            do {
+                try await storeTeamSubscription(teamId: teamId, transaction: transaction)
+            } catch {
+                print("SubscriptionService: Failed to store team subscription in database: \(error)")
+                // Continue with local state update even if database storage fails
+            }
             
             // Update local state
             let subscriptionInfo = TeamSubscriptionInfo(
@@ -130,12 +166,19 @@ class SubscriptionService: NSObject, ObservableObject {
         
         // Note: Actual cancellation would need to be done through App Store
         // For now, we'll mark as inactive in our database
-        try await updateTeamSubscriptionStatus(
-            userId: AuthenticationService.shared.currentUserId ?? "",
-            transactionId: subscription.transactionId,
-            status: "cancelled",
-            expirationDate: nil
-        )
+        // Mark as inactive in our database
+        if let userId = AuthenticationService.shared.currentUserId {
+            do {
+                try await updateTeamSubscriptionStatus(
+                    userId: userId,
+                    transactionId: subscription.transactionId,
+                    status: "cancelled",
+                    expirationDate: nil
+                )
+            } catch {
+                print("SubscriptionService: Failed to update team subscription status: \(error)")
+            }
+        }
         
         // Remove from local state
         activeTeamSubscriptions.removeAll { $0.teamId == teamId }
@@ -157,7 +200,7 @@ class SubscriptionService: NSObject, ObservableObject {
             let transaction = try checkVerified(verification)
             
             // Deliver content
-            await updateSubscriptionStatus()
+            try? await updateSubscriptionStatus()
             await transaction.finish()
             
             // Update database
@@ -194,58 +237,99 @@ class SubscriptionService: NSObject, ObservableObject {
         try await AppStore.sync()
         
         // Update subscription status
-        await updateSubscriptionStatus()
+        try? await updateSubscriptionStatus()
         
         print("SubscriptionService: Purchases restored")
     }
     
     // MARK: - Subscription Status
     
-    func updateSubscriptionStatus() async {
+    func updateSubscriptionStatus() async throws {
+        print("SubscriptionService: Starting subscription status update")
+        
         var hasCaptainSubscription = false
         var teamSubscriptions: [TeamSubscriptionInfo] = []
         
-        // Check all current entitlements
-        for await result in StoreKit.Transaction.currentEntitlements {
-            if case .verified(let transaction) = result {
-                // Verify receipt to ensure authenticity
-                let isValid = await verifyReceiptData(transaction: transaction)
-                guard isValid else {
-                    print("SubscriptionService: Receipt verification failed for transaction \(transaction.id)")
-                    continue
-                }
-                
-                switch transaction.productID {
-                case ProductID.captainSubscription:
-                    if transaction.revocationDate == nil && isSubscriptionActive(transaction) {
-                        hasCaptainSubscription = true
+        do {
+            // Try to load cached status first
+            let cachedStatus = loadCachedSubscriptionStatus()
+            print("SubscriptionService: Loaded cached status - Captain: \(cachedStatus.hasCaptain), Teams: \(cachedStatus.teamCount)")
+            
+            // Check all current entitlements
+            var entitlementCount = 0
+            for await result in StoreKit.Transaction.currentEntitlements {
+                entitlementCount += 1
+                if case .verified(let transaction) = result {
+                    print("SubscriptionService: Processing verified transaction \(transaction.id) for product \(transaction.productID)")
+                    
+                    // Verify receipt to ensure authenticity
+                    let isValid = await verifyReceiptData(transaction: transaction)
+                    guard isValid else {
+                        print("SubscriptionService: Receipt verification failed for transaction \(transaction.id)")
+                        continue
                     }
-                case ProductID.teamSubscription:
-                    if transaction.revocationDate == nil && isSubscriptionActive(transaction) {
-                        // Get team subscription details from Supabase
-                        if let userId = AuthenticationService.shared.currentUserId {
-                            do {
-                                if let teamSub = try await fetchTeamSubscriptionFromSupabase(
-                                    userId: userId, 
-                                    transactionId: String(transaction.id)
-                                ) {
-                                    let subscriptionInfo = TeamSubscriptionInfo(
-                                        teamId: teamSub.teamId,
+                    
+                    switch transaction.productID {
+                    case ProductID.captainSubscription:
+                        if transaction.revocationDate == nil && isSubscriptionActive(transaction) {
+                            hasCaptainSubscription = true
+                            print("SubscriptionService: Active captain subscription found")
+                        }
+                    case ProductID.teamSubscription:
+                        if transaction.revocationDate == nil && isSubscriptionActive(transaction) {
+                            // Get team subscription details from Supabase with fallback
+                            if let userId = AuthenticationService.shared.currentUserId {
+                                do {
+                                    if let teamSub = try await fetchTeamSubscriptionFromSupabase(
+                                        userId: userId, 
+                                        transactionId: String(transaction.id)
+                                    ) {
+                                        let subscriptionInfo = TeamSubscriptionInfo(
+                                            teamId: teamSub.teamId,
+                                            transactionId: String(transaction.id),
+                                            purchaseDate: transaction.purchaseDate,
+                                            expirationDate: transaction.expirationDate,
+                                            isActive: isSubscriptionActive(transaction)
+                                        )
+                                        teamSubscriptions.append(subscriptionInfo)
+                                        print("SubscriptionService: Team subscription found for team \(teamSub.teamId)")
+                                    } else {
+                                        print("SubscriptionService: No team subscription details found in Supabase")
+                                    }
+                                } catch {
+                                    print("SubscriptionService: Failed to fetch team subscription details: \(error)")
+                                    // Fall back to basic subscription info without team details
+                                    let basicSubscriptionInfo = TeamSubscriptionInfo(
+                                        teamId: "team_\(String(transaction.id).suffix(8))", // Temporary team ID
                                         transactionId: String(transaction.id),
                                         purchaseDate: transaction.purchaseDate,
                                         expirationDate: transaction.expirationDate,
                                         isActive: isSubscriptionActive(transaction)
                                     )
-                                    teamSubscriptions.append(subscriptionInfo)
+                                    teamSubscriptions.append(basicSubscriptionInfo)
+                                    print("SubscriptionService: Using fallback team subscription info")
                                 }
-                            } catch {
-                                print("SubscriptionService: Failed to fetch team subscription details: \(error)")
                             }
                         }
+                    default:
+                        print("SubscriptionService: Unknown product ID: \(transaction.productID)")
+                        break
                     }
-                default:
-                    break
+                } else {
+                    print("SubscriptionService: Unverified transaction found")
                 }
+            }
+            
+            print("SubscriptionService: Processed \(entitlementCount) entitlements")
+            
+        } catch {
+            print("SubscriptionService: Error checking entitlements: \(error)")
+            // Fall back to cached status if available
+            let cachedStatus = loadCachedSubscriptionStatus()
+            if cachedStatus.isValid {
+                print("SubscriptionService: Using cached subscription status due to error")
+                hasCaptainSubscription = cachedStatus.hasCaptain
+                teamSubscriptions = cachedStatus.teamSubscriptions
             }
         }
         
@@ -262,15 +346,58 @@ class SubscriptionService: NSObject, ObservableObject {
             subscriptionStatus = .none
         }
         
-        // Update user profile in database
-        await updateUserSubscriptionStatus()
+        // Cache the updated status
+        cacheSubscriptionStatus(hasCaptain: hasCaptainSubscription, teamSubscriptions: teamSubscriptions)
+        
+        // Update user profile in database (with error handling)
+        do {
+            try await updateUserSubscriptionStatus()
+        } catch {
+            print("SubscriptionService: Failed to update user subscription status in database: \(error)")
+            // Don't fail the entire operation for this
+        }
         
         print("SubscriptionService: Status updated - Captain: \(hasCaptainSubscription), Team Subscriptions: \(teamSubscriptions.count)")
     }
     
     func checkSubscriptionStatus() async -> SubscriptionStatus {
-        // Check actual subscription status - no more bypassing for testing
-        await updateSubscriptionStatus()
+        print("SubscriptionService: Checking subscription status...")
+        
+        // Try to update from live data first
+        do {
+            try await updateSubscriptionStatus()
+            print("SubscriptionService: Successfully updated subscription status from live data")
+        } catch {
+            print("SubscriptionService: Failed to update from live data: \(error)")
+            
+            // Fall back to cached data
+            let cachedStatus = loadCachedSubscriptionStatus()
+            if cachedStatus.isValid {
+                print("SubscriptionService: Using cached subscription status")
+                
+                captainSubscriptionActive = cachedStatus.hasCaptain
+                activeTeamSubscriptions = cachedStatus.teamSubscriptions
+                
+                if cachedStatus.hasCaptain {
+                    subscriptionStatus = .captain
+                } else if !cachedStatus.teamSubscriptions.isEmpty {
+                    subscriptionStatus = .user
+                } else {
+                    subscriptionStatus = .none
+                }
+                
+                if cachedStatus.isExpired {
+                    print("SubscriptionService: WARNING - Using expired cached data")
+                }
+            } else {
+                print("SubscriptionService: No cached data available, using default status")
+                subscriptionStatus = .none
+                captainSubscriptionActive = false
+                activeTeamSubscriptions = []
+            }
+        }
+        
+        print("SubscriptionService: Final status: \(subscriptionStatus)")
         return subscriptionStatus
     }
     
@@ -292,7 +419,7 @@ class SubscriptionService: NSObject, ObservableObject {
         print("SubscriptionService: Transaction update - \(transaction.productID)")
         
         // Update subscription status
-        await updateSubscriptionStatus()
+        try? await updateSubscriptionStatus()
         
         // Store in database
         await storeSubscriptionInDatabase(transaction)
@@ -385,8 +512,52 @@ class SubscriptionService: NSObject, ObservableObject {
                 try await AppStore.showManageSubscriptions(in: windowScene)
             } catch {
                 print("SubscriptionService: Failed to open manage subscriptions: \(error)")
+                
+                // Fallback to custom subscription management UI
+                await showCustomSubscriptionManagement()
             }
         }
+    }
+    
+    private func showCustomSubscriptionManagement() async {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = windowScene.windows.first?.rootViewController else {
+            return
+        }
+        
+        let currentStatus = await checkSubscriptionStatus()
+        let statusText: String
+        let actionTitle: String
+        
+        switch currentStatus {
+        case .captain:
+            statusText = "You have an active Captain subscription ($19.99/month) which allows you to create and manage teams."
+            actionTitle = "Continue"
+        case .user:
+            statusText = "You have active team subscriptions. You can manage individual team subscriptions from the Teams page."
+            actionTitle = "Continue"
+        case .none:
+            statusText = "You don't have any active subscriptions. You can subscribe to teams or upgrade to Captain status to create your own teams."
+            actionTitle = "Continue"
+        }
+        
+        let alert = UIAlertController(
+            title: "Subscription Status",
+            message: statusText,
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: actionTitle, style: .default))
+        
+        if currentStatus == .none {
+            alert.addAction(UIAlertAction(title: "Upgrade to Captain", style: .default) { _ in
+                Task {
+                    _ = try? await self.purchaseCaptainSubscriptionBool()
+                }
+            })
+        }
+        
+        rootViewController.present(alert, animated: true)
     }
     
     // MARK: - Pricing Information
@@ -420,10 +591,6 @@ class SubscriptionService: NSObject, ObservableObject {
     func hasExistingTeam() -> Bool {
         // Check if captain already has a team
         // This checks synchronously using cached data
-        // For real-time check, use hasExistingTeamAsync()
-        guard let userId = AuthenticationService.shared.currentUserId else { return false }
-        
-        // TODO: Implement actual check via Supabase
         // For now, return false to allow team creation during development
         return false
     }
@@ -431,8 +598,13 @@ class SubscriptionService: NSObject, ObservableObject {
     func hasExistingTeamAsync() async throws -> Bool {
         guard let userId = AuthenticationService.shared.currentUserId else { return false }
         
-        let teamCount = try await SupabaseService.shared.getCaptainTeamCount(captainId: userId)
-        return teamCount > 0
+        do {
+            let teamCount = try await SupabaseService.shared.getCaptainTeamCount(captainId: userId)
+            return teamCount > 0
+        } catch {
+            print("SubscriptionService: Failed to check existing teams: \(error)")
+            return false
+        }
     }
     
     func getMaxTeamsForCaptain() -> Int {
@@ -498,10 +670,13 @@ class SubscriptionService: NSObject, ObservableObject {
     // MARK: - Database Integration
     
     private func storeSubscriptionInDatabase(_ transaction: StoreKit.Transaction) async {
-        guard let userId = AuthenticationService.shared.currentUserId else { return }
+        guard let userId = AuthenticationService.shared.currentUserId else { 
+            print("SubscriptionService: No user ID available for storing subscription")
+            return 
+        }
         
         // Create subscription record
-        let _ = SubscriptionData(
+        let subscriptionData = SubscriptionData(
             id: transaction.id,
             userId: userId,
             productId: transaction.productID,
@@ -512,12 +687,16 @@ class SubscriptionService: NSObject, ObservableObject {
         )
         
         // Store in Supabase
-        // TODO: Implement actual Supabase storage
-        print("SubscriptionService: Storing subscription in database")
+        // TODO: Implement actual Supabase storage for subscription data
+        print("SubscriptionService: Storing subscription in database for user \(userId)")
+        print("SubscriptionService: Subscription data: \(subscriptionData)")
     }
     
-    private func updateUserSubscriptionStatus() async {
-        guard AuthenticationService.shared.currentUserId != nil else { return }
+    private func updateUserSubscriptionStatus() async throws {
+        guard let userId = AuthenticationService.shared.currentUserId else { 
+            print("SubscriptionService: No user ID available for updating subscription status")
+            return 
+        }
         
         let tier: String
         switch subscriptionStatus {
@@ -531,7 +710,7 @@ class SubscriptionService: NSObject, ObservableObject {
         
         // Update user profile with subscription tier
         // TODO: Implement actual Supabase update
-        print("SubscriptionService: Updating user subscription tier to: \(tier)")
+        print("SubscriptionService: Updating user subscription tier to: \(tier) for user \(userId)")
     }
     
     // MARK: - Feature Management
@@ -636,6 +815,83 @@ class SubscriptionService: NSObject, ObservableObject {
     }
     */
     
+    // MARK: - Cached Status Management
+    
+    private struct CachedSubscriptionStatus {
+        let hasCaptain: Bool
+        let teamSubscriptions: [TeamSubscriptionInfo]
+        let timestamp: Date
+        let isValid: Bool
+        
+        var teamCount: Int {
+            return teamSubscriptions.count
+        }
+        
+        // Consider cache valid for 24 hours
+        var isExpired: Bool {
+            return Date().timeIntervalSince(timestamp) > 86400
+        }
+    }
+    
+    private func loadCachedSubscriptionStatus() -> CachedSubscriptionStatus {
+        let defaults = UserDefaults.standard
+        
+        // Load cached values
+        let hasCaptain = defaults.bool(forKey: "cache.subscription.hasCaptain")
+        let timestamp = defaults.object(forKey: "cache.subscription.timestamp") as? Date ?? Date.distantPast
+        
+        // Load cached team subscriptions
+        var teamSubscriptions: [TeamSubscriptionInfo] = []
+        if let data = defaults.data(forKey: "cache.subscription.teamSubscriptions") {
+            do {
+                teamSubscriptions = try JSONDecoder().decode([TeamSubscriptionInfo].self, from: data)
+            } catch {
+                print("SubscriptionService: Failed to decode cached team subscriptions: \(error)")
+            }
+        }
+        
+        let cached = CachedSubscriptionStatus(
+            hasCaptain: hasCaptain,
+            teamSubscriptions: teamSubscriptions,
+            timestamp: timestamp,
+            isValid: timestamp != Date.distantPast
+        )
+        
+        if cached.isExpired {
+            print("SubscriptionService: Cached subscription status is expired")
+        }
+        
+        return cached
+    }
+    
+    private func cacheSubscriptionStatus(hasCaptain: Bool, teamSubscriptions: [TeamSubscriptionInfo]) {
+        let defaults = UserDefaults.standard
+        
+        // Cache basic values
+        defaults.set(hasCaptain, forKey: "cache.subscription.hasCaptain")
+        defaults.set(Date(), forKey: "cache.subscription.timestamp")
+        
+        // Cache team subscriptions
+        do {
+            let data = try JSONEncoder().encode(teamSubscriptions)
+            defaults.set(data, forKey: "cache.subscription.teamSubscriptions")
+        } catch {
+            print("SubscriptionService: Failed to cache team subscriptions: \(error)")
+        }
+        
+        defaults.synchronize()
+        print("SubscriptionService: Cached subscription status - Captain: \(hasCaptain), Teams: \(teamSubscriptions.count)")
+    }
+    
+    private func clearCachedSubscriptionStatus() {
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: "cache.subscription.hasCaptain")
+        defaults.removeObject(forKey: "cache.subscription.teamSubscriptions")
+        defaults.removeObject(forKey: "cache.subscription.timestamp")
+        defaults.synchronize()
+        print("SubscriptionService: Cleared cached subscription status")
+    }
+    
     // MARK: - Supabase Integration Methods
     
     private func storeTeamSubscription(teamId: String, transaction: StoreKit.Transaction) async throws {
@@ -659,6 +915,7 @@ class SubscriptionService: NSObject, ObservableObject {
         )
         
         try await SupabaseService.shared.createTeamSubscription(subscription)
+        print("SubscriptionService: Successfully stored team subscription in database")
     }
     
     private func fetchTeamSubscriptionFromSupabase(userId: String, transactionId: String) async throws -> DatabaseTeamSubscription? {
@@ -672,6 +929,7 @@ class SubscriptionService: NSObject, ObservableObject {
             status: status,
             expirationDate: expirationDate
         )
+        print("SubscriptionService: Successfully updated team subscription status to \(status)")
     }
 }
 
@@ -700,7 +958,7 @@ enum SubscriptionStatus {
         case .user:
             return .systemBlue
         case .captain:
-            return IndustrialDesign.Colors.bitcoin
+            return UIColor.systemOrange
         }
     }
 }

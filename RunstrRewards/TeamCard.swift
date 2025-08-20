@@ -234,13 +234,12 @@ class TeamCard: UIView {
         
         if isSubscribed {
             joinButton.setTitle("SUBSCRIBED", for: .normal)
-            joinButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.2)
-            joinButton.layer.borderColor = UIColor.systemBlue.cgColor
-            joinButton.setTitleColor(UIColor.systemBlue, for: .normal)
+            joinButton.backgroundColor = IndustrialDesign.Colors.cardBackground
+            joinButton.layer.borderColor = IndustrialDesign.Colors.primaryText.cgColor
+            joinButton.setTitleColor(IndustrialDesign.Colors.primaryText, for: .normal)
             joinButton.isEnabled = true
         } else {
-            let price = SubscriptionService.shared.getTeamSubscriptionPrice()
-            joinButton.setTitle("SUBSCRIBE • \(price)", for: .normal)
+            joinButton.setTitle("SUBSCRIBE", for: .normal)
             joinButton.backgroundColor = UIColor(red: 0.17, green: 0.17, blue: 0.17, alpha: 1.0)
             joinButton.layer.borderColor = UIColor(red: 0.27, green: 0.27, blue: 0.27, alpha: 1.0).cgColor
             joinButton.setTitleColor(IndustrialDesign.Colors.primaryText, for: .normal)

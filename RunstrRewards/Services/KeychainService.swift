@@ -6,6 +6,9 @@ class KeychainService {
     
     private let serviceName = "com.levelfitness.ios"
     
+    // Serial queue for thread-safe Keychain access
+    private let keychainQueue = DispatchQueue(label: "com.levelfitness.keychain.queue", attributes: .concurrent)
+    
     private init() {}
     
     enum KeychainKey: String {
@@ -25,102 +28,131 @@ class KeychainService {
     func save(_ value: String, for key: KeychainKey) -> Bool {
         guard let data = value.data(using: .utf8) else { return false }
         
-        // Delete any existing value
-        delete(for: key)
-        
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: key.rawValue,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        ]
-        
-        let status = SecItemAdd(query as CFDictionary, nil)
-        
-        if status != errSecSuccess {
-            print("KeychainService: Error saving \(key.rawValue) - Status: \(status)")
-            return false
+        // Use barrier flag for write operations to ensure thread safety
+        return keychainQueue.sync(flags: .barrier) {
+            // First, try to update existing item
+            let searchQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: serviceName,
+                kSecAttrAccount as String: key.rawValue
+            ]
+            
+            let updateQuery: [String: Any] = [
+                kSecValueData as String: data,
+                kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            ]
+            
+            var status = SecItemUpdate(searchQuery as CFDictionary, updateQuery as CFDictionary)
+            
+            if status == errSecItemNotFound {
+                // Item doesn't exist, add it
+                let addQuery: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: serviceName,
+                    kSecAttrAccount as String: key.rawValue,
+                    kSecValueData as String: data,
+                    kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+                ]
+                
+                status = SecItemAdd(addQuery as CFDictionary, nil)
+            }
+            
+            if status != errSecSuccess {
+                print("KeychainService: Error saving \(key.rawValue) - Status: \(status)")
+                return false
+            }
+            
+            return true
         }
-        
-        return true
     }
     
     // MARK: - Load
     
     func load(for key: KeychainKey) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: key.rawValue,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        
-        var dataTypeRef: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
-        
-        if status == errSecSuccess,
-           let data = dataTypeRef as? Data,
-           let value = String(data: data, encoding: .utf8) {
-            return value
+        // Use concurrent read for better performance
+        return keychainQueue.sync {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: serviceName,
+                kSecAttrAccount as String: key.rawValue,
+                kSecReturnData as String: true,
+                kSecMatchLimit as String: kSecMatchLimitOne
+            ]
+            
+            var dataTypeRef: AnyObject?
+            let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
+            
+            if status == errSecSuccess,
+               let data = dataTypeRef as? Data,
+               let value = String(data: data, encoding: .utf8) {
+                return value
+            }
+            
+            if status != errSecItemNotFound {
+                print("KeychainService: Error loading \(key.rawValue) - Status: \(status)")
+            }
+            
+            return nil
         }
-        
-        if status != errSecItemNotFound {
-            print("KeychainService: Error loading \(key.rawValue) - Status: \(status)")
-        }
-        
-        return nil
     }
     
     // MARK: - Delete
     
     @discardableResult
     func delete(for key: KeychainKey) -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: key.rawValue
-        ]
-        
-        let status = SecItemDelete(query as CFDictionary)
-        
-        if status != errSecSuccess && status != errSecItemNotFound {
-            print("KeychainService: Error deleting \(key.rawValue) - Status: \(status)")
-            return false
+        // Use barrier flag for write operations to ensure thread safety
+        return keychainQueue.sync(flags: .barrier) {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: serviceName,
+                kSecAttrAccount as String: key.rawValue
+            ]
+            
+            let status = SecItemDelete(query as CFDictionary)
+            
+            if status != errSecSuccess && status != errSecItemNotFound {
+                print("KeychainService: Error deleting \(key.rawValue) - Status: \(status)")
+                return false
+            }
+            
+            return true
         }
-        
-        return true
     }
     
     // MARK: - Clear All
     
     func clearAll() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName
-        ]
-        
-        let status = SecItemDelete(query as CFDictionary)
-        
-        if status == errSecSuccess {
-            print("KeychainService: All items cleared")
-        } else if status != errSecItemNotFound {
-            print("KeychainService: Error clearing all items - Status: \(status)")
+        // Use barrier flag for write operations to ensure thread safety
+        keychainQueue.sync(flags: .barrier) {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: serviceName
+            ]
+            
+            let status = SecItemDelete(query as CFDictionary)
+            
+            if status == errSecSuccess {
+                print("KeychainService: All items cleared")
+            } else if status != errSecItemNotFound {
+                print("KeychainService: Error clearing all items - Status: \(status)")
+            }
         }
     }
     
     // MARK: - Check if exists
     
     func exists(for key: KeychainKey) -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: key.rawValue,
-            kSecReturnData as String: false
-        ]
-        
-        let status = SecItemCopyMatching(query as CFDictionary, nil)
-        return status == errSecSuccess
+        // Use concurrent read for better performance
+        return keychainQueue.sync {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: serviceName,
+                kSecAttrAccount as String: key.rawValue,
+                kSecReturnData as String: false
+            ]
+            
+            let status = SecItemCopyMatching(query as CFDictionary, nil)
+            return status == errSecSuccess
+        }
     }
 }

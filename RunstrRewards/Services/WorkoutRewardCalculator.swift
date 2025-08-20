@@ -104,6 +104,45 @@ class WorkoutRewardCalculator {
         )
     }
     
+    // MARK: - Team Multiplier Calculation
+    
+    func calculateRewardWithTeamBonus(for workout: HealthKitWorkout, userId: String) async -> WorkoutReward {
+        // Calculate base reward
+        let baseReward = calculateReward(for: workout)
+        
+        // Check if user is member of active teams
+        let teamMultiplier = await getTeamMultiplier(userId: userId)
+        
+        if teamMultiplier > 1.0 {
+            let bonusSats = Int(Double(baseReward.satsAmount) * (teamMultiplier - 1.0))
+            let bonusUSD = Double(bonusSats) * 0.0005
+            
+            return WorkoutReward(
+                satsAmount: baseReward.satsAmount + bonusSats,
+                usdAmount: baseReward.usdAmount + bonusUSD,
+                reason: "\(baseReward.reason) + \(Int((teamMultiplier - 1.0) * 100))% team bonus"
+            )
+        }
+        
+        return baseReward
+    }
+    
+    private func getTeamMultiplier(userId: String) async -> Double {
+        do {
+            // Check if user is part of active teams
+            let teams = try await SupabaseService.shared.fetchUserTeams(userId: userId)
+            
+            if !teams.isEmpty {
+                // Team members get 25% bonus
+                return 1.25
+            }
+        } catch {
+            print("WorkoutRewardCalculator: Error checking team membership: \(error)")
+        }
+        
+        return 1.0 // No team bonus
+    }
+    
     // MARK: - Streak Bonuses
     
     func calculateStreakBonus(consecutiveDays: Int) -> WorkoutReward {

@@ -94,29 +94,45 @@ class LightningWalletManager {
         let rewardAmount = calculateRewardAmount(points: points)
         let memo = "Workout reward: \(workoutType) - \(points) points"
         
-        do {
-            let result = try await coinOSService.distributeReward(
-                to: userId,
-                amount: rewardAmount,
-                memo: memo
-            )
-            
-            if result.success {
-                // Store transaction record in Supabase
-                try await storeRewardTransaction(
-                    userId: userId,
+        // Retry logic for failed payments
+        var attempts = 0
+        let maxAttempts = 3
+        
+        while attempts < maxAttempts {
+            do {
+                let result = try await coinOSService.distributeReward(
+                    to: userId,
                     amount: rewardAmount,
-                    type: "workout_reward",
-                    description: memo
+                    memo: memo
                 )
                 
-                print("LightningWalletManager: Distributed \(rewardAmount) sats reward to user \(userId)")
-            } else {
-                throw LightningWalletError.rewardDistributionFailed
+                if result.success {
+                    // Store transaction record in Supabase
+                    try await storeRewardTransaction(
+                        userId: userId,
+                        amount: rewardAmount,
+                        type: "workout_reward",
+                        description: memo
+                    )
+                    
+                    print("LightningWalletManager: Distributed \(rewardAmount) sats reward to user \(userId)")
+                    return // Success - exit retry loop
+                } else {
+                    throw LightningWalletError.rewardDistributionFailed
+                }
+            } catch {
+                attempts += 1
+                print("LightningWalletManager: Payment attempt \(attempts) failed: \(error)")
+                
+                if attempts < maxAttempts {
+                    // Wait before retry (exponential backoff)
+                    try await Task.sleep(nanoseconds: UInt64(attempts * 2 * 1_000_000_000))
+                } else {
+                    // Final attempt failed - store for manual retry
+                    await storeFailedPayment(userId: userId, amount: rewardAmount, type: workoutType, error: error)
+                    throw error
+                }
             }
-        } catch {
-            print("LightningWalletManager: Failed to distribute reward: \(error)")
-            throw error
         }
     }
     
@@ -247,20 +263,52 @@ class LightningWalletManager {
     }
     
     private func storeRewardTransaction(userId: String, amount: Int, type: String, description: String) async throws {
-        let _ = RewardTransaction(
-            id: UUID().uuidString,
-            userId: userId,
-            amount: amount,
-            type: type,
-            description: description,
-            status: "completed",
-            createdAt: Date()
-        )
-        
         print("LightningWalletManager: Storing reward transaction - \(amount) sats for user \(userId)")
         
-        // TODO: Store in Supabase transactions table
-        // For now, we'll just log the transaction
+        do {
+            // Store transaction in Supabase database
+            let transaction = try await SupabaseService.shared.createTransaction(
+                userId: userId,
+                type: type,
+                amount: amount,
+                description: description
+            )
+            
+            print("LightningWalletManager: ✅ Transaction stored successfully with ID: \(transaction.id)")
+            
+            // Post notification for UI updates
+            NotificationCenter.default.post(
+                name: .transactionAdded,
+                object: nil,
+                userInfo: ["transaction": transaction]
+            )
+            
+        } catch {
+            print("LightningWalletManager: ❌ Failed to store transaction: \(error)")
+            // Don't throw - we don't want to fail the reward distribution because of database issues
+            // The Bitcoin was already sent, so log the error but continue
+            ErrorHandlingService.shared.logError(error, context: "storeRewardTransaction", userId: userId)
+        }
+    }
+    
+    // MARK: - Failed Payment Handling
+    
+    private func storeFailedPayment(userId: String, amount: Int, type: String, error: Error) async {
+        // Store failed payment for manual retry or user notification
+        let failedPayment = [
+            "userId": userId,
+            "amount": amount,
+            "type": type,
+            "error": error.localizedDescription,
+            "timestamp": Date().timeIntervalSince1970
+        ] as [String: Any]
+        
+        // Store in UserDefaults for now (could be moved to Supabase)
+        var failedPayments = UserDefaults.standard.array(forKey: "failed_payments") as? [[String: Any]] ?? []
+        failedPayments.append(failedPayment)
+        UserDefaults.standard.set(failedPayments, forKey: "failed_payments")
+        
+        print("LightningWalletManager: ⚠️ Stored failed payment: \(amount) sats for user \(userId)")
     }
     
     // MARK: - Wallet Status
@@ -328,6 +376,12 @@ enum WalletStatus {
             return "Error: \(message)"
         }
     }
+}
+
+// MARK: - Notifications
+
+extension Notification.Name {
+    static let transactionAdded = Notification.Name("transactionAdded")
 }
 
 // MARK: - Errors

@@ -260,7 +260,7 @@ class AppConnectionView: UIView {
         
         // Icon
         iconImageView.image = UIImage(systemName: appData.icon)
-        iconImageView.tintColor = appData.isConnected ? UIColor.systemGreen : IndustrialDesign.Colors.secondaryText
+        iconImageView.tintColor = appData.isConnected ? IndustrialDesign.Colors.primaryText : IndustrialDesign.Colors.secondaryText
         iconImageView.contentMode = .scaleAspectFit
         iconImageView.translatesAutoresizingMaskIntoConstraints = false
         
@@ -279,7 +279,7 @@ class AppConnectionView: UIView {
         
         // Switch
         connectionSwitch.isOn = appData.isConnected
-        connectionSwitch.onTintColor = UIColor.systemGreen
+        connectionSwitch.onTintColor = IndustrialDesign.Colors.primaryText
         connectionSwitch.translatesAutoresizingMaskIntoConstraints = false
         connectionSwitch.addTarget(self, action: #selector(switchToggled), for: .valueChanged)
         
@@ -326,8 +326,8 @@ class AppConnectionView: UIView {
     private func updateConnectionStatus() {
         if appData.isConnected {
             statusLabel.text = "Connected"
-            statusLabel.textColor = UIColor.systemGreen
-            iconImageView.tintColor = UIColor.systemGreen
+            statusLabel.textColor = IndustrialDesign.Colors.primaryText
+            iconImageView.tintColor = IndustrialDesign.Colors.primaryText
         } else {
             statusLabel.text = "Not Connected"
             statusLabel.textColor = IndustrialDesign.Colors.secondaryText

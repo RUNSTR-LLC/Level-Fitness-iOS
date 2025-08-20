@@ -12,10 +12,8 @@ class HelpSupportViewController: UIViewController {
     private let backButton = UIButton(type: .custom)
     private let titleLabel = UILabel()
     
-    // Support sections
-    private let quickHelpSection = UIView()
+    // Support section
     private let contactSection = UIView()
-    private let resourcesSection = UIView()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -81,82 +79,24 @@ class HelpSupportViewController: UIViewController {
     }
     
     private func setupSupportSections() {
-        // Quick Help Section
-        quickHelpSection.translatesAutoresizingMaskIntoConstraints = false
-        let quickHelpItems = [
-            SupportItem(title: "Getting Started", subtitle: "How to sync workouts and earn rewards", icon: "play.circle.fill", action: { [weak self] in
-                self?.showGettingStarted()
-            }),
-            SupportItem(title: "Troubleshooting", subtitle: "Fix common sync and reward issues", icon: "wrench.fill", action: { [weak self] in
-                self?.showTroubleshooting()
-            }),
-            SupportItem(title: "Account & Billing", subtitle: "Manage subscriptions and payments", icon: "creditcard.fill", action: { [weak self] in
-                self?.showAccountHelp()
-            }),
-            SupportItem(title: "Bitcoin Wallet", subtitle: "Understanding rewards and withdrawals", icon: "bitcoinsign.circle.fill", action: { [weak self] in
-                self?.showWalletHelp()
-            })
-        ]
-        
-        let quickHelpSectionView = SupportSectionView(title: "Quick Help", items: quickHelpItems)
-        quickHelpSection.addSubview(quickHelpSectionView)
-        contentView.addSubview(quickHelpSection)
-        
-        // Contact Section
+        // Contact Section - simplified to just show email
         contactSection.translatesAutoresizingMaskIntoConstraints = false
         let contactItems = [
-            SupportItem(title: "Email Support", subtitle: "If you need help with something in the app or have a suggestion send an email", icon: "envelope.fill", action: { [weak self] in
+            SupportItem(title: "Email Support", subtitle: "thewildhustle@proton.me", icon: "envelope.fill", action: { [weak self] in
                 self?.openEmailSupport()
-            }),
-            SupportItem(title: "Report a Bug", subtitle: "Help us improve the app", icon: "ladybug.fill", action: { [weak self] in
-                self?.reportBug()
-            }),
-            SupportItem(title: "Feature Request", subtitle: "Suggest new features", icon: "lightbulb.fill", action: { [weak self] in
-                self?.submitFeatureRequest()
             })
         ]
         
-        let contactSectionView = SupportSectionView(title: "Contact Us", items: contactItems)
+        let contactSectionView = SupportSectionView(title: "Support", items: contactItems)
         contactSection.addSubview(contactSectionView)
         contentView.addSubview(contactSection)
         
-        // Resources Section
-        resourcesSection.translatesAutoresizingMaskIntoConstraints = false
-        let resourceItems = [
-            SupportItem(title: "Community Guidelines", subtitle: "Rules for teams and competitions", icon: "person.3.fill", action: { [weak self] in
-                self?.showCommunityGuidelines()
-            }),
-            SupportItem(title: "Security & Safety", subtitle: "How we protect your data", icon: "shield.fill", action: { [weak self] in
-                self?.showSecurityInfo()
-            }),
-            SupportItem(title: "Bitcoin Basics", subtitle: "Learn about Lightning Network", icon: "book.fill", action: { [weak self] in
-                self?.showBitcoinBasics()
-            }),
-            SupportItem(title: "System Status", subtitle: "Check service availability", icon: "checkmark.circle.fill", action: { [weak self] in
-                self?.checkSystemStatus()
-            })
-        ]
-        
-        let resourcesSectionView = SupportSectionView(title: "Resources", items: resourceItems)
-        resourcesSection.addSubview(resourcesSectionView)
-        contentView.addSubview(resourcesSection)
-        
         // Setup section constraints
         NSLayoutConstraint.activate([
-            quickHelpSectionView.topAnchor.constraint(equalTo: quickHelpSection.topAnchor),
-            quickHelpSectionView.leadingAnchor.constraint(equalTo: quickHelpSection.leadingAnchor),
-            quickHelpSectionView.trailingAnchor.constraint(equalTo: quickHelpSection.trailingAnchor),
-            quickHelpSectionView.bottomAnchor.constraint(equalTo: quickHelpSection.bottomAnchor),
-            
             contactSectionView.topAnchor.constraint(equalTo: contactSection.topAnchor),
             contactSectionView.leadingAnchor.constraint(equalTo: contactSection.leadingAnchor),
             contactSectionView.trailingAnchor.constraint(equalTo: contactSection.trailingAnchor),
-            contactSectionView.bottomAnchor.constraint(equalTo: contactSection.bottomAnchor),
-            
-            resourcesSectionView.topAnchor.constraint(equalTo: resourcesSection.topAnchor),
-            resourcesSectionView.leadingAnchor.constraint(equalTo: resourcesSection.leadingAnchor),
-            resourcesSectionView.trailingAnchor.constraint(equalTo: resourcesSection.trailingAnchor),
-            resourcesSectionView.bottomAnchor.constraint(equalTo: resourcesSection.bottomAnchor)
+            contactSectionView.bottomAnchor.constraint(equalTo: contactSection.bottomAnchor)
         ])
     }
     
@@ -189,19 +129,11 @@ class HelpSupportViewController: UIViewController {
             titleLabel.centerXAnchor.constraint(equalTo: headerView.centerXAnchor),
             titleLabel.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
             
-            // Support sections
-            quickHelpSection.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 32),
-            quickHelpSection.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
-            quickHelpSection.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
-            
-            contactSection.topAnchor.constraint(equalTo: quickHelpSection.bottomAnchor, constant: 32),
+            // Support section
+            contactSection.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 32),
             contactSection.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
             contactSection.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
-            
-            resourcesSection.topAnchor.constraint(equalTo: contactSection.bottomAnchor, constant: 32),
-            resourcesSection.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
-            resourcesSection.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
-            resourcesSection.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -32)
+            contactSection.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -32)
         ])
     }
     
@@ -256,7 +188,7 @@ class HelpSupportViewController: UIViewController {
         • Refunds must be requested through Apple Support
         • Your account data is synced across devices with the same Apple ID
         
-        For billing questions, contact Apple Support or email us at dakota.brown@runstr.club
+        For billing questions, contact Apple Support or email us at thewildhustle@proton.me
         """
         
         showInfoAlert(title: "Account & Billing", message: message)
@@ -283,7 +215,7 @@ class HelpSupportViewController: UIViewController {
         if MFMailComposeViewController.canSendMail() {
             let mailComposer = MFMailComposeViewController()
             mailComposer.mailComposeDelegate = self
-            mailComposer.setToRecipients(["dakota.brown@runstr.club"])
+            mailComposer.setToRecipients(["thewildhustle@proton.me"])
             mailComposer.setSubject("RunstrRewards Support Request")
             
             // Add device info
@@ -301,7 +233,7 @@ class HelpSupportViewController: UIViewController {
             present(mailComposer, animated: true)
         } else {
             // Fallback to opening mail app
-            if let url = URL(string: "mailto:dakota.brown@runstr.club?subject=Level%20Fitness%20Support") {
+            if let url = URL(string: "mailto:thewildhustle@proton.me?subject=Level%20Fitness%20Support") {
                 UIApplication.shared.open(url)
             }
         }
@@ -311,7 +243,7 @@ class HelpSupportViewController: UIViewController {
         if MFMailComposeViewController.canSendMail() {
             let mailComposer = MFMailComposeViewController()
             mailComposer.mailComposeDelegate = self
-            mailComposer.setToRecipients(["dakota.brown@runstr.club"])
+            mailComposer.setToRecipients(["thewildhustle@proton.me"])
             mailComposer.setSubject("Bug Report - RunstrRewards")
             
             let bugTemplate = """
@@ -339,7 +271,7 @@ class HelpSupportViewController: UIViewController {
             mailComposer.setMessageBody(bugTemplate, isHTML: false)
             present(mailComposer, animated: true)
         } else {
-            showInfoAlert(title: "Report Bug", message: "Please email bug reports to dakota.brown@runstr.club with details about the issue and steps to reproduce it.")
+            showInfoAlert(title: "Report Bug", message: "Please email bug reports to thewildhustle@proton.me with details about the issue and steps to reproduce it.")
         }
     }
     
@@ -347,7 +279,7 @@ class HelpSupportViewController: UIViewController {
         if MFMailComposeViewController.canSendMail() {
             let mailComposer = MFMailComposeViewController()
             mailComposer.mailComposeDelegate = self
-            mailComposer.setToRecipients(["dakota.brown@runstr.club"])
+            mailComposer.setToRecipients(["thewildhustle@proton.me"])
             mailComposer.setSubject("Feature Request - RunstrRewards")
             
             let featureTemplate = """
@@ -367,7 +299,7 @@ class HelpSupportViewController: UIViewController {
             mailComposer.setMessageBody(featureTemplate, isHTML: false)
             present(mailComposer, animated: true)
         } else {
-            showInfoAlert(title: "Feature Request", message: "Please email feature requests to dakota.brown@runstr.club with details about what you'd like to see in the app.")
+            showInfoAlert(title: "Feature Request", message: "Please email feature requests to thewildhustle@proton.me with details about what you'd like to see in the app.")
         }
     }
     
@@ -449,7 +381,7 @@ extension HelpSupportViewController: MFMailComposeViewControllerDelegate {
             case .sent:
                 self.showInfoAlert(title: "Email Sent", message: "Thank you for contacting us! We'll respond within 24 hours.")
             case .failed:
-                self.showInfoAlert(title: "Email Failed", message: "Unable to send email. Please try again or contact us directly at dakota.brown@runstr.club")
+                self.showInfoAlert(title: "Email Failed", message: "Unable to send email. Please try again or contact us directly at thewildhustle@proton.me")
             default:
                 break
             }
@@ -556,7 +488,7 @@ class SupportItemView: UIView {
     
     private func setupViews() {
         iconImageView.image = UIImage(systemName: item.icon)
-        iconImageView.tintColor = UIColor.systemBlue
+        iconImageView.tintColor = IndustrialDesign.Colors.primaryText
         iconImageView.contentMode = .scaleAspectFit
         iconImageView.translatesAutoresizingMaskIntoConstraints = false
         

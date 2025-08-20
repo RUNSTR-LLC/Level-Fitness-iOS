@@ -145,12 +145,15 @@ class NavigationCard: UIView {
     // MARK: - Interaction Methods
     
     @objc private func cardTapped() {
+        print("🔍 DEBUG: NavigationCard tapped - title: \(titleLabel.text ?? "unknown")")
+        
         // Haptic feedback
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
         
         // Animation
         animateTap {
+            print("🔍 DEBUG: About to call tapAction for card: \(self.titleLabel.text ?? "unknown")")
             self.tapAction()
         }
     }
@@ -242,7 +245,7 @@ class NavigationCard: UIView {
     private func setupBadge() {
         if badgeView.superview == nil {
             badgeView.translatesAutoresizingMaskIntoConstraints = false
-            badgeView.backgroundColor = UIColor.systemGreen
+            badgeView.backgroundColor = IndustrialDesign.Colors.primaryText
             badgeView.layer.cornerRadius = 6
             containerView.addSubview(badgeView)
             

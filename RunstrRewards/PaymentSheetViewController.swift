@@ -101,7 +101,7 @@ class PaymentSheetViewController: UIViewController {
         
         // Team image placeholder
         teamImageView.image = UIImage(systemName: "person.3.fill")
-        teamImageView.tintColor = UIColor.systemBlue
+        teamImageView.tintColor = UIColor(red: 0.97, green: 0.58, blue: 0.10, alpha: 1.0) // Bitcoin orange
         teamImageView.contentMode = .scaleAspectFit
         teamImageView.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 0.8)
         teamImageView.layer.cornerRadius = 30
@@ -184,10 +184,10 @@ class PaymentSheetViewController: UIViewController {
         paymentButton.setTitle("Subscribe Now", for: .normal)
         paymentButton.setTitleColor(.white, for: .normal)
         paymentButton.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
-        paymentButton.backgroundColor = UIColor.systemBlue
+        paymentButton.backgroundColor = UIColor(red: 0.97, green: 0.58, blue: 0.10, alpha: 1.0) // Bitcoin orange
         paymentButton.layer.cornerRadius = 12
         paymentButton.layer.borderWidth = 1
-        paymentButton.layer.borderColor = UIColor.systemBlue.cgColor
+        paymentButton.layer.borderColor = UIColor(red: 0.97, green: 0.58, blue: 0.10, alpha: 1.0).cgColor
         paymentButton.translatesAutoresizingMaskIntoConstraints = false
         paymentButton.addTarget(self, action: #selector(paymentButtonTapped), for: .touchUpInside)
         
@@ -373,8 +373,8 @@ class PaymentSheetViewController: UIViewController {
     private func showPaymentSuccess() {
         // Animate success state
         UIView.animate(withDuration: 0.3, animations: {
-            self.paymentButton.backgroundColor = UIColor.systemGreen
-            self.paymentButton.layer.borderColor = UIColor.systemGreen.cgColor
+            self.paymentButton.backgroundColor = IndustrialDesign.Colors.cardBorderHover
+            self.paymentButton.layer.borderColor = IndustrialDesign.Colors.cardBorderHover.cgColor
             self.paymentButton.setTitle("Success! ✓", for: .normal)
         }) { _ in
             // Dismiss after brief delay
@@ -435,7 +435,7 @@ class BenefitRow: UIView {
     
     private func setupViews(iconName: String, text: String) {
         iconImageView.image = UIImage(systemName: iconName)
-        iconImageView.tintColor = UIColor.systemBlue
+        iconImageView.tintColor = UIColor(red: 0.97, green: 0.58, blue: 0.10, alpha: 1.0) // Bitcoin orange
         iconImageView.contentMode = .scaleAspectFit
         iconImageView.translatesAutoresizingMaskIntoConstraints = false
         
