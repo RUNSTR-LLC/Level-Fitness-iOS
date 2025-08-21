@@ -392,12 +392,27 @@ class TeamWalletManager {
     
     private func storeTeamWallet(_ teamWallet: TeamWallet) async throws {
         print("TeamWalletManager: Storing team wallet \(teamWallet.id) in database")
-        // TODO: Implement actual Supabase storage
+        
+        do {
+            try await supabaseService.storeTeamWallet(teamWallet)
+            print("TeamWalletManager: ✅ Team wallet stored successfully")
+        } catch {
+            print("TeamWalletManager: ❌ Failed to store team wallet: \(error)")
+            // Don't fail wallet creation for database issues - wallet is still functional
+            throw error
+        }
     }
     
     private func updateTeamWithWallet(teamId: String, walletId: String) async throws {
         print("TeamWalletManager: Updating team \(teamId) with wallet ID \(walletId)")
-        // TODO: Implement actual Supabase update
+        
+        do {
+            try await supabaseService.updateTeamWalletId(teamId: teamId, walletId: walletId)
+            print("TeamWalletManager: ✅ Team updated with wallet ID successfully")
+        } catch {
+            print("TeamWalletManager: ❌ Failed to update team with wallet ID: \(error)")
+            throw error
+        }
     }
     
     private func recordTeamTransaction(
@@ -410,7 +425,20 @@ class TeamWalletManager {
         metadata: [String: Any] = [:]
     ) async throws {
         print("TeamWalletManager: Recording team transaction - \(amount) sats for team \(teamId)")
-        // TODO: Implement actual Supabase transaction storage
+        
+        do {
+            try await supabaseService.recordTeamTransaction(
+                teamId: teamId,
+                userId: userId,
+                amount: amount,
+                type: type,
+                description: description
+            )
+            print("TeamWalletManager: ✅ Team transaction recorded successfully")
+        } catch {
+            print("TeamWalletManager: ❌ Failed to record team transaction: \(error)")
+            // Don't fail the operation for database issues - transaction already completed
+        }
     }
 }
 

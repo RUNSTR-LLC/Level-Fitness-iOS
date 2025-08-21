@@ -1075,11 +1075,9 @@ class SettingItemView: UIView {
     
     private func setupTapGesture() {
         guard item.action != nil else { 
-            print("🔥 DEBUG: No action for item - \(item.title)")
             return 
         }
         
-        print("🔥 DEBUG: Setting up tap gesture for - \(item.title)")
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(itemTapped))
         
         // Configure tap gesture to work well with scroll view
@@ -1097,14 +1095,10 @@ class SettingItemView: UIView {
         longPress.require(toFail: tapGesture)  // Let tap gesture fire first
         addGestureRecognizer(longPress)
         
-        print("🔥 DEBUG: Tap gesture setup complete for - \(item.title)")
     }
     
     @objc private func itemTapped() {
-        print("🔥 DEBUG: Item tap detected - \(item.title)")
-        print("🔥 DEBUG: Action exists: \(item.action != nil)")
         item.action?()
-        print("🔥 DEBUG: Action executed for - \(item.title)")
     }
     
     @objc private func handleLongPress(_ gesture: UILongPressGestureRecognizer) {

@@ -813,6 +813,352 @@ class SupabaseService {
         print("SupabaseService: Team subscription created for team \(subscription.teamId)")
     }
     
+    // MARK: - Subscription Data Methods
+    
+    func storeSubscriptionData(_ subscriptionData: SubscriptionData) async throws {
+        struct DatabaseSubscription: Encodable {
+            let id: String
+            let userId: String
+            let productId: String
+            let purchaseDate: String
+            let expirationDate: String?
+            let status: String
+            let originalTransactionId: String
+            let createdAt: String
+            let updatedAt: String
+            
+            enum CodingKeys: String, CodingKey {
+                case id
+                case userId = "user_id"
+                case productId = "product_id"
+                case purchaseDate = "purchase_date"
+                case expirationDate = "expiration_date"
+                case status
+                case originalTransactionId = "original_transaction_id"
+                case createdAt = "created_at"
+                case updatedAt = "updated_at"
+            }
+        }
+        
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        
+        let databaseSubscription = DatabaseSubscription(
+            id: String(subscriptionData.id),
+            userId: subscriptionData.userId,
+            productId: subscriptionData.productId,
+            purchaseDate: iso8601Formatter.string(from: subscriptionData.purchaseDate),
+            expirationDate: subscriptionData.expirationDate != nil ? iso8601Formatter.string(from: subscriptionData.expirationDate!) : nil,
+            status: subscriptionData.status,
+            originalTransactionId: subscriptionData.originalTransactionId,
+            createdAt: iso8601Formatter.string(from: Date()),
+            updatedAt: iso8601Formatter.string(from: Date())
+        )
+        
+        try await client
+            .from("subscriptions")
+            .insert(databaseSubscription)
+            .execute()
+        
+        print("SupabaseService: Subscription data stored successfully")
+    }
+    
+    func updateUserSubscriptionTier(userId: String, tier: String) async throws {
+        struct UserUpdate: Encodable {
+            let subscriptionTier: String
+            let updatedAt: String
+            
+            enum CodingKeys: String, CodingKey {
+                case subscriptionTier = "subscription_tier"
+                case updatedAt = "updated_at"
+            }
+        }
+        
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        
+        let userUpdate = UserUpdate(
+            subscriptionTier: tier,
+            updatedAt: iso8601Formatter.string(from: Date())
+        )
+        
+        try await client
+            .from("profiles")
+            .update(userUpdate)
+            .eq("id", value: userId)
+            .execute()
+        
+        print("SupabaseService: User subscription tier updated successfully")
+    }
+    
+    func storeUserWallet(_ wallet: LightningWallet) async throws {
+        struct DatabaseWallet: Encodable {
+            let id: String
+            let userId: String
+            let walletType: String
+            let balance: Int
+            let createdAt: String
+            let updatedAt: String
+            
+            enum CodingKeys: String, CodingKey {
+                case id
+                case userId = "user_id"
+                case walletType = "wallet_type"
+                case balance
+                case createdAt = "created_at"
+                case updatedAt = "updated_at"
+            }
+        }
+        
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        
+        let databaseWallet = DatabaseWallet(
+            id: wallet.id,
+            userId: wallet.userId,
+            walletType: "lightning",
+            balance: wallet.balance,
+            createdAt: iso8601Formatter.string(from: Date()),
+            updatedAt: iso8601Formatter.string(from: Date())
+        )
+        
+        try await client
+            .from("user_wallets")
+            .insert(databaseWallet)
+            .execute()
+        
+        print("SupabaseService: User wallet stored successfully")
+    }
+    
+    // MARK: - Team Wallet Methods
+    
+    func storeTeamWallet(_ teamWallet: TeamWallet) async throws {
+        struct DatabaseTeamWallet: Encodable {
+            let id: String
+            let teamId: String
+            let captainId: String
+            let provider: String
+            let balance: Int
+            let address: String
+            let walletId: String
+            let createdAt: String
+            
+            enum CodingKeys: String, CodingKey {
+                case id
+                case teamId = "team_id"
+                case captainId = "captain_id"
+                case provider
+                case balance
+                case address
+                case walletId = "wallet_id"
+                case createdAt = "created_at"
+            }
+        }
+        
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        
+        let databaseTeamWallet = DatabaseTeamWallet(
+            id: teamWallet.id,
+            teamId: teamWallet.teamId,
+            captainId: teamWallet.captainId,
+            provider: teamWallet.provider,
+            balance: teamWallet.balance,
+            address: teamWallet.address,
+            walletId: teamWallet.walletId,
+            createdAt: iso8601Formatter.string(from: teamWallet.createdAt)
+        )
+        
+        try await client
+            .from("team_wallets")
+            .insert(databaseTeamWallet)
+            .execute()
+        
+        print("SupabaseService: Team wallet stored successfully")
+    }
+    
+    func updateTeamWalletId(teamId: String, walletId: String) async throws {
+        struct TeamUpdate: Encodable {
+            let walletId: String
+            let updatedAt: String
+            
+            enum CodingKeys: String, CodingKey {
+                case walletId = "wallet_id"
+                case updatedAt = "updated_at"
+            }
+        }
+        
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        
+        let teamUpdate = TeamUpdate(
+            walletId: walletId,
+            updatedAt: iso8601Formatter.string(from: Date())
+        )
+        
+        try await client
+            .from("teams")
+            .update(teamUpdate)
+            .eq("id", value: teamId)
+            .execute()
+        
+        print("SupabaseService: Team wallet ID updated successfully")
+    }
+    
+    func recordTeamTransaction(
+        teamId: String,
+        userId: String?,
+        amount: Int,
+        type: String,
+        description: String
+    ) async throws {
+        struct TeamTransaction: Encodable {
+            let id: String
+            let teamId: String
+            let userId: String?
+            let amount: Int
+            let type: String
+            let description: String
+            let createdAt: String
+            
+            enum CodingKeys: String, CodingKey {
+                case id
+                case teamId = "team_id"
+                case userId = "user_id"
+                case amount
+                case type
+                case description
+                case createdAt = "created_at"
+            }
+        }
+        
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        
+        let teamTransaction = TeamTransaction(
+            id: UUID().uuidString,
+            teamId: teamId,
+            userId: userId,
+            amount: amount,
+            type: type,
+            description: description,
+            createdAt: iso8601Formatter.string(from: Date())
+        )
+        
+        try await client
+            .from("team_transactions")
+            .insert(teamTransaction)
+            .execute()
+        
+        print("SupabaseService: Team transaction recorded successfully")
+    }
+    
+    // MARK: - Streak Tracking Methods
+    
+    func storeUserStreak(userId: String, streakData: UserStreakData) async throws {
+        struct DatabaseStreakData: Encodable {
+            let id: String
+            let userId: String
+            let consecutiveDays: Int
+            let lastWorkoutDate: String
+            let longestStreak: Int
+            let totalWorkoutDays: Int
+            let createdAt: String
+            let updatedAt: String
+            
+            enum CodingKeys: String, CodingKey {
+                case id
+                case userId = "user_id"
+                case consecutiveDays = "consecutive_days"
+                case lastWorkoutDate = "last_workout_date"
+                case longestStreak = "longest_streak"
+                case totalWorkoutDays = "total_workout_days"
+                case createdAt = "created_at"
+                case updatedAt = "updated_at"
+            }
+        }
+        
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        
+        let databaseStreakData = DatabaseStreakData(
+            id: UUID().uuidString,
+            userId: userId,
+            consecutiveDays: streakData.consecutiveDays,
+            lastWorkoutDate: iso8601Formatter.string(from: streakData.lastWorkoutDate),
+            longestStreak: streakData.longestStreak,
+            totalWorkoutDays: 0,
+            createdAt: iso8601Formatter.string(from: Date()),
+            updatedAt: iso8601Formatter.string(from: Date())
+        )
+        
+        // Use upsert to update existing record or create new one
+        try await client
+            .from("user_streaks")
+            .upsert(databaseStreakData)
+            .execute()
+        
+        print("SupabaseService: User streak data stored successfully")
+    }
+    
+    // MARK: - Device Token Storage
+    
+    func storeDeviceToken(userId: String, token: String) async throws {
+        struct DeviceToken: Encodable {
+            let id: String
+            let userId: String
+            let token: String
+            let platform: String
+            let isActive: Bool
+            let createdAt: String
+            let updatedAt: String
+            
+            enum CodingKeys: String, CodingKey {
+                case id
+                case userId = "user_id"
+                case token
+                case platform
+                case isActive = "is_active"
+                case createdAt = "created_at"
+                case updatedAt = "updated_at"
+            }
+        }
+        
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        
+        let deviceToken = DeviceToken(
+            id: UUID().uuidString,
+            userId: userId,
+            token: token,
+            platform: "ios",
+            isActive: true,
+            createdAt: iso8601Formatter.string(from: Date()),
+            updatedAt: iso8601Formatter.string(from: Date())
+        )
+        
+        // Use upsert to update existing token or create new one
+        try await client
+            .from("device_tokens")
+            .upsert(deviceToken)
+            .execute()
+        
+        print("SupabaseService: Device token stored successfully")
+    }
+    
+    // MARK: - Team Management Methods
+    
+    func removeUserFromTeam(userId: String, teamId: String) async throws {
+        try await client
+            .from("team_members")
+            .delete()
+            .eq("user_id", value: userId)
+            .eq("team_id", value: teamId)
+            .execute()
+        
+        print("SupabaseService: User \(userId) removed from team \(teamId) successfully")
+    }
+    
     func fetchTeamSubscription(userId: String, transactionId: String) async throws -> DatabaseTeamSubscription? {
         let response = try await client
             .from("team_subscriptions")
@@ -1151,15 +1497,6 @@ class SupabaseService {
         }
     }
     
-    func storeTeamWallet(_ teamWallet: TeamWallet) async throws {
-        // For MVP: Simple implementation - just store in teams table for now
-        // TODO: Implement full lightning_wallets table integration when Supabase client supports it
-        print("SupabaseService: Team wallet storage - simplified for MVP")
-        print("SupabaseService: Would store wallet \(teamWallet.id) for team \(teamWallet.teamId)")
-        
-        // For now, just update the team record with basic wallet info
-        // In a real implementation, this would create the lightning_wallets record
-    }
     
     func recordTransaction(
         teamId: String? = nil,

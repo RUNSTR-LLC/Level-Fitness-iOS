@@ -30,6 +30,7 @@
 		E7EF5ADCEF21404E9BE60F135E80F95A /* UserProfileSetupViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50469A2F5A704CAD92C1B6F2EB3E02AB /* UserProfileSetupViewController.swift */; };
 		0CDFE0BA1D77489EBA21253C379223F8 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 277701975FC24F4E87A21FBB62920F67 /* SettingsViewController.swift */; };
 		0FC34FA12F8C426ABCDB08BC43A4101A /* PaymentSheetViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8091CBE0E3E94A93838B1AC46AAD63F9 /* PaymentSheetViewController.swift */; };
+		D8A3F2B34E8946C191FD2AC47BB32F8A /* QRCodeDisplayViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1C82BE49A6D4F2B9C7E3DA58FB14E09 /* QRCodeDisplayViewController.swift */; };
 		380F099FF1C945ED869B55607DEB22A9 /* TeamSubscriptionStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE73978B5D414279BCEB2A1430FF657B /* TeamSubscriptionStatusView.swift */; };
 		CA98EED183AC48C8A1CA751E1EC677C9 /* NotificationPermissionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBD32F90C3A049B1919D788C181C1EF5 /* NotificationPermissionViewController.swift */; };
 		29FDEE5098FF427BB69D9648A0797E89 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56E5477F5A54399A8C741E91A3D9EE7 /* NotificationService.swift */; };
@@ -141,6 +142,7 @@
 		50469A2F5A704CAD92C1B6F2EB3E02AB /* UserProfileSetupViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfileSetupViewController.swift; sourceTree = "<group>"; };
 		277701975FC24F4E87A21FBB62920F67 /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
 		8091CBE0E3E94A93838B1AC46AAD63F9 /* PaymentSheetViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentSheetViewController.swift; sourceTree = "<group>"; };
+		F1C82BE49A6D4F2B9C7E3DA58FB14E09 /* QRCodeDisplayViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeDisplayViewController.swift; sourceTree = "<group>"; };
 		EE73978B5D414279BCEB2A1430FF657B /* TeamSubscriptionStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamSubscriptionStatusView.swift; sourceTree = "<group>"; };
 		CBD32F90C3A049B1919D788C181C1EF5 /* NotificationPermissionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPermissionViewController.swift; sourceTree = "<group>"; };
 		A56E5477F5A54399A8C741E91A3D9EE7 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/NotificationService.swift"; sourceTree = "<group>"; };
@@ -273,6 +275,7 @@
 				50469A2F5A704CAD92C1B6F2EB3E02AB /* UserProfileSetupViewController.swift */,
 				277701975FC24F4E87A21FBB62920F67 /* SettingsViewController.swift */,
 				8091CBE0E3E94A93838B1AC46AAD63F9 /* PaymentSheetViewController.swift */,
+				F1C82BE49A6D4F2B9C7E3DA58FB14E09 /* QRCodeDisplayViewController.swift */,
 				EE73978B5D414279BCEB2A1430FF657B /* TeamSubscriptionStatusView.swift */,
 				CBD32F90C3A049B1919D788C181C1EF5 /* NotificationPermissionViewController.swift */,
 				00659AAD7E444446B1DB9B539DE9216A /* TeamDetailViewController.swift */,
@@ -457,6 +460,7 @@
 				E7EF5ADCEF21404E9BE60F135E80F95A /* UserProfileSetupViewController.swift in Sources */,
 				0CDFE0BA1D77489EBA21253C379223F8 /* SettingsViewController.swift in Sources */,
 				0FC34FA12F8C426ABCDB08BC43A4101A /* PaymentSheetViewController.swift in Sources */,
+				D8A3F2B34E8946C191FD2AC47BB32F8A /* QRCodeDisplayViewController.swift in Sources */,
 				380F099FF1C945ED869B55607DEB22A9 /* TeamSubscriptionStatusView.swift in Sources */,
 				CA98EED183AC48C8A1CA751E1EC677C9 /* NotificationPermissionViewController.swift in Sources */,
 				2117F3C2A3FC48ECBAB89A381C1E90F6 /* TeamDetailViewController.swift in Sources */,

@@ -255,11 +255,16 @@ class LightningWalletManager {
     
     private func storeUserWallet(_ wallet: LightningWallet) async throws {
         // Store wallet information in Supabase
-        // This would involve creating a wallets table and inserting the wallet data
         print("LightningWalletManager: Storing wallet \(wallet.id) in database")
         
-        // TODO: Implement actual Supabase storage
-        // For now, we'll just log the action
+        do {
+            try await SupabaseService.shared.storeUserWallet(wallet)
+            print("LightningWalletManager: ✅ User wallet stored successfully")
+        } catch {
+            print("LightningWalletManager: ❌ Failed to store user wallet: \(error)")
+            // Don't fail wallet creation for database issues - wallet is still functional
+            ErrorHandlingService.shared.logError(error, context: "storeUserWallet", userId: wallet.userId)
+        }
     }
     
     private func storeRewardTransaction(userId: String, amount: Int, type: String, description: String) async throws {

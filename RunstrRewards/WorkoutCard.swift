@@ -181,7 +181,6 @@ struct WorkoutData {
     
     // Test function to demonstrate intelligent naming
     static func testIntelligentNaming() {
-        print("🏃‍♂️ Testing intelligent workout naming:")
         
         let calendar = Calendar.current
         let now = Date()

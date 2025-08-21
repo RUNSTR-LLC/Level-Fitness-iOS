@@ -185,11 +185,17 @@ class StreakTracker {
         // Store streak data in database for persistence and analytics
         print("StreakTracker: Storing streak data for user \(userId): \(streakData.consecutiveDays) days")
         
-        // For now, store in UserDefaults as fallback
-        // TODO: Implement Supabase streak storage
-        let streakKey = "user_streak_\(userId)"
-        if let data = try? JSONEncoder().encode(streakData) {
-            UserDefaults.standard.set(data, forKey: streakKey)
+        do {
+            try await SupabaseService.shared.storeUserStreak(userId: userId, streakData: streakData)
+            print("StreakTracker: ✅ Streak data stored in database successfully")
+        } catch {
+            print("StreakTracker: ❌ Failed to store streak data in database: \(error)")
+            // Fall back to UserDefaults as backup
+            let streakKey = "user_streak_\(userId)"
+            if let data = try? JSONEncoder().encode(streakData) {
+                UserDefaults.standard.set(data, forKey: streakKey)
+                print("StreakTracker: 📱 Streak data stored in UserDefaults as fallback")
+            }
         }
     }
     

@@ -81,8 +81,13 @@ class NotificationService: NSObject {
         
         // Store in Supabase notification_tokens table
         // This will be used for sending targeted push notifications
-        // TODO: Implement Supabase storage
-        print("NotificationService: Storing device token for user \(userId)")
+        do {
+            try await SupabaseService.shared.storeDeviceToken(userId: userId, token: token)
+            print("NotificationService: ✅ Device token stored successfully for user \(userId)")
+        } catch {
+            print("NotificationService: ❌ Failed to store device token: \(error)")
+            // Don't fail registration for database issues - notifications can still work locally
+        }
     }
     
     // MARK: - Notification Categories

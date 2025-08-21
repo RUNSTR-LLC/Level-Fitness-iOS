@@ -687,9 +687,13 @@ class SubscriptionService: NSObject, ObservableObject {
         )
         
         // Store in Supabase
-        // TODO: Implement actual Supabase storage for subscription data
-        print("SubscriptionService: Storing subscription in database for user \(userId)")
-        print("SubscriptionService: Subscription data: \(subscriptionData)")
+        do {
+            try await SupabaseService.shared.storeSubscriptionData(subscriptionData)
+            print("SubscriptionService: Successfully stored subscription in database for user \(userId)")
+        } catch {
+            print("SubscriptionService: Failed to store subscription in database: \(error)")
+            // Don't throw error - subscription still processed locally
+        }
     }
     
     private func updateUserSubscriptionStatus() async throws {
@@ -709,8 +713,13 @@ class SubscriptionService: NSObject, ObservableObject {
         }
         
         // Update user profile with subscription tier
-        // TODO: Implement actual Supabase update
-        print("SubscriptionService: Updating user subscription tier to: \(tier) for user \(userId)")
+        do {
+            try await SupabaseService.shared.updateUserSubscriptionTier(userId: userId, tier: tier)
+            print("SubscriptionService: Successfully updated user subscription tier to: \(tier) for user \(userId)")
+        } catch {
+            print("SubscriptionService: Failed to update user subscription tier: \(error)")
+            // Don't fail the entire operation for this
+        }
     }
     
     // MARK: - Feature Management

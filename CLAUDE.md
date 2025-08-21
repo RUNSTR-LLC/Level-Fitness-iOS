@@ -1,36 +1,42 @@
-# level.fitness - Competitions-as-a-Service for Fitness Communities
+# RunstrRewards - The Invisible Micro App for Team-Based Fitness Competition
 
 ## Project Vision
 
-**level.fitness is "Stripe for fitness competitions"** - providing the technical infrastructure that enables fitness communities to run competitions and reward systems while maintaining their own brand and customer relationships. We're building the invisible backbone that powers fitness community monetization.
+**RunstrRewards is the invisible micro app that turns fitness into Bitcoin-earning competitions.** Users subscribe to teams they love, sync workouts automatically in the background, and earn real Bitcoin rewards through team-branded competitions - all without needing to actively use the app.
 
 ### Core Value Proposition
-- **For Users**: Subscribe to fitness clubs you love ($1.99/month), compete using your existing workout data, earn Bitcoin rewards
-- **For Fitness Clubs/Influencers**: Turn your community into a subscription business with professional competition tools
-- **For Level Fitness**: Provide SaaS infrastructure that scales with the fitness economy
+- **For Members**: Subscribe to teams ($1.99/month), compete using existing workout data, earn Bitcoin rewards automatically
+- **For Teams**: Professional competition platform ($19.99/month) with member revenue and engagement tools
+- **For RunstrRewards**: Dual subscription revenue from teams and members in the growing fitness economy
 
 ## Key Concepts
 
-### The B2B2C Model
-1. **Users**: Subscribe to clubs ($1.99/month), sync HealthKit data, compete passively, earn rewards
-2. **Fitness Clubs**: Create teams, run competitions, manage subscribers, earn recurring revenue
-3. **Level Fitness**: Provide platform infrastructure, take SaaS fees + subscription percentage
+### The Invisible Micro App Model
+1. **Members**: Subscribe to teams ($1.99/month), sync HealthKit data automatically, receive team-branded push notifications, earn Bitcoin rewards
+2. **Teams**: Pay for platform access ($19.99/month), create exclusive competitions, earn member subscription revenue, manage community engagement
+3. **RunstrRewards**: Provide invisible infrastructure, earn from team subscriptions + member subscription revenue share
 
 ### Business Model
-- **SaaS Revenue**: Monthly fees from fitness clubs for platform access
-- **Subscription Revenue**: Percentage of club subscription revenue ($1.99/month per user)
-- **Event Tickets**: Clubs keep 100% of event ticket sales for prize pools/charity
-- **No Commission on Events**: Clean separation between platform fees and event monetization
+- **Team Subscriptions**: $19.99/month from teams for platform access and competition tools
+- **Member Revenue Share**: Percentage of member subscription revenue ($1.99/month per member)
+- **Event Fees**: Teams can create premium events with entry fees for larger Bitcoin prize pools
+- **Bitcoin Infrastructure**: Lightning Network integration for instant, real reward distribution
 
 ### Technical Architecture
 ```
-HealthKit Data → Background Sync Engine → Club-Specific Competitions
+HealthKit Data → Background Sync Engine → Team-Specific Competitions
                                        → Lightning Wallet (CoinOS)
-                                       → Push Notifications
-                                       → Club Analytics Dashboard
+                                       → Team-Branded Push Notifications
+                                       → Real-time Leaderboards
 ```
 
 ## Development Philosophy
+
+### Invisible-First Design
+- **Background sync is primary** - App works without user intervention
+- **Push notifications are the main UI** - Team-branded messages drive engagement
+- **Minimal app interaction** - Only for permissions, team discovery, leaderboard details, Bitcoin management
+- **Real Bitcoin rewards** - Lightning Network integration, not fake tokens or points
 
 ### Code Standards
 - **Files should be under 500 lines of code**
@@ -42,67 +48,69 @@ HealthKit Data → Background Sync Engine → Club-Specific Competitions
 - **Real data or empty state** - Show actual workout data or proper empty states, never fake data
 
 ### Key Principles
-1. **Infrastructure over Platform**: Provide tools, not content - clubs own their communities
-2. **Background Service**: Users interact minimally with app, maximum value from passive participation
-3. **Club-Centric Design**: All notifications and experiences prominently feature club branding
-4. **Bitcoin-Native**: Real rewards through Lightning Network integration
+1. **Invisible by Design**: Users rarely open app - everything happens via background sync and push notifications
+2. **Team-Branded Experience**: All notifications and interactions prominently feature team branding, not RunstrRewards
+3. **Passive Competition**: Members compete automatically using their existing workout routines and apps
+4. **Bitcoin-Native**: Real Lightning Network rewards, not fake points or tokens
 
 ## Technical Requirements
 
 ### Core Features
 - **HealthKit Background Sync**: Automatic workout data collection without user intervention
-- **Club Discovery**: In-app browsing + QR code direct linking for social media marketing
-- **Club-Branded Notifications**: Push notifications prominently display club name and achievements
+- **Team Discovery**: In-app browsing + QR code direct linking for social media marketing  
+- **Team-Branded Notifications**: Push notifications prominently display team name and achievements
 - **Lightning Wallet Integration**: CoinOS-powered Bitcoin rewards with minimal user complexity
-- **Club Analytics Dashboard**: Tools for clubs to understand and engage their subscriber base
+- **Team Management Platform**: Tools for teams to create competitions and manage member engagement
 
 ### Platform Integrations
 - Apple HealthKit (primary data source)
 - CoinOS Lightning Network integration
-- Push notification system with club branding
-- QR code generation for club marketing
+- Push notification system with team branding
+- QR code generation for team marketing
+- Background task management for iOS
 
 ### Anti-Cheat System
 - HealthKit data validation and physiological limits
 - Heart rate correlation with activity intensity
 - Time-based performance analysis for impossible improvements
-- Club-reported suspicious activity flagging
+- Cross-platform duplicate detection (Strava, Garmin, etc.)
+- Team-reported suspicious activity flagging
 
 ## App Architecture
 
 ### iOS Structure
 ```
-LevelFitness/
+RunstrRewards/
 ├── Core/
-│   ├── Models/           # Club, User, Competition, Event models
+│   ├── Models/           # Team, User, Competition, Event models
 │   ├── Services/         # HealthKit sync, CoinOS, Push notifications
 │   └── Storage/          # Local data persistence
 ├── Features/
-│   ├── Discovery/        # Club browsing, QR code scanning
-│   ├── Clubs/            # Team pages, subscription management
+│   ├── Discovery/        # Team browsing, QR code scanning
+│   ├── Teams/            # Team pages, subscription management
 │   ├── Competitions/     # Leaderboards, event participation
 │   └── Wallet/           # Lightning wallet, reward management
 └── Shared/
-    ├── UI/              # Reusable components with club branding
+    ├── UI/              # Reusable components with team branding
     └── Extensions/      # Helper functions
 ```
 
 ### Data Flow
-1. User discovers and subscribes to clubs
-2. HealthKit background sync collects workout data
-3. Data processed for club-specific competitions
-4. Push notifications sent with club branding
-5. Bitcoin rewards distributed through CoinOS integration
+1. Member discovers and subscribes to teams ($1.99/month)
+2. HealthKit background sync collects workout data automatically
+3. Data processed for team-specific competitions and leaderboards
+4. Push notifications sent with team branding
+5. Bitcoin rewards distributed automatically through CoinOS Lightning Network
 
 ## Revenue Streams
 
 ### Primary
-- **SaaS Fees**: Monthly platform fees from fitness clubs
-- **Subscription Percentage**: Revenue share from club subscription fees ($3.99/month per subscriber)
-- **Event Tickets**: Clubs keep 100% of ticket sales, Level Fitness provides infrastructure only
+- **Team Platform Fees**: $19.99/month from teams for competition platform access
+- **Member Revenue Share**: Percentage of member subscription fees ($1.99/month per member)
+- **Event Infrastructure**: Teams can create premium competitions with entry fees
 
 ### Future Opportunities  
-- **Premium Club Tools**: Advanced analytics and automation features for successful clubs
+- **Premium Team Tools**: Advanced analytics and automation features for successful teams
 - **White Label Solutions**: Custom-branded competition platforms for large organizations
 - **Corporate Wellness**: Enterprise tools for company fitness programs
 - **API Access**: Third-party integrations for existing fitness platforms
@@ -110,66 +118,71 @@ LevelFitness/
 ## User Experience Priorities
 
 ### Onboarding Flow
-1. **Discover clubs** through in-app browsing or QR code scan
-2. **Subscribe to preferred club** ($1.99/month)
+1. **Discover teams** through in-app browsing or QR code scan
+2. **Subscribe to preferred team** ($1.99/month)
 3. **Authorize HealthKit access** for background sync
-4. **Receive first competition notification** featuring club branding
+4. **Receive first competition notification** featuring team branding
+5. **App becomes invisible** - everything happens via background sync and notifications
 
-### Core User Journey
+### Core Member Journey
 ```
-Discover Club → Subscribe → Background Sync → Passive Competition → Bitcoin Rewards
+Discover Team → Subscribe ($1.99/month) → Background Sync → Passive Competition → Bitcoin Rewards
 ```
 
-### Club Experience
+### Team Experience
 ```  
-Apply for Club Status → Create Team Page → Design Competitions → Market via QR → Earn Revenue
+Subscribe to Platform ($19.99/month) → Create Team Page → Design Competitions → Market via QR → Earn Member Revenue
 ```
 
 ## Key Metrics
 
 ### North Star Metric
-**Active Club Subscribers** - Users with valid club subscriptions who sync workout data weekly
+**Active Team Members** - Users with valid team subscriptions who sync workout data weekly and receive team notifications
 
 ### Supporting Metrics
 - HealthKit sync success rate (target: 99%+)
-- Club subscription retention rate
-- Club revenue growth (subscriptions + events)
+- Team subscription retention rate
+- Member subscription retention rate  
 - Push notification engagement rate
+- Bitcoin reward distribution accuracy
 
 ## Competitive Positioning
 
 ### What We're NOT
-- A fitness tracking app (users keep their existing apps)
+- A fitness tracking app (members keep their existing apps)
 - A replacement for existing fitness communities
-- A content platform competing with social fitness apps
+- A social platform competing with Strava or fitness apps
+- An app users need to actively use daily
 
 ### What We ARE  
-- Competition infrastructure for fitness communities
-- The technical backbone that enables club monetization
-- A B2B2C platform connecting clubs with their members
-- The "Shopify for fitness competitions"
+- An invisible micro app that works in the background
+- Competition infrastructure for team-based fitness rewards
+- A dual subscription platform (teams + members)
+- The "Stripe for fitness competitions" with real Bitcoin rewards
 
 ## Development Priorities
 
-### Phase 1 (MVP)
-- [ ] Club discovery and subscription system
-- [ ] HealthKit background sync integration
-- [ ] Basic club pages with team branding
-- [ ] CoinOS Lightning wallet integration
-- [ ] Club-branded push notifications
+### Phase 1 (MVP) - ✅ COMPLETE
+- [x] Team discovery and subscription system
+- [x] HealthKit background sync integration
+- [x] Team pages with full branding and management
+- [x] CoinOS Lightning wallet integration  
+- [x] Team-branded push notifications
+- [x] Real-time leaderboards and competition tracking
+- [x] Anti-cheat and duplicate detection systems
 
-### Phase 2 (Growth)
-- [ ] QR code club marketing system
-- [ ] Advanced club analytics dashboard
-- [ ] Event management tools for clubs
-- [ ] Anti-cheat and validation systems
-- [ ] Club revenue optimization features
+### Phase 2 (Growth) - 🚧 IN PROGRESS
+- [x] QR code team marketing system
+- [x] Event management tools for teams
+- [ ] Advanced team analytics dashboard
+- [ ] Team revenue optimization features
+- [ ] Corporate wellness integrations
 
 ### Phase 3 (Scale)
 - [ ] White label solutions for large organizations
-- [ ] Corporate wellness integrations
+- [ ] Advanced team competition formats and automation
 - [ ] API access for third-party fitness platforms
-- [ ] Advanced competition formats and automation
+- [ ] International expansion and multi-currency support
 
 ## Technical Considerations
 
@@ -626,10 +639,27 @@ When creating multi-level view hierarchies:
 
 ## Notes for Development
 
-- **Prioritize background functionality over in-app features** - users should rarely need to open the app
-- **Club branding must be prominent** in all user-facing communications and experiences
-- **Keep the app simple** - complex features belong in club management dashboards, not user-facing app
+- **Prioritize invisible functionality** - the app should work without users opening it
+- **Team branding must be prominent** in all notifications and experiences, not RunstrRewards branding
+- **Keep the app minimal** - only 4 core use cases: permissions, team discovery, leaderboard details, Bitcoin management
 - **Bitcoin integration should be seamless** - users shouldn't need to understand Lightning Network complexity
-- **QR codes are critical for growth** - make it trivial for clubs to share direct signup links
+- **Push notifications are the primary UI** - team-branded messages drive all engagement
+- **QR codes are critical for growth** - make it trivial for teams to share direct signup links
 
-Remember: We're building competition infrastructure, not a fitness app. Every decision should enable clubs to better serve their communities while requiring minimal user attention.
+Remember: We're building an invisible micro app for passive competition. Every decision should enable teams to engage their members through background sync and branded notifications while requiring minimal app interaction.
+
+## Current MVP Status (Updated)
+
+The app is 95% complete for MVP launch:
+- ✅ HealthKit background sync working with automatic workout detection
+- ✅ CoinOS Lightning Network integration complete with real Bitcoin transactions
+- ✅ Team creation and management system with captain controls
+- ✅ Real-time competitions and leaderboards with live position tracking
+- ✅ Push notification system with team branding (not RunstrRewards branding)
+- ✅ Anti-cheat and duplicate detection across platforms (Strava, Garmin, etc.)
+- ✅ Bitcoin reward distribution through Lightning Network
+- ✅ QR code team sharing for viral growth
+- ✅ Background task management for iOS limitations
+- ✅ Team wallet management for prize distribution
+
+**Ready for App Store submission** - Only minor polish and testing needed.

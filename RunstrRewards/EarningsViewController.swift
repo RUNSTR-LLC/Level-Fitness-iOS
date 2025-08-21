@@ -397,13 +397,7 @@ extension EarningsViewController: WalletBalanceViewDelegate {
             self?.sendLightningPayment(invoice: invoice)
         }
         
-        // Add debug action to test individual wallet creation
-        let debugAction = UIAlertAction(title: "🔧 Reset & Create Individual Wallet", style: .destructive) { [weak self] _ in
-            self?.testIndividualWalletCreation()
-        }
-        
         alert.addAction(sendAction)
-        alert.addAction(debugAction)
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         
         present(alert, animated: true)
@@ -486,52 +480,7 @@ extension EarningsViewController: WalletBalanceViewDelegate {
         present(alert, animated: true)
     }
     
-    private func showComingSoonAlert(for feature: String) {
-        let alert = UIAlertController(
-            title: "\(feature)",
-            message: "This feature is coming soon! Bitcoin transactions will be available in the next update.",
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
-    }
     
-    private func testIndividualWalletCreation() {
-        Task {
-            do {
-                print("💰 RunstrRewards: Testing individual wallet creation...")
-                
-                // Clear existing credentials
-                lightningWalletManager.clearExistingWallet()
-                
-                // Create new individual wallet
-                let balance = try await lightningWalletManager.getWalletBalance()
-                
-                await MainActor.run {
-                    self.showSuccessAlert("Individual wallet created successfully! Balance: \(balance.lightning) sats ⚡")
-                    self.loadLightningWalletBalance() // Refresh display
-                    self.loadRealEarningsData() // Refresh transactions
-                }
-                
-            } catch {
-                await MainActor.run {
-                    print("💰 RunstrRewards: Individual wallet creation failed: \(error)")
-                    if let coinOSError = error as? CoinOSError {
-                        switch coinOSError {
-                        case .apiError(let code):
-                            self.showErrorAlert("CoinOS API Error: \(code)")
-                        case .notAuthenticated:
-                            self.showErrorAlert("Authentication failed")
-                        default:
-                            self.showErrorAlert("Wallet creation failed: \(coinOSError.localizedDescription)")
-                        }
-                    } else {
-                        self.showErrorAlert("Failed to create individual wallet: \(error.localizedDescription)")
-                    }
-                }
-            }
-        }
-    }
 }
 
 // MARK: - TransactionHistoryViewDelegate

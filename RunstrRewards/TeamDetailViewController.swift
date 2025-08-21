@@ -1000,8 +1000,7 @@ extension TeamDetailViewController: TeamDetailHeaderViewDelegate {
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         alert.addAction(UIAlertAction(title: "Leave", style: .destructive) { _ in
             print("🏗️ RUNSTR: Leaving team: \(self.teamData.id)")
-            // TODO: Implement leave team functionality
-            self.showComingSoonAlert(feature: "Leave Team")
+            self.performLeaveTeam()
         })
         
         present(alert, animated: true)
@@ -1153,13 +1152,11 @@ extension TeamDetailViewController: TeamDetailHeaderViewDelegate {
         )
         
         alert.addAction(UIAlertAction(title: "Share Team Link", style: .default) { _ in
-            // TODO: Generate and share team invitation link
-            self.showComingSoonAlert(feature: "Team Invitation Links")
+            self.shareTeamInvitationLink()
         })
         
         alert.addAction(UIAlertAction(title: "Show QR Code", style: .default) { _ in
-            // TODO: Show team QR code
-            self.showComingSoonAlert(feature: "Team QR Codes")
+            self.showTeamQRCode()
         })
         
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
@@ -1261,6 +1258,119 @@ extension TeamDetailViewController: TeamDetailHeaderViewDelegate {
         )
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
+    }
+    
+    // MARK: - Team Invitation & QR Code Features
+    
+    private func shareTeamInvitationLink() {
+        print("🏗️ RunstrRewards: Generating team invitation link for team: \(teamData.name)")
+        
+        // Generate team invitation URL
+        let teamInviteURL = "https://runstrrewards.app/join/\(teamData.id)"
+        let shareText = "Join my RunstrRewards team '\(teamData.name)'! Compete in fitness challenges and earn Bitcoin rewards. \(teamInviteURL)"
+        
+        let activityViewController = UIActivityViewController(
+            activityItems: [shareText],
+            applicationActivities: nil
+        )
+        
+        // Configure for iPad
+        if let popover = activityViewController.popoverPresentationController {
+            popover.sourceView = view
+            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
+            popover.permittedArrowDirections = []
+        }
+        
+        present(activityViewController, animated: true) {
+            print("🏗️ RunstrRewards: Team invitation link shared successfully")
+        }
+    }
+    
+    private func showTeamQRCode() {
+        print("🏗️ RunstrRewards: Generating QR code for team: \(teamData.name)")
+        
+        let teamInviteURL = "https://runstrrewards.app/join/\(teamData.id)"
+        
+        // Generate QR code
+        guard let qrImage = generateQRCode(from: teamInviteURL) else {
+            showErrorAlert("Failed to generate QR code")
+            return
+        }
+        
+        // Create QR code display view controller
+        let qrViewController = QRCodeDisplayViewController(
+            qrImage: qrImage,
+            teamName: teamData.name,
+            teamId: teamData.id
+        )
+        
+        present(qrViewController, animated: true) {
+            print("🏗️ RunstrRewards: QR code displayed successfully")
+        }
+    }
+    
+    private func generateQRCode(from string: String) -> UIImage? {
+        let data = Data(string.utf8)
+        
+        guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+        filter.setValue(data, forKey: "inputMessage")
+        
+        let transform = CGAffineTransform(scaleX: 10, y: 10)
+        guard let output = filter.outputImage?.transformed(by: transform) else { return nil }
+        
+        let context = CIContext()
+        guard let cgImage = context.createCGImage(output, from: output.extent) else { return nil }
+        
+        return UIImage(cgImage: cgImage)
+    }
+    
+    // MARK: - Leave Team Functionality
+    
+    private func performLeaveTeam() {
+        guard let userSession = AuthenticationService.shared.loadSession() else {
+            showErrorAlert("Please sign in to leave the team")
+            return
+        }
+        
+        Task {
+            do {
+                print("🏗️ RunstrRewards: Starting leave team process for user \(userSession.id) from team \(teamData.id)")
+                
+                // Cancel any active team subscription first
+                let isSubscribed = SubscriptionService.shared.isSubscribedToTeam(teamData.id)
+                if isSubscribed {
+                    print("🏗️ RunstrRewards: Cancelling team subscription before leaving")
+                    try await SubscriptionService.shared.unsubscribeFromTeam(teamData.id)
+                }
+                
+                // Remove user from team members
+                try await SupabaseService.shared.removeUserFromTeam(userId: userSession.id, teamId: teamData.id)
+                
+                await MainActor.run {
+                    print("🏗️ RunstrRewards: Successfully left team \(self.teamData.name)")
+                    
+                    // Show success message
+                    let successAlert = UIAlertController(
+                        title: "Left Team",
+                        message: "You have successfully left \(self.teamData.name). You will no longer receive team notifications or be able to participate in team competitions.",
+                        preferredStyle: .alert
+                    )
+                    
+                    successAlert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+                        // Navigate back to teams list
+                        self.navigationController?.popViewController(animated: true)
+                    })
+                    
+                    self.present(successAlert, animated: true)
+                }
+                
+            } catch {
+                await MainActor.run {
+                    print("🏗️ RunstrRewards: Failed to leave team: \(error)")
+                    self.showErrorAlert("Failed to leave team: \(error.localizedDescription)")
+                }
+            }
+        }
     }
     
     func didTapSubscribeButton() {

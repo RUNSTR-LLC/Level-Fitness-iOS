@@ -145,7 +145,6 @@ class NavigationCard: UIView {
     // MARK: - Interaction Methods
     
     @objc private func cardTapped() {
-        print("🔍 DEBUG: NavigationCard tapped - title: \(titleLabel.text ?? "unknown")")
         
         // Haptic feedback
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -153,7 +152,6 @@ class NavigationCard: UIView {
         
         // Animation
         animateTap {
-            print("🔍 DEBUG: About to call tapAction for card: \(self.titleLabel.text ?? "unknown")")
             self.tapAction()
         }
     }

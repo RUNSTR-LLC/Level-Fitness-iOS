@@ -163,7 +163,6 @@ class ViewController: UIViewController {
             subtitle: "your stats",
             iconName: "person.fill",
             action: { [weak self] in
-                print("🔍 DEBUG: Profile card tapped")
                 self?.navigateToProfile()
             }
         )
