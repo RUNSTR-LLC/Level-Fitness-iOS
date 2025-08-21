@@ -410,20 +410,59 @@ class EventCreationWizardViewController: UIViewController {
     private func createEvent() {
         print("📅 EventCreationWizard: Creating event with data: \(eventData.eventName)")
         
-        // TODO: Integrate with SupabaseService to create event
-        // For now, just complete successfully
-        
-        let alert = UIAlertController(
-            title: "Event Created!",
-            message: "Your event '\(eventData.eventName)' has been created successfully.",
-            preferredStyle: .alert
-        )
-        
-        alert.addAction(UIAlertAction(title: "Done", style: .default) { _ in
-            self.onCompletion?(true, self.eventData)
-        })
-        
-        present(alert, animated: true)
+        Task {
+            do {
+                // Create CompetitionEvent from wizard data
+                let event = CompetitionEvent(
+                    id: UUID().uuidString,
+                    name: eventData.eventName,
+                    description: eventData.description.isEmpty ? nil : eventData.description,
+                    type: eventData.eventType.rawValue,
+                    targetValue: eventData.targetValue ?? 0.0,
+                    unit: eventData.targetUnit.isEmpty ? "distance" : eventData.targetUnit,
+                    entryFee: Int(eventData.entryFee * 100), // Convert to satoshis
+                    prizePool: Int(eventData.prizePool * 100), // Convert to satoshis
+                    startDate: eventData.startDate ?? Date(),
+                    endDate: eventData.endDate ?? Date().addingTimeInterval(86400 * 7), // 1 week default
+                    maxParticipants: eventData.maxParticipants,
+                    participantCount: 0,
+                    status: "active",
+                    imageUrl: nil,
+                    createdAt: Date()
+                )
+                
+                // Create event in Supabase
+                let createdEvent = try await SupabaseService.shared.createEvent(event)
+                
+                DispatchQueue.main.async {
+                    let alert = UIAlertController(
+                        title: "Event Created! 🎉",
+                        message: "Your event '\(createdEvent.name)' has been created successfully and is now live.",
+                        preferredStyle: .alert
+                    )
+                    
+                    alert.addAction(UIAlertAction(title: "Done", style: .default) { _ in
+                        self.onCompletion?(true, self.eventData)
+                    })
+                    
+                    self.present(alert, animated: true)
+                }
+                
+            } catch {
+                print("📅 EventCreationWizard: Failed to create event: \(error)")
+                
+                DispatchQueue.main.async {
+                    let alert = UIAlertController(
+                        title: "Event Creation Failed",
+                        message: "Sorry, we couldn't create your event. Please try again.",
+                        preferredStyle: .alert
+                    )
+                    
+                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    self.present(alert, animated: true)
+                }
+            }
+        }
     }
     
     // MARK: - Keyboard Management

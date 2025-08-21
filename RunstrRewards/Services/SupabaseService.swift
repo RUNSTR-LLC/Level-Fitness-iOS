@@ -595,6 +595,37 @@ class SupabaseService {
         return try customJSONDecoder().decode([EventParticipant].self, from: data)
     }
     
+    func createEvent(_ event: CompetitionEvent) async throws -> CompetitionEvent {
+        print("SupabaseService: Creating event \(event.name)")
+        
+        // Create event with participant count starting at 0
+        let newEvent = CompetitionEvent(
+            id: event.id,
+            name: event.name,
+            description: event.description,
+            type: event.type,
+            targetValue: event.targetValue,
+            unit: event.unit,
+            entryFee: event.entryFee,
+            prizePool: event.prizePool,
+            startDate: event.startDate,
+            endDate: event.endDate,
+            maxParticipants: event.maxParticipants,
+            participantCount: 0, // Starting with 0 participants
+            status: "active",
+            imageUrl: event.imageUrl,
+            createdAt: Date()
+        )
+        
+        try await client
+            .from("events")
+            .insert(newEvent)
+            .execute()
+        
+        print("SupabaseService: Event \(event.name) created successfully")
+        return newEvent
+    }
+    
     // MARK: - Team Chat Methods
     
     func fetchTeamMessages(teamId: String, limit: Int = 50) async throws -> [TeamMessage] {
@@ -1429,37 +1460,12 @@ class SupabaseService {
     }
     
     func subscribeToTeamChat(teamId: String, onNewMessage: @escaping (TeamMessage) -> Void) {
-        let _ = client.channel("team-chat-\(teamId)")
+        print("SupabaseService: Real-time subscriptions planned for future implementation")
+        print("SupabaseService: Team chat \(teamId) will use polling for now")
         
-        // TODO: Implement real Supabase realtime subscriptions
-        // channel.on("INSERT", filter: "team_id=eq.\(teamId)") { message in
-        //     if let payload = message.payload["new"] as? [String: Any] {
-        //         // Parse and return new message
-        //     }
-        // }
-        
-        // For now, simulate real-time chat updates
-        Task {
-            while true {
-                try await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
-                
-                // Simulate new message
-                let simulatedMessage = TeamMessage(
-                    id: UUID().uuidString,
-                    teamId: teamId,
-                    userId: "user-\(Int.random(in: 1...100))",
-                    message: "New message from real-time subscription!",
-                    messageType: "text",
-                    edited: false,
-                    editedAt: nil,
-                    createdAt: Date(),
-                    username: "@realtime_user",
-                    avatarUrl: nil
-                )
-                
-                onNewMessage(simulatedMessage)
-            }
-        }
+        // Note: Real-time subscriptions will be implemented in Phase 3
+        // For now, team chat uses manual refresh patterns
+        // This prevents blocking the build while we complete other Phase 2 priorities
     }
     
     // MARK: - Team Wallet Support Methods
