@@ -1541,7 +1541,8 @@ class SupabaseService {
             }
             
             // Use TeamWalletManager to get balance (it handles credentials properly)
-            let balance = try await TeamWalletManager.shared.getTeamBalance(teamId: teamId)
+            let walletBalance = try await TeamWalletManager.shared.getTeamWalletBalance(teamId: teamId)
+            let balance = walletBalance.total
             
             print("SupabaseService: Retrieved real balance: \(balance) sats for team \(teamId)")
             return balance
