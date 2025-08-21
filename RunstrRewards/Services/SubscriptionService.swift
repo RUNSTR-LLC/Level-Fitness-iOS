@@ -54,6 +54,12 @@ class SubscriptionService: NSObject, ObservableObject {
                 ProductID.teamSubscription
             ])
             
+            // Validate that products are properly configured as subscriptions
+            let validProducts = products.filter { validateSubscriptionProduct($0) }
+            if validProducts.count != products.count {
+                print("SubscriptionService: WARNING - Some products failed subscription validation")
+            }
+            
             print("SubscriptionService: Loaded \(products.count) products from StoreKit")
             availableProducts = products
             
@@ -62,7 +68,7 @@ class SubscriptionService: NSObject, ObservableObject {
                 print("SubscriptionService: Check StoreKit configuration file")
             }
             
-            for product in products {
+            for product in validProducts {
                 switch product.id {
                 case ProductID.captainSubscription:
                     captainProduct = product
@@ -287,6 +293,33 @@ class SubscriptionService: NSObject, ObservableObject {
         print("SubscriptionService: Purchases restored")
     }
     
+    // MARK: - Subscription Validation
+    
+    private func validateSubscriptionProduct(_ product: Product) -> Bool {
+        // Ensure product is a recurring subscription
+        guard product.type == .autoRenewable else {
+            print("SubscriptionService: Product \(product.id) is not a recurring subscription")
+            return false
+        }
+        
+        // Validate subscription group
+        if let subscription = product.subscription {
+            print("SubscriptionService: Product \(product.id) belongs to subscription group \(subscription.subscriptionGroupID)")
+            return true
+        }
+        
+        print("SubscriptionService: Product \(product.id) has no subscription information")
+        return false
+    }
+    
+    private func checkSubscriptionEligibility(for product: Product) async -> Bool {
+        do {
+            let eligibility = await product.subscription?.isEligibleForIntroOffer ?? false
+            print("SubscriptionService: Intro offer eligibility for \(product.id): \(eligibility)")
+            return eligibility
+        }
+    }
+    
     // MARK: - Subscription Status
     
     func updateSubscriptionStatus() async throws {
@@ -461,7 +494,17 @@ class SubscriptionService: NSObject, ObservableObject {
     }
     
     private func handleTransactionUpdate(_ transaction: StoreKit.Transaction) async {
-        print("SubscriptionService: Transaction update - \(transaction.productID)")
+        print("SubscriptionService: Transaction update - \(transaction.productID), ID: \(transaction.id)")
+        
+        // Validate transaction before processing
+        let isValid = await verifyReceiptData(transaction: transaction)
+        guard isValid else {
+            print("SubscriptionService: Invalid transaction \(transaction.id), ignoring update")
+            return
+        }
+        
+        // Log transaction details for debugging
+        print("SubscriptionService: Transaction details - Purchased: \(transaction.purchaseDate), Expires: \(transaction.expirationDate?.description ?? "N/A")")
         
         // Update subscription status
         try? await updateSubscriptionStatus()
@@ -528,14 +571,37 @@ class SubscriptionService: NSObject, ObservableObject {
     }
     
     private func isSubscriptionActive(_ transaction: StoreKit.Transaction) -> Bool {
-        // Check if subscription is currently active
-        if let expirationDate = transaction.expirationDate {
-            return expirationDate > Date()
+        // Check if subscription was revoked
+        guard transaction.revocationDate == nil else {
+            print("SubscriptionService: Transaction \(transaction.id) was revoked on \(transaction.revocationDate!)")
+            return false
         }
         
-        // If no expiration date, it's likely a lifetime or non-renewing subscription
-        // For monthly subscriptions, there should always be an expiration date
-        return transaction.productID == ProductID.captainSubscription || transaction.productID == ProductID.teamSubscription
+        // Check if subscription is currently active with grace period
+        if let expirationDate = transaction.expirationDate {
+            // Add 24-hour grace period for subscription renewals
+            let gracePeriod: TimeInterval = 24 * 60 * 60 // 24 hours
+            let effectiveExpirationDate = expirationDate.addingTimeInterval(gracePeriod)
+            
+            let isActive = effectiveExpirationDate > Date()
+            let isInGracePeriod = Date() > expirationDate && Date() <= effectiveExpirationDate
+            
+            if isInGracePeriod {
+                print("SubscriptionService: Transaction \(transaction.id) in grace period, expires \(expirationDate)")
+            }
+            
+            return isActive
+        }
+        
+        // If no expiration date, verify it's a valid subscription product
+        let isValidProduct = transaction.productID == ProductID.captainSubscription || 
+                            transaction.productID == ProductID.teamSubscription
+        
+        if !isValidProduct {
+            print("SubscriptionService: Transaction \(transaction.id) for unknown product \(transaction.productID)")
+        }
+        
+        return isValidProduct
     }
     
     // MARK: - Server-Side Verification (Production)
@@ -547,6 +613,54 @@ class SubscriptionService: NSObject, ObservableObject {
         
         print("SubscriptionService: Server-side verification would be implemented here for production")
         return true
+    }
+    
+    // MARK: - StoreKit Validation
+    
+    func validateStoreKitConfiguration() async -> Bool {
+        print("SubscriptionService: 🧪 Validating StoreKit configuration...")
+        
+        do {
+            // Test product loading
+            let products = try await Product.products(for: [
+                ProductID.captainSubscription,
+                ProductID.teamSubscription
+            ])
+            
+            print("SubscriptionService: ✅ Loaded \(products.count) products from StoreKit")
+            
+            // Validate each product
+            var validProductCount = 0
+            for product in products {
+                print("SubscriptionService: 🔍 Validating product: \(product.id)")
+                print("  - Display Name: \(product.displayName)")
+                print("  - Price: \(product.displayPrice)")
+                print("  - Type: \(product.type)")
+                
+                // Check if it's a proper subscription
+                if validateSubscriptionProduct(product) {
+                    validProductCount += 1
+                    print("  - ✅ Valid subscription product")
+                    
+                    // Check subscription details
+                    if let subscription = product.subscription {
+                        print("  - Subscription Group: \(subscription.subscriptionGroupID)")
+                        print("  - Period: \(subscription.subscriptionPeriod)")
+                    }
+                } else {
+                    print("  - ❌ Invalid subscription product")
+                }
+            }
+            
+            let isValid = validProductCount == 2 && products.count == 2
+            print("SubscriptionService: \(isValid ? "✅" : "❌") StoreKit validation result: \(validProductCount)/2 valid products")
+            
+            return isValid
+            
+        } catch {
+            print("SubscriptionService: ❌ StoreKit validation failed: \(error)")
+            return false
+        }
     }
     
     // MARK: - Manage Subscriptions

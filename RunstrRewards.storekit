@@ -4,36 +4,7 @@
 
   ],
   "products" : [
-    {
-      "displayPrice" : "1.99",
-      "familyShareable" : false,
-      "internalID" : "6504123456",
-      "localizations" : [
-        {
-          "description" : "Join a specific team to compete in leaderboards and earn Bitcoin rewards",
-          "displayName" : "Team Membership",
-          "locale" : "en_US"
-        }
-      ],
-      "productID" : "com.runstrrewards.team.monthly",
-      "referenceName" : "Team Monthly Subscription",
-      "type" : "Consumable"
-    },
-    {
-      "displayPrice" : "19.99",
-      "familyShareable" : false,
-      "internalID" : "6504123457",
-      "localizations" : [
-        {
-          "description" : "Create and manage one fitness team. Full access to team management, analytics, and creation tools.",
-          "displayName" : "RunstrRewards Captain",
-          "locale" : "en_US"
-        }
-      ],
-      "productID" : "com.runstrrewards.captain",
-      "referenceName" : "RunstrRewards Captain Subscription",
-      "type" : "Consumable"
-    }
+
   ],
   "settings" : {
     "_applicationInternalID" : "6523456789",

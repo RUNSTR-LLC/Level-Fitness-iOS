@@ -129,6 +129,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         // Setup network change notifications
         setupNetworkNotifications()
+        
+        // Validate StoreKit configuration
+        validateStoreKitSetup()
+    }
+    
+    private func validateStoreKitSetup() {
+        Task {
+            let isValid = await SubscriptionService.shared.validateStoreKitConfiguration()
+            if isValid {
+                print("AppDelegate: ✅ StoreKit configuration validated successfully")
+            } else {
+                print("AppDelegate: ❌ StoreKit configuration validation failed - subscription features may not work")
+            }
+        }
     }
     
     private func setupHealthKitBackgroundDelivery() {
