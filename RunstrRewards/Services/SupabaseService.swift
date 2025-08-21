@@ -1529,6 +1529,38 @@ class SupabaseService {
         print("SupabaseService: Transaction recorded successfully (simplified for MVP)")
     }
     
+    func registerUserForEvent(eventId: String, userId: String) async throws {
+        print("SupabaseService: Registering user \(userId) for event \(eventId)")
+        
+        do {
+            // Create event registration record
+            let registration = [
+                "event_id": eventId,
+                "user_id": userId,
+                "registered_at": ISO8601DateFormatter().string(from: Date()),
+                "status": "active"
+            ]
+            
+            try await client
+                .from("event_registrations")
+                .insert(registration)
+                .execute()
+            
+            // Update event participant count
+            try await client
+                .from("events")
+                .update(["participant_count": "participant_count + 1"])
+                .eq("id", value: eventId)
+                .execute()
+            
+            print("SupabaseService: User successfully registered for event")
+            
+        } catch {
+            print("SupabaseService: Error registering user for event: \(error)")
+            throw error
+        }
+    }
+    
     func getTeamWalletBalance(teamId: String) async throws -> Int {
         print("SupabaseService: Getting team wallet balance for team \(teamId)")
         

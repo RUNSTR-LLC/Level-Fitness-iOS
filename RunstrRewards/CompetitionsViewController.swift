@@ -2,10 +2,12 @@ import UIKit
 
 enum CompetitionTab {
     case league
+    case events
     
     var title: String {
         switch self {
         case .league: return "LEVEL LEAGUE"
+        case .events: return "EVENTS"
         }
     }
 }
@@ -30,6 +32,7 @@ class CompetitionsViewController: UIViewController {
     
     // Tab Content Views
     private let leagueView = LeagueView()
+    private let eventsView = EventsView()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -166,16 +169,20 @@ class CompetitionsViewController: UIViewController {
         
         // Setup individual views
         leagueView.translatesAutoresizingMaskIntoConstraints = false
+        eventsView.translatesAutoresizingMaskIntoConstraints = false
         
         leagueView.delegate = self
+        eventsView.delegate = self
         
         // Add content container ABOVE background elements (after setupIndustrialBackground)
         // but BELOW header and tab navigation (which will be brought to front)
         view.addSubview(contentContainerView)
         contentContainerView.addSubview(leagueView)
+        contentContainerView.addSubview(eventsView)
         
         // Hide all views initially
         leagueView.isHidden = true
+        eventsView.isHidden = true
         
         print("🏆 RunstrRewards: Content area setup completed - contentContainer above background")
     }
@@ -226,7 +233,12 @@ class CompetitionsViewController: UIViewController {
             leagueView.topAnchor.constraint(equalTo: contentContainerView.topAnchor),
             leagueView.leadingAnchor.constraint(equalTo: contentContainerView.leadingAnchor),
             leagueView.trailingAnchor.constraint(equalTo: contentContainerView.trailingAnchor),
-            leagueView.bottomAnchor.constraint(equalTo: contentContainerView.bottomAnchor)
+            leagueView.bottomAnchor.constraint(equalTo: contentContainerView.bottomAnchor),
+            
+            eventsView.topAnchor.constraint(equalTo: contentContainerView.topAnchor),
+            eventsView.leadingAnchor.constraint(equalTo: contentContainerView.leadingAnchor),
+            eventsView.trailingAnchor.constraint(equalTo: contentContainerView.trailingAnchor),
+            eventsView.bottomAnchor.constraint(equalTo: contentContainerView.bottomAnchor)
         ])
         
         // Set constraint priorities to prevent conflicts
@@ -254,7 +266,9 @@ class CompetitionsViewController: UIViewController {
         // Hide all views
         print("🏆 RunstrRewards: Hiding all views...")
         leagueView.isHidden = true
+        eventsView.isHidden = true
         print("🏆 RunstrRewards: League view hidden: \(leagueView.isHidden)")
+        print("🏆 RunstrRewards: Events view hidden: \(eventsView.isHidden)")
         
         // Show selected view
         switch tab {
@@ -265,6 +279,13 @@ class CompetitionsViewController: UIViewController {
             print("🏆 RunstrRewards: League view visible: \(!leagueView.isHidden)")
             print("🏆 RunstrRewards: League view frame: \(leagueView.frame)")
             print("🏆 RunstrRewards: League view superview: \(leagueView.superview?.debugDescription ?? "nil")")
+        case .events:
+            print("🏆 RunstrRewards: Showing Events view...")
+            eventsView.isHidden = false
+            eventsView.loadRealData()
+            print("🏆 RunstrRewards: Events view visible: \(!eventsView.isHidden)")
+            print("🏆 RunstrRewards: Events view frame: \(eventsView.frame)")
+            print("🏆 RunstrRewards: Events view superview: \(eventsView.superview?.debugDescription ?? "nil")")
         }
         
         print("🏆 RunstrRewards: Content container frame: \(contentContainerView.frame)")
@@ -441,6 +462,80 @@ extension CompetitionsViewController: LeagueViewDelegate {
     func didTapStreakCard(_ type: StreakType) {
         print("🏆 RunstrRewards: Tapped streak card: \(type)")
         // TODO: Show streak details
+    }
+}
+
+// MARK: - EventsViewDelegate
+
+extension CompetitionsViewController: EventsViewDelegate {
+    func didTapEvent(_ event: CompetitionEvent) {
+        print("🏆 RunstrRewards: Tapped event: \(event.name)")
+        
+        let eventDetailVC = EventDetailViewController(event: event)
+        eventDetailVC.onRegistrationComplete = { [weak self] success in
+            if success {
+                print("🏆 RunstrRewards: User successfully registered for event")
+                // Refresh events view to show updated registration status
+                self?.eventsView.loadRealData()
+            }
+        }
+        
+        navigationController?.pushViewController(eventDetailVC, animated: true)
+    }
+    
+    func didJoinEvent(_ event: CompetitionEvent) {
+        print("🏆 RunstrRewards: Join event tapped: \(event.name)")
+        
+        let alert = UIAlertController(
+            title: "Join Event",
+            message: "Are you sure you want to join '\(event.name)' for \(event.formattedEntryFee)?",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Join", style: .default) { _ in
+            self.processEventRegistration(event)
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    private func processEventRegistration(_ event: CompetitionEvent) {
+        Task {
+            do {
+                let userId = AuthenticationService.shared.currentUserId ?? ""
+                try await SupabaseService.shared.registerUserForEvent(eventId: event.id, userId: userId)
+                
+                await MainActor.run {
+                    // Show success message
+                    let successAlert = UIAlertController(
+                        title: "Registration Successful! 🎉",
+                        message: "You're now registered for '\(event.name)'",
+                        preferredStyle: .alert
+                    )
+                    successAlert.addAction(UIAlertAction(title: "OK", style: .default))
+                    self.present(successAlert, animated: true)
+                    
+                    // Refresh events view
+                    self.eventsView.loadRealData()
+                    
+                    print("🏆 RunstrRewards: User successfully registered for event via quick action")
+                }
+                
+            } catch {
+                print("🏆 RunstrRewards: Failed to register for event: \(error)")
+                
+                await MainActor.run {
+                    let errorAlert = UIAlertController(
+                        title: "Registration Failed",
+                        message: "Sorry, we couldn't register you for this event. Please try again.",
+                        preferredStyle: .alert
+                    )
+                    errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
+                    self.present(errorAlert, animated: true)
+                }
+            }
+        }
     }
 }
 

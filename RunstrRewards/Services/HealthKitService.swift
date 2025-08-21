@@ -6,6 +6,7 @@ class HealthKitService: @unchecked Sendable {
     
     private let healthStore = HKHealthStore()
     private var isAuthorized = false
+    private let syncQueue = DispatchQueue(label: "com.runstrrewards.healthkit", attributes: .concurrent)
     
     private init() {}
     
@@ -62,6 +63,9 @@ class HealthKitService: @unchecked Sendable {
             throw HealthKitError.notAuthorized
         }
         
+        // Validate limit
+        let safeLimit = min(max(limit, 1), 100) // Limit between 1 and 100
+        
         let workoutType = HKObjectType.workoutType()
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
         
@@ -69,7 +73,7 @@ class HealthKitService: @unchecked Sendable {
             let workoutQuery = HKSampleQuery(
                 sampleType: workoutType,
                 predicate: nil,
-                limit: limit,
+                limit: safeLimit,
                 sortDescriptors: [sortDescriptor]
             ) { query, samples, error in
                 if let error = error {

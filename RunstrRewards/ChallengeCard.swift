@@ -1,5 +1,9 @@
 import UIKit
 
+protocol ChallengeCardDelegate: AnyObject {
+    func didTapChallengeCard(_ challengeData: ChallengeData)
+}
+
 struct ChallengeData {
     let title: String
     let type: String
@@ -8,9 +12,31 @@ struct ChallengeData {
     let progressText: String
     let timeLeft: String
     let subtitle: String
+    
+    // Additional properties for detail view
+    let icon: String
+    let description: String
+    let participantCount: Int
+    let currentProgress: String
+    
+    var formattedTimeRemaining: String {
+        return timeLeft
+    }
+    
+    var formattedGoal: String {
+        return type
+    }
+    
+    var formattedReward: String {
+        return prize
+    }
 }
 
 class ChallengeCard: UIView {
+    
+    // MARK: - Properties
+    weak var delegate: ChallengeCardDelegate?
+    private let challengeData: ChallengeData
     
     // MARK: - UI Components
     private let containerView = UIView()
@@ -29,8 +55,6 @@ class ChallengeCard: UIView {
     private let progressBarFill = UIView()
     private let progressTextLabel = UILabel()
     private let timeLeftLabel = UILabel()
-    
-    private let challengeData: ChallengeData
     
     // MARK: - Initialization
     init(challengeData: ChallengeData) {
@@ -248,7 +272,8 @@ class ChallengeCard: UIView {
         // Animation
         animateTap()
         
-        // TODO: Navigate to challenge detail
+        // Call delegate
+        delegate?.didTapChallengeCard(challengeData)
     }
     
     private func animateTap() {

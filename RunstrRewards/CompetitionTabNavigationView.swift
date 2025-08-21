@@ -66,7 +66,7 @@ class CompetitionTabNavigationView: UIView {
     }
     
     private func setupTabButtons() {
-        let tabs: [CompetitionTab] = [.league]
+        let tabs: [CompetitionTab] = [.league, .events]
         
         for tab in tabs {
             let button = UIButton(type: .custom)
@@ -158,12 +158,14 @@ class CompetitionTabNavigationView: UIView {
     private func getTagForTab(_ tab: CompetitionTab) -> Int {
         switch tab {
         case .league: return 0
+        case .events: return 1
         }
     }
     
     private func getTabForTag(_ tag: Int) -> CompetitionTab {
         switch tag {
         case 0: return .league
+        case 1: return .events
         default: return .league
         }
     }

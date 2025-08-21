@@ -71,6 +71,8 @@
 		NETWORK123456789ABCDEF0123456789AB /* NetworkMonitorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NETWORKABCDEF123456789ABCDEF12345 /* NetworkMonitorService.swift */; };
 		OFFLINE123456789ABCDEF0123456789AB /* OfflineDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = OFFLINEABCDEF123456789ABCDEF12345 /* OfflineDataService.swift */; };
 		E87FF620924C4D69A271F8ED9EDC6202 /* TeamDetailEventsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCB683446B2F4C6397E096106C4813E9 /* TeamDetailEventsViewController.swift */; };
+		EVENT4455667788990011223344556677 /* EventDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EVENT8899001122334455667788990011 /* EventDetailViewController.swift */; };
+		CHAL5566778899001122334455667788 /* ChallengeDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHAL9900112233445566778899001122 /* ChallengeDetailViewController.swift */; };
 		EE2A80B3C0B7449CA243D4333061A535 /* ChallengeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5801F4E4750540CABC6C94EBB8DD0B79 /* ChallengeCard.swift */; };
 		LOGIN123456789ABCDEF123456789012 /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = LOGIN987654321FEDCBA987654321098 /* LoginViewController.swift */; };
 		WIZARD123456789ABCDEF012345678901 /* TeamCreationWizardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = WIZARD987654321FEDCBA987654321012 /* TeamCreationWizardViewController.swift */; };
@@ -158,6 +160,8 @@
 		99887766FFEEDDCCBBAA99887764 /* WorkoutSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSyncView.swift; sourceTree = "<group>"; };
 		AABBCCDDEEFF001122334455663 /* WorkoutStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStatsView.swift; sourceTree = "<group>"; };
 		BCB683446B2F4C6397E096106C4813E9 /* TeamDetailEventsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamDetailEventsViewController.swift; sourceTree = "<group>"; };
+		EVENT8899001122334455667788990011 /* EventDetailViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventDetailViewController.swift; sourceTree = "<group>"; };
+		CHAL9900112233445566778899001122 /* ChallengeDetailViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeDetailViewController.swift; sourceTree = "<group>"; };
 		CLUADE_MD /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 		COMP1111222233334444555566667777 /* CompetitionsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompetitionsViewController.swift; sourceTree = "<group>"; };
 		MEMB1111222233334444555566667777 /* TeamMembersListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TeamMembersListView.swift; path = RunstrRewards/TeamMembersListView.swift; sourceTree = "<group>"; };
@@ -286,6 +290,8 @@
 				756D64652432492F8611D7B8B43FC86E /* TeamDetailChatViewController.swift */,
 				E052336717CE4E698348BD7D33E29F96 /* TeamDetailChallengesViewController.swift */,
 				BCB683446B2F4C6397E096106C4813E9 /* TeamDetailEventsViewController.swift */,
+				EVENT8899001122334455667788990011 /* EventDetailViewController.swift */,
+				CHAL9900112233445566778899001122 /* ChallengeDetailViewController.swift */,
 				5CD455CE98D440A6BEFF739E6453EF03 /* TeamDetailHeaderView.swift */,
 				8579AB0D8AC14317BA37877636217187 /* TeamDetailAboutSection.swift */,
 				DDEEFF00112233445566778899AABBCC /* TeamDetailTabNavigation.swift */,
@@ -471,6 +477,8 @@
 				136A03D2FFEC45DA932F5FD57E76081A /* TeamDetailChatViewController.swift in Sources */,
 				51F169A39FA7430097A6BD5C49FA204B /* TeamDetailChallengesViewController.swift in Sources */,
 				E87FF620924C4D69A271F8ED9EDC6202 /* TeamDetailEventsViewController.swift in Sources */,
+				EVENT4455667788990011223344556677 /* EventDetailViewController.swift in Sources */,
+				CHAL5566778899001122334455667788 /* ChallengeDetailViewController.swift in Sources */,
 				30721DCD95874D4C90D52A769E787456 /* TeamDetailHeaderView.swift in Sources */,
 				CFF490A67D8A4DDEA14E79F24C6BBBD6 /* TeamDetailAboutSection.swift in Sources */,
 				AABB11223344556677889900AABBCCDD /* TeamDetailTabNavigation.swift in Sources */,

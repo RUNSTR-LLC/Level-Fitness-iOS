@@ -5,6 +5,8 @@ class LightningWalletManager {
     
     private let coinOSService = CoinOSService.shared
     private let supabaseService = SupabaseService.shared
+    private var retryCount = 0
+    private let maxRetries = 3
     
     private init() {}
     
@@ -53,14 +55,29 @@ class LightningWalletManager {
         // Ensure user has their own CoinOS wallet
         try await ensureUserWalletExists()
         
-        do {
-            let balance = try await coinOSService.getBalance()
-            print("LightningWalletManager: Retrieved balance for current user - Lightning: \(balance.lightning) sats")
-            return balance
-        } catch {
-            print("LightningWalletManager: Failed to get balance: \(error)")
-            throw LightningWalletError.balanceRetrievalFailed
+        // Retry logic for network failures
+        var lastError: Error?
+        
+        for attempt in 1...maxRetries {
+            do {
+                let balance = try await coinOSService.getBalance()
+                print("LightningWalletManager: Retrieved balance for current user - Lightning: \(balance.lightning) sats")
+                retryCount = 0 // Reset retry count on success
+                return balance
+            } catch {
+                lastError = error
+                print("LightningWalletManager: Balance retrieval attempt \(attempt) failed: \(error)")
+                
+                if attempt < maxRetries {
+                    // Exponential backoff
+                    let delay = Double(attempt) * 1.0
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                }
+            }
         }
+        
+        print("LightningWalletManager: Failed to get balance after \(maxRetries) attempts")
+        throw lastError ?? LightningWalletError.balanceRetrievalFailed
     }
     
     func createInvoice(amount: Int, memo: String) async throws -> LightningInvoice {

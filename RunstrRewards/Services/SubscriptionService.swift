@@ -44,6 +44,11 @@ class SubscriptionService: NSObject, ObservableObject {
         print("SubscriptionService: Loading products...")
         
         do {
+            guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == nil else {
+                print("SubscriptionService: Skipping product load in Preview mode")
+                return
+            }
+            
             let products = try await Product.products(for: [
                 ProductID.captainSubscription,
                 ProductID.teamSubscription
@@ -98,6 +103,46 @@ class SubscriptionService: NSObject, ObservableObject {
             }
             
             throw SubscriptionError.productsNotLoaded
+        }
+    }
+    
+    // MARK: - Error Handling
+    
+    enum SubscriptionError: LocalizedError {
+        case productNotFound
+        case productsNotLoaded
+        case purchaseFailed(String)
+        case purchasePending
+        case verificationFailed
+        case networkError
+        case invalidReceipt
+        case alreadySubscribed
+        case subscriptionNotFound
+        case userNotFound
+        
+        var errorDescription: String? {
+            switch self {
+            case .productNotFound:
+                return "Subscription product not found. Please try again later."
+            case .productsNotLoaded:
+                return "Products not loaded. Please try again."
+            case .purchaseFailed(let message):
+                return "Purchase failed: \(message)"
+            case .purchasePending:
+                return "Purchase is pending. Please wait."
+            case .verificationFailed:
+                return "Unable to verify purchase. Please contact support."
+            case .networkError:
+                return "Network error. Please check your connection."
+            case .invalidReceipt:
+                return "Invalid receipt. Please restore purchases."
+            case .alreadySubscribed:
+                return "Already subscribed to this service."
+            case .subscriptionNotFound:
+                return "Subscription not found."
+            case .userNotFound:
+                return "User not found. Please sign in again."
+            }
         }
     }
     
@@ -223,7 +268,7 @@ class SubscriptionService: NSObject, ObservableObject {
             return nil
             
         @unknown default:
-            throw SubscriptionError.purchaseFailed
+            throw SubscriptionError.purchaseFailed("Unknown error")
         }
     }
     
@@ -819,7 +864,7 @@ class SubscriptionService: NSObject, ObservableObject {
         case .userCancelled:
             return nil
         @unknown default:
-            throw SubscriptionError.purchaseFailed
+            throw SubscriptionError.purchaseFailed("Unknown error")
         }
     }
     */

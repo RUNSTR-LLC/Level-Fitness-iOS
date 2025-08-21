@@ -63,6 +63,7 @@ class TeamDetailChallengesViewController: UIViewController {
         
         for challengeData in challenges {
             let challengeCard = ChallengeCard(challengeData: challengeData)
+            challengeCard.delegate = self
             challengeCard.translatesAutoresizingMaskIntoConstraints = false
             challengesContainer.addSubview(challengeCard)
             challengeCards.append(challengeCard)
@@ -102,5 +103,16 @@ class TeamDetailChallengesViewController: UIViewController {
             emptyLabel.leadingAnchor.constraint(equalTo: challengesContainer.leadingAnchor, constant: 40),
             emptyLabel.trailingAnchor.constraint(equalTo: challengesContainer.trailingAnchor, constant: -40)
         ])
+    }
+}
+
+// MARK: - ChallengeCardDelegate
+
+extension TeamDetailChallengesViewController: ChallengeCardDelegate {
+    func didTapChallengeCard(_ challengeData: ChallengeData) {
+        print("🏆 TeamDetailChallenges: Challenge card tapped: \(challengeData.title)")
+        
+        let challengeDetailVC = ChallengeDetailViewController(challengeData: challengeData)
+        navigationController?.pushViewController(challengeDetailVC, animated: true)
     }
 }

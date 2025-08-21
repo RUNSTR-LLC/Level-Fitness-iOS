@@ -95,6 +95,8 @@ class ErrorHandlingService {
     private let maxRetryAttempts = 3
     private let errorLogLimit = 100
     private var errorLog: [ErrorLogEntry] = []
+    private let errorQueue = DispatchQueue(label: "com.runstrrewards.error", attributes: .concurrent)
+    private var retryDelays: [TimeInterval] = [1.0, 2.0, 4.0] // Exponential backoff
     
     private struct ErrorLogEntry {
         let timestamp: Date
@@ -103,7 +105,82 @@ class ErrorHandlingService {
         let userId: String?
     }
     
-    private init() {}
+    private init() {
+        setupCrashReporting()
+    }
+    
+    // MARK: - Crash Reporting
+    
+    private func setupCrashReporting() {
+        // Monitor for low memory warnings
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleMemoryWarning),
+            name: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func handleMemoryWarning() {
+        print("⚠️ Memory Warning: Clearing caches and reducing memory usage")
+        errorLog = Array(errorLog.suffix(50)) // Keep only recent errors
+        errorCount.removeAll() // Clear error counts
+    }
+    
+    // MARK: - Retry Logic
+    
+    func executeWithRetry<T>(
+        operation: @escaping () async throws -> T,
+        context: String,
+        fallback: T? = nil
+    ) async -> Result<T, Error> {
+        var lastError: Error?
+        
+        for attempt in 0..<maxRetryAttempts {
+            do {
+                let result = try await operation()
+                return .success(result)
+            } catch {
+                lastError = error
+                logError(error, context: "\(context) - Attempt \(attempt + 1)")
+                
+                // Don't retry for certain errors
+                if !shouldRetry(error: error) {
+                    break
+                }
+                
+                if attempt < maxRetryAttempts - 1 {
+                    let delay = retryDelays[min(attempt, retryDelays.count - 1)]
+                    try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                }
+            }
+        }
+        
+        if let error = lastError {
+            return .failure(error)
+        }
+        
+        return .failure(AppError.unknownError("Operation failed"))
+    }
+    
+    private func shouldRetry(error: Error) -> Bool {
+        // Don't retry for certain error types
+        if let appError = error as? AppError {
+            switch appError {
+            case .authenticationRequired, .dataCorrupted, .teamLimitReached:
+                return false
+            default:
+                return true
+            }
+        }
+        
+        // Retry network errors
+        if error is URLError {
+            return true
+        }
+        
+        return false
+    }
     
     // MARK: - Error Logging
     
@@ -134,6 +211,21 @@ class ErrorHandlingService {
         
         // Update error count for retry logic in a safer way
         updateErrorCount(context: context, error: appError)
+    }
+    
+    // MARK: - Crash Reporting
+    
+    func logCrashInfo(_ crashInfo: [String: Any]) {
+        print("🔴 CRASH INFO: \(crashInfo)")
+        
+        // Convert crash info to AppError for logging
+        let errorMessage = crashInfo["exception"] as? String ?? "Unknown crash"
+        let crashError = AppError.unknownError("App crashed: \(errorMessage)")
+        
+        logError(crashError, context: "App Crash", userId: AuthenticationService.shared.currentUserId)
+        
+        // In production, this would send to a crash reporting service
+        // For now, we log locally for debugging
     }
     
     // MARK: - Safe Error Count Management

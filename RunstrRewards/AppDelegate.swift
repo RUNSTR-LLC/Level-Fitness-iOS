@@ -1,5 +1,6 @@
 import UIKit
 import UserNotifications
+import HealthKit
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,6 +8,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        
+        // Setup crash reporting and error handling first
+        setupCrashProtection()
         
         // Initialize core services
         setupCoreServices()
@@ -50,6 +54,37 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.makeKeyAndVisible()
         
         return true
+    }
+    
+    // MARK: - Crash Protection
+    
+    private func setupCrashProtection() {
+        // Setup global exception handler
+        NSSetUncaughtExceptionHandler { exception in
+            print("CRITICAL: Uncaught exception: \(exception)")
+            print("Stack trace: \(exception.callStackSymbols)")
+            
+            // Save crash info for later reporting
+            let crashInfo = [
+                "exception": exception.description,
+                "stack_trace": exception.callStackSymbols.joined(separator: "\n"),
+                "timestamp": Date().timeIntervalSince1970
+            ] as [String : Any]
+            
+            UserDefaults.standard.set(crashInfo, forKey: "last_crash_info")
+            UserDefaults.standard.synchronize()
+        }
+        
+        // Check for previous crash on startup
+        if let crashInfo = UserDefaults.standard.dictionary(forKey: "last_crash_info") {
+            print("WARNING: App previously crashed. Info: \(crashInfo["exception"] ?? "Unknown")")
+            
+            // Report crash to analytics/logging service
+            ErrorHandlingService.shared.logCrashInfo(crashInfo)
+            
+            // Clear crash info
+            UserDefaults.standard.removeObject(forKey: "last_crash_info")
+        }
     }
     
     // MARK: - Core Services Setup
@@ -99,6 +134,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     private func setupHealthKitBackgroundDelivery() {
         Task {
             do {
+                // Wrap in error handling to prevent crashes
+                guard HKHealthStore.isHealthDataAvailable() else {
+                    print("AppDelegate: HealthKit not available on this device")
+                    return
+                }
+                
                 // Check if HealthKit is authorized first
                 if HealthKitService.shared.checkAuthorizationStatus() {
                     // Enable background delivery for workout updates
