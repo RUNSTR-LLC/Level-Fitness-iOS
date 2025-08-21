@@ -1527,7 +1527,7 @@ class SupabaseService {
         print("SupabaseService: Getting team wallet balance for team \(teamId)")
         
         do {
-            // Get team wallet credentials from database
+            // Check if team wallet exists in database
             let response: [TeamWallet] = try await client
                 .from("team_wallets")
                 .select()
@@ -1536,24 +1536,15 @@ class SupabaseService {
                 .value
             
             guard let teamWallet = response.first else {
-                print("SupabaseService: No wallet found for team \(teamId)")
+                print("SupabaseService: No wallet found for team \(teamId), returning 0")
                 return 0
             }
             
-            // Get balance from CoinOS Lightning wallet
-            let credentials = TeamWalletCredentials(
-                username: teamWallet.username,
-                password: teamWallet.password,
-                token: teamWallet.token
-            )
+            // Use TeamWalletManager to get balance (it handles credentials properly)
+            let balance = try await TeamWalletManager.shared.getTeamBalance(teamId: teamId)
             
-            let balance = try await CoinOSService.shared.getTeamWalletBalance(
-                teamId: teamId,
-                credentials: credentials
-            )
-            
-            print("SupabaseService: Retrieved real balance: \(balance.total) sats for team \(teamId)")
-            return balance.total
+            print("SupabaseService: Retrieved real balance: \(balance) sats for team \(teamId)")
+            return balance
             
         } catch {
             print("SupabaseService: Failed to get team wallet balance: \(error)")
