@@ -404,47 +404,9 @@ class WorkoutStatsView: UIView {
         return workouts.filter { $0.date >= startDate }
     }
     
-    private func loadSampleStats() {
-        statsData = WorkoutStats(
-            period: currentPeriod,
-            totalWorkouts: 5,
-            totalDistance: 32.2,
-            totalTime: 9900, // 2:45:00
-            averagePace: 308 // 5:08
-        )
-        
-        buildStatsGrid()
-    }
+    // Removed loadSampleStats() - app uses real HealthKit data via loadRealData()
     
-    private func loadSampleRecentWorkouts() {
-        let calendar = Calendar.current
-        let now = Date()
-        
-        recentWorkouts = [
-            WorkoutData(
-                id: "1",
-                type: .running,
-                source: .healthKit,
-                date: calendar.date(byAdding: .hour, value: -2, to: now)!,
-                distance: 5.2,
-                duration: 1605, // 26:45
-                pace: 309, // 5:09
-                intensity: .easy
-            ),
-            WorkoutData(
-                id: "2",
-                type: .hiit,
-                source: .healthKit,
-                date: calendar.date(byAdding: .day, value: -1, to: calendar.date(bySettingHour: 17, minute: 0, second: 0, of: now)!)!,
-                distance: 8.0,
-                duration: 2120, // 35:20
-                pace: 265, // 4:25
-                intensity: .hard
-            )
-        ]
-        
-        buildRecentWorkoutsList()
-    }
+    // Removed loadSampleRecentWorkouts() - app uses real HealthKit data via loadRealData()
     
     private func buildStatsGrid() {
         // Clear existing views

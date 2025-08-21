@@ -194,12 +194,7 @@ class EventsView: UIView {
         buildEventsList()
     }
     
-    private func loadSampleEvents() {
-        // Start with empty array - real data will be loaded from Supabase
-        events = []
-        
-        buildEventsList()
-    }
+    // Removed loadSampleEvents() - events loaded from real Supabase data via displayEvents()
     
     private func buildEventsList() {
         // Clear existing views

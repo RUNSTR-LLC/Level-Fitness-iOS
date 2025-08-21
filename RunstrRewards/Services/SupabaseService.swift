@@ -1524,13 +1524,42 @@ class SupabaseService {
     }
     
     func getTeamWalletBalance(teamId: String) async throws -> Int {
-        // For MVP: Return a mock balance
-        // TODO: Implement actual database query when Supabase client supports it
         print("SupabaseService: Getting team wallet balance for team \(teamId)")
-        print("SupabaseService: Returning mock balance for MVP")
         
-        // Return a sample balance for testing
-        return 50000 // 50,000 sats
+        do {
+            // Get team wallet credentials from database
+            let response: [TeamWallet] = try await client
+                .from("team_wallets")
+                .select()
+                .eq("team_id", value: teamId)
+                .execute()
+                .value
+            
+            guard let teamWallet = response.first else {
+                print("SupabaseService: No wallet found for team \(teamId)")
+                return 0
+            }
+            
+            // Get balance from CoinOS Lightning wallet
+            let credentials = TeamWalletCredentials(
+                username: teamWallet.username,
+                password: teamWallet.password,
+                token: teamWallet.token
+            )
+            
+            let balance = try await CoinOSService.shared.getTeamWalletBalance(
+                teamId: teamId,
+                credentials: credentials
+            )
+            
+            print("SupabaseService: Retrieved real balance: \(balance.total) sats for team \(teamId)")
+            return balance.total
+            
+        } catch {
+            print("SupabaseService: Failed to get team wallet balance: \(error)")
+            // Return 0 instead of mock data on error
+            return 0
+        }
     }
 }
 

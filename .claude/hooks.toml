@@ -1,0 +1,61 @@
+[production-readiness-complete]
+command = "prod-ready"
+description = "Complete production readiness with full validation pipeline and git management"
+instructions = """
+OVERALL APPROACH:
+1. Read and analyze 'Production Readiness Plan for RunstrRewards.md'
+2. Scan current codebase to identify what's implemented vs what needs completion
+3. Work through phases systematically with comprehensive validation
+
+FOR EACH PHASE:
+1. **Analysis**: Compare current codebase state against Production Readiness Plan requirements
+2. **Implementation**: Code the phase requirements with ultra-detailed thinking
+3. **Build Testing**: Run iPhone 16 simulator build and verify functionality
+4. **Performance Monitoring**: Check app launch time (<3s), memory usage, network timing
+5. **Error Validation**: Clear console, implement changes, check for new errors/warnings
+6. **Feature Testing**: Execute phase-specific validation flows
+7. **Git Management**: 
+   - git add .
+   - git commit -m "Phase N: [Description] - Tested ✅
+   
+   - Implemented: [specific features]
+   - Verified: iPhone 16 simulator build successful  
+   - Status: [X/Y phases complete]"
+   - git push origin main
+8. **Status Update**: Update Production Readiness Plan MD file with completion status
+9. **STOP**: Wait for explicit confirmation before proceeding to next phase
+
+BUILD VALIDATION STEPS:
+- Run: iPhone 16 simulator build
+- Verify: No console errors during app startup
+- Test: Critical user flows for the implemented phase
+- Check: App launch time and basic performance
+- Confirm: No memory leaks or runtime warnings
+
+PHASE-SPECIFIC VALIDATIONS:
+- Phase 1 (ClubService): Test complete team creation → member joining → basic team functions
+- Phase 2 (Real-time Data): Verify leaderboard updates and live data sync
+- Phase 3 (Navigation): Test all user interaction flows and detail views  
+- Phase 4 (Testing): Run unit tests and validate error handling
+- Phase 5 (StoreKit): Test subscription flows and payment validation
+- Phase 6 (Production Polish): Full end-to-end user journey testing
+
+AUTOMATED STATUS TRACKING:
+- Update Production Readiness Plan with ✅ COMPLETED, 🚧 IN PROGRESS, ⏳ PENDING
+- Log any issues discovered during testing
+- Document performance metrics after each phase
+- Update CLAUDE.md with key lessons learned
+
+ENVIRONMENT VALIDATION (before starting):
+- Verify Supabase connection
+- Test CoinOS API connectivity  
+- Confirm HealthKit permissions
+- Validate push notification setup
+
+ROLLBACK SAFETY:
+- If phase fails testing: git reset --hard HEAD~1, document failure reason
+- Never proceed without explicit testing confirmation
+- Maintain clean git history with working states
+
+CRITICAL RULE: NEVER proceed to the next phase without explicit user confirmation that the current phase tested successfully on iPhone 16 simulator.
+"""
