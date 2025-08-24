@@ -35,7 +35,7 @@ HealthKit Data → Background Sync Engine → Team-Specific Competitions
 ### Invisible-First Design
 - **Background sync is primary** - App works without user intervention
 - **Push notifications are the main UI** - Team-branded messages drive engagement
-- **Minimal app interaction** - Only for permissions, team discovery, leaderboard details, Bitcoin management
+- **Minimal app interaction** - Only for permissions, team discovery, leaderboard details, scheduled event information, Bitcoin management
 - **Real Bitcoin rewards** - Lightning Network integration, not fake tokens or points
 
 ### Code Standards
@@ -60,7 +60,7 @@ HealthKit Data → Background Sync Engine → Team-Specific Competitions
 - **Team Discovery**: In-app browsing + QR code direct linking for social media marketing  
 - **Team-Branded Notifications**: Push notifications prominently display team name and achievements
 - **Lightning Wallet Integration**: CoinOS-powered Bitcoin rewards with minimal user complexity
-- **Team Management Platform**: Tools for teams to create competitions and manage member engagement
+- **Team Management Platform**: Tools for teams to create leaderboards and events and manage member engagement
 
 ### Platform Integrations
 - Apple HealthKit (primary data source)
@@ -88,7 +88,7 @@ RunstrRewards/
 ├── Features/
 │   ├── Discovery/        # Team browsing, QR code scanning
 │   ├── Teams/            # Team pages, subscription management
-│   ├── Competitions/     # Leaderboards, event participation
+│   ├── Competitions/     # Leaderboards and events
 │   └── Wallet/           # Lightning wallet, reward management
 └── Shared/
     ├── UI/              # Reusable components with team branding
@@ -98,7 +98,7 @@ RunstrRewards/
 ### Data Flow
 1. Member discovers and subscribes to teams ($1.99/month)
 2. HealthKit background sync collects workout data automatically
-3. Data processed for team-specific competitions and leaderboards
+3. Data processed for team-specific leaderboards and events
 4. Push notifications sent with team branding
 5. Bitcoin rewards distributed automatically through CoinOS Lightning Network
 
@@ -131,7 +131,7 @@ Discover Team → Subscribe ($1.99/month) → Background Sync → Passive Compet
 
 ### Team Experience
 ```  
-Subscribe to Platform ($19.99/month) → Create Team Page → Design Competitions → Market via QR → Earn Member Revenue
+Subscribe to Platform ($19.99/month) → Create Team Page → Design Leaderboards & Events → Market via QR → Earn Member Revenue
 ```
 
 ## Key Metrics
@@ -168,7 +168,7 @@ Subscribe to Platform ($19.99/month) → Create Team Page → Design Competition
 - [x] Team pages with full branding and management
 - [x] CoinOS Lightning wallet integration  
 - [x] Team-branded push notifications
-- [x] Real-time leaderboards and competition tracking
+- [x] Real-time leaderboards and events
 - [x] Anti-cheat and duplicate detection systems
 
 ### Phase 2 (Growth) - 🚧 IN PROGRESS
@@ -180,7 +180,7 @@ Subscribe to Platform ($19.99/month) → Create Team Page → Design Competition
 
 ### Phase 3 (Scale)
 - [ ] White label solutions for large organizations
-- [ ] Advanced team competition formats and automation
+- [ ] Advanced team leaderboard and event formats with automation
 - [ ] API access for third-party fitness platforms
 - [ ] International expansion and multi-currency support
 
@@ -275,11 +275,11 @@ Subscribe to Platform ($19.99/month) → Create Team Page → Design Competition
 
 ### Team Detail Page Implementation - Key Learnings
 
-**Context**: Successfully implemented a comprehensive team detail page with chat, challenges, and events tabs. Encountered and resolved UI layout overlapping issues.
+**Context**: Successfully implemented a comprehensive team detail page with leaderboards and events tabs. Encountered and resolved UI layout overlapping issues.
 
 #### 1. **Complex View Controller Architecture Requires Careful Planning**
 - Multi-tab interfaces need precise layout calculations and constraint management
-- Container views for different content types (chat, challenges, events) require proper show/hide logic
+- Container views for different content types (leaderboards, events) require proper show/hide logic
 - ScrollView content must be carefully sized to prevent layout conflicts
 
 #### 2. **UI Layout Overlapping Issues Are Common in Complex Views**
@@ -288,7 +288,7 @@ Subscribe to Platform ($19.99/month) → Create Team Page → Design Competition
 - Stats sections positioned between content areas are particularly vulnerable to overlap
 
 #### 3. **Modular Component Design Pays Off**
-- Created reusable components: MessageView, ChallengeCard, EventCard, MessageInputView
+- Created reusable components: LeaderboardView, EventCard components
 - Each component handles its own layout and interactions independently
 - Delegate patterns enable clean communication between components and parent controllers
 
@@ -309,15 +309,14 @@ Subscribe to Platform ($19.99/month) → Create Team Page → Design Competition
 - Debug layout issues by temporarily adding background colors to sections
 
 #### 7. **Tab-Based Navigation UX Considerations**
-- Only show message input on chat tab to avoid confusion
+- Clear navigation between leaderboards and events tabs
 - Smooth transitions between tabs enhance user experience
 - Proper alpha animations prevent jarring content switches
 - Keep consistent industrial design across all tabs
 
 #### 8. **Content Organization for Team Communities**
-- Chat: Real conversations about meetups and achievements build engagement
-- Challenges: Visual progress bars and time remaining create urgency
-- Events: Clear prize information and entry requirements drive participation
+- Leaderboards: Real-time member rankings and statistics build engagement
+- Events: Clear prize information, entry requirements, and scheduled competition details drive participation
 - About section: Concise team description and key stats provide context
 
 #### 9. **Component Reusability Across View Types**
@@ -442,25 +441,25 @@ Subscribe to Platform ($19.99/month) → Create Team Page → Design Competition
 
 ### Competitions Page Modular Implementation - Key Learnings
 
-**Context**: Successfully implemented a comprehensive Competitions page with 9 modular components (CompetitionsViewController, CompetitionTabNavigationView, LeagueView, EventsView, LeaderboardItemView, StreakCardView, EventCardView, ChatMessageView, PrizePoolBannerView). Each component handles a specific aspect of the competition experience.
+**Context**: Successfully implemented a comprehensive Competitions page with modular components focusing on leaderboards and events. Each component handles a specific aspect of the team competition experience.
 
 #### 1. **Complex Multi-Screen Feature Decomposition**
 - Broke down Competitions page into 9 distinct components, each under 500 lines
-- Two main sections: League (leaderboards, streaks, chat) and Events (virtual competitions)
+- Two main sections: Leaderboards (team rankings, member statistics) and Events (scheduled competitions with prizes)
 - Each component has clear responsibilities: data display, user interaction, or navigation
 - Modular approach makes it easy to modify individual features without affecting others
 
 #### 2. **Delegate Pattern Architecture Scaling**
 - Used consistent delegate patterns across all components for parent-child communication
 - CompetitionsViewController coordinates between main tabs via CompetitionTabNavigationViewDelegate
-- LeagueView communicates user interactions via LeaderboardItemViewDelegate and StreakCardViewDelegate
+- LeaderboardView communicates user interactions via LeaderboardItemViewDelegate
 - EventsView handles event interactions via EventCardViewDelegate
 - Pattern creates clean separation of concerns and testable components
 
 #### 3. **Data Structure Design for Complex Features**
-- Created comprehensive data models: LeaderboardUser, StreakData, ChatMessage, CompetitionEvent
+- Created comprehensive data models: LeaderboardUser, CompetitionEvent
 - Each model includes computed properties for formatted display (formattedDistance, formattedDateRange, etc.)
-- Enum-based type safety for EventType and StreakType prevents invalid state combinations
+- Enum-based type safety for EventType prevents invalid state combinations
 - Rich data models reduce view controller complexity and enable easy testing
 
 #### 4. **Component Communication Patterns**
@@ -478,7 +477,7 @@ Subscribe to Platform ($19.99/month) → Create Team Page → Design Competition
 #### 6. **Complex Layout Management**
 - Grid layouts for streak cards (2x2) and leaderboard rankings managed with precise constraints
 - Prize pool banner with centered content and decorative bolt elements
-- Chat interface with avatar, username, timestamp, and message content properly laid out
+- Event interface with clear prize amounts, registration status, and competition details properly laid out
 - Event cards with multiple stat sections and registration state handling
 
 #### 7. **State Management for Competition Features**
@@ -489,7 +488,7 @@ Subscribe to Platform ($19.99/month) → Create Team Page → Design Competition
 
 #### 8. **Sample Data Strategy for Complex Features**
 - Realistic competition data: Bitcoin prize pools, participant counts, entry fees
-- Chat messages with proper timestamps and user initials for avatar display
+- Event data with proper scheduling, prize pools, and team member progress tracking
 - Event variety: marathons, speed challenges, elevation goals, distance targets
 - Leaderboard with meaningful usernames, distances, workout counts, and point totals
 
@@ -641,7 +640,7 @@ When creating multi-level view hierarchies:
 
 - **Prioritize invisible functionality** - the app should work without users opening it
 - **Team branding must be prominent** in all notifications and experiences, not RunstrRewards branding
-- **Keep the app minimal** - only 4 core use cases: permissions, team discovery, leaderboard details, Bitcoin management
+- **Keep the app minimal** - only core use cases: permissions, team discovery, leaderboard standings, event information, Bitcoin management
 - **Bitcoin integration should be seamless** - users shouldn't need to understand Lightning Network complexity
 - **Push notifications are the primary UI** - team-branded messages drive all engagement
 - **QR codes are critical for growth** - make it trivial for teams to share direct signup links
@@ -654,7 +653,7 @@ The app is 95% complete for MVP launch:
 - ✅ HealthKit background sync working with automatic workout detection
 - ✅ CoinOS Lightning Network integration complete with real Bitcoin transactions
 - ✅ Team creation and management system with captain controls
-- ✅ Real-time competitions and leaderboards with live position tracking
+- ✅ Real-time leaderboards and events with live position tracking
 - ✅ Push notification system with team branding (not RunstrRewards branding)
 - ✅ Anti-cheat and duplicate detection across platforms (Strava, Garmin, etc.)
 - ✅ Bitcoin reward distribution through Lightning Network

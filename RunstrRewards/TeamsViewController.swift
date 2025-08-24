@@ -321,7 +321,7 @@ class TeamsViewController: UIViewController {
                 // Clear cache to ensure fresh data
                 OfflineDataService.shared.clearTeamsCache()
                 
-                let teams = try await SupabaseService.shared.fetchTeams()
+                let teams = try await TeamDataService.shared.fetchTeams()
                 print("🏗️ RunstrRewards: Fetched \(teams.count) teams from Supabase")
                 
                 // Double-check that we're not getting stale data
@@ -348,12 +348,18 @@ class TeamsViewController: UIViewController {
         // Clear existing team cards
         clearTeamCards()
         
-        // Fetch captain usernames for all teams asynchronously
+        // Fetch captain usernames and check membership status for all teams asynchronously
         Task {
             var teamDataArray: [TeamData] = []
             
+            // Get current user's teams for membership checking
+            let userTeams = await getCurrentUserTeams()
+            let userTeamIds = Set(userTeams.map { $0.id })
+            
             for team in teams {
                 let captainUsername = await getCaptainName(for: team.captainId)
+                let isUserMember = userTeamIds.contains(team.id)
+                
                 let teamData = TeamData(
                     id: team.id,
                     name: team.name,
@@ -362,7 +368,7 @@ class TeamsViewController: UIViewController {
                     members: team.memberCount,
                     prizePool: formatEarnings(team.totalEarnings),
                     activities: getActivitiesForTeam(team),
-                    isJoined: false // TODO: Check if current user is member
+                    isJoined: isUserMember // Real membership check implemented
                 )
                 teamDataArray.append(teamData)
             }
@@ -412,7 +418,7 @@ class TeamsViewController: UIViewController {
     
     private func getCaptainName(for captainId: String) async -> String {
         do {
-            if let username = try await SupabaseService.shared.fetchUsername(userId: captainId) {
+            if let username = try await TeamDataService.shared.fetchUsername(userId: captainId) {
                 return "@\(username)"
             } else {
                 // Fallback if no username found
@@ -422,6 +428,22 @@ class TeamsViewController: UIViewController {
             print("🏗️ RunstrRewards: Error fetching captain username: \(error)")
             // Fallback on error
             return "@captain\(captainId.prefix(4))"
+        }
+    }
+    
+    private func getCurrentUserTeams() async -> [Team] {
+        guard let userSession = AuthenticationService.shared.loadSession() else {
+            print("⚠️ TeamsView: No user session found for membership check")
+            return []
+        }
+        
+        do {
+            let userTeams = try await TeamDataService.shared.fetchUserTeams(userId: userSession.id)
+            print("✅ TeamsView: Found \(userTeams.count) teams for user membership check")
+            return userTeams
+        } catch {
+            print("⚠️ TeamsView: Failed to fetch user teams for membership check: \(error)")
+            return []
         }
     }
     

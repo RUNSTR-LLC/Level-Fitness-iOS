@@ -30,8 +30,8 @@ class CompetitionsViewController: UIViewController {
     private let tabNavigationView = CompetitionTabNavigationView()
     private let contentContainerView = UIView()
     
-    // Tab Content Views
-    private let leagueView = LeagueView()
+    // Tab Content Views - using placeholder team ID for global competitions
+    private let leagueView = LeagueView(teamId: "global")
     private let eventsView = EventsView()
     
     override func viewDidLoad() {
@@ -459,10 +459,7 @@ extension CompetitionsViewController: LeagueViewDelegate {
         // TODO: Show user profile
     }
     
-    func didTapStreakCard(_ type: StreakType) {
-        print("🏆 RunstrRewards: Tapped streak card: \(type)")
-        // TODO: Show streak details
-    }
+    // Streak card delegate method removed - streaks only for streak events
 }
 
 // MARK: - EventsViewDelegate
@@ -504,7 +501,7 @@ extension CompetitionsViewController: EventsViewDelegate {
         Task {
             do {
                 let userId = AuthenticationService.shared.currentUserId ?? ""
-                try await SupabaseService.shared.registerUserForEvent(eventId: event.id, userId: userId)
+                try await CompetitionDataService.shared.registerUserForEvent(eventId: event.id, userId: userId)
                 
                 await MainActor.run {
                     // Show success message

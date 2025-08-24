@@ -117,22 +117,22 @@ class NavigationCard: UIView {
             containerView.trailingAnchor.constraint(equalTo: trailingAnchor),
             containerView.bottomAnchor.constraint(equalTo: bottomAnchor),
             
-            // Icon positioning
-            iconImageView.topAnchor.constraint(equalTo: containerView.topAnchor, constant: IndustrialDesign.Spacing.large),
-            iconImageView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: IndustrialDesign.Spacing.large),
-            iconImageView.widthAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.iconSize),
-            iconImageView.heightAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.iconSize),
+            // Icon positioning (smaller and positioned horizontally)
+            iconImageView.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
+            iconImageView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: IndustrialDesign.Spacing.regular),
+            iconImageView.widthAnchor.constraint(equalToConstant: 32), // Reduced from 48
+            iconImageView.heightAnchor.constraint(equalToConstant: 32), // Reduced from 48
             
-            // Title positioning
-            titleLabel.topAnchor.constraint(equalTo: iconImageView.bottomAnchor, constant: IndustrialDesign.Spacing.medium),
-            titleLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: IndustrialDesign.Spacing.large),
+            // Title positioning (horizontal layout next to icon)
+            titleLabel.topAnchor.constraint(equalTo: containerView.topAnchor, constant: IndustrialDesign.Spacing.regular),
+            titleLabel.leadingAnchor.constraint(equalTo: iconImageView.trailingAnchor, constant: IndustrialDesign.Spacing.medium),
             titleLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -IndustrialDesign.Spacing.large),
             
-            // Subtitle positioning
+            // Subtitle positioning (below title)
             subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: IndustrialDesign.Spacing.tiny),
-            subtitleLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: IndustrialDesign.Spacing.large),
+            subtitleLabel.leadingAnchor.constraint(equalTo: iconImageView.trailingAnchor, constant: IndustrialDesign.Spacing.medium),
             subtitleLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -IndustrialDesign.Spacing.large),
-            subtitleLabel.bottomAnchor.constraint(lessThanOrEqualTo: containerView.bottomAnchor, constant: -IndustrialDesign.Spacing.large)
+            subtitleLabel.bottomAnchor.constraint(lessThanOrEqualTo: containerView.bottomAnchor, constant: -IndustrialDesign.Spacing.regular)
         ])
     }
     

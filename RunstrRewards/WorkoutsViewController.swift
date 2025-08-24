@@ -1,6 +1,10 @@
 import UIKit
 import HealthKit
 
+// MARK: - DEPRECATED
+// This controller has been replaced by ProfileViewController with integrated workouts and account tabs.
+// Kept for reference and potential rollback. All new workout functionality is in ProfileViewController.
+
 enum WorkoutTab {
     case sync
     case stats 
@@ -18,6 +22,7 @@ protocol WorkoutsHeaderViewDelegate: AnyObject {
     func didTapSyncButton()
 }
 
+@available(*, deprecated, message: "Use ProfileViewController instead. This controller is kept for reference only.")
 class WorkoutsViewController: UIViewController {
     
     // MARK: - Properties

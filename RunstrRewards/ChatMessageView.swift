@@ -1,5 +1,33 @@
 import UIKit
 
+// MARK: - Chat Data Model (for team chat in specific contexts)
+
+struct ChatMessage {
+    let id: String
+    let username: String
+    let text: String
+    let timestamp: Date
+    let userInitials: String
+    
+    var formattedTime: String {
+        let formatter = DateFormatter()
+        let timeInterval = Date().timeIntervalSince(timestamp)
+        
+        if timeInterval < 60 {
+            return "now"
+        } else if timeInterval < 3600 {
+            let minutes = Int(timeInterval / 60)
+            return "\(minutes) min ago"
+        } else if timeInterval < 86400 {
+            let hours = Int(timeInterval / 3600)
+            return "\(hours)h ago"
+        } else {
+            formatter.dateFormat = "MMM d"
+            return formatter.string(from: timestamp)
+        }
+    }
+}
+
 class ChatMessageView: UIView {
     
     // MARK: - Properties

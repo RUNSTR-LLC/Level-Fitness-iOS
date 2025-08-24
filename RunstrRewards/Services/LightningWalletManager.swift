@@ -275,7 +275,7 @@ class LightningWalletManager {
         print("LightningWalletManager: Storing wallet \(wallet.id) in database")
         
         do {
-            try await SupabaseService.shared.storeUserWallet(wallet)
+            try await TransactionDataService.shared.storeUserWallet(wallet)
             print("LightningWalletManager: ✅ User wallet stored successfully")
         } catch {
             print("LightningWalletManager: ❌ Failed to store user wallet: \(error)")
@@ -289,7 +289,7 @@ class LightningWalletManager {
         
         do {
             // Store transaction in Supabase database
-            let transaction = try await SupabaseService.shared.createTransaction(
+            let transaction = try await TransactionDataService.shared.createTransaction(
                 userId: userId,
                 type: type,
                 amount: amount,

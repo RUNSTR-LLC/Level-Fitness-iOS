@@ -8,16 +8,17 @@ class ViewController: UIViewController {
     
     // Header components
     private let headerView = UIView()
-    private let settingsButton = UIButton(type: .custom)
     
     // Wallet balance section (replaces logo)
-    private let walletSection = UIView()
-    private let walletBalanceLabel = UILabel()
+    private let walletSectionView = WalletSectionView()
     
     // Navigation grid
     private let navigationGrid = UIView()
     private var navigationCards: [NavigationCard] = []
     private var teamsCard: NavigationCard?  // Keep reference to update with team info
+    
+    // Notification toggles section
+    private let notificationTogglesView = NotificationTogglesView()
     
     // Stats bar removed - stats now integrated into navigation cards
     
@@ -36,7 +37,7 @@ class ViewController: UIViewController {
         setupHeader()
         setupWalletSection()
         setupNavigationGrid()
-        // setupStatsBar() removed
+        setupNotificationToggles()
         setupConstraints()
         
         // Load real user data
@@ -61,9 +62,11 @@ class ViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
-        // Refresh stats when returning to dashboard
+        // Refresh stats when returning to dashboard (but skip wallet balance to prevent duplicates)
         print("🏭 RUNSTR Rewards: Refreshing user stats on dashboard return")
-        loadRealUserStats()
+        Task {
+            await loadUserTeam() // Only reload team data, not wallet balance
+        }
     }
     
     // MARK: - Setup Methods
@@ -89,54 +92,40 @@ class ViewController: UIViewController {
     private func setupHeader() {
         headerView.translatesAutoresizingMaskIntoConstraints = false
         
-        // Settings button
-        settingsButton.setImage(UIImage(systemName: "gearshape.fill"), for: .normal)
-        settingsButton.tintColor = IndustrialDesign.Colors.primaryText
-        settingsButton.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 0.8)
-        settingsButton.layer.cornerRadius = 20
-        settingsButton.layer.borderWidth = 1
-        settingsButton.layer.borderColor = UIColor(red: 0.17, green: 0.17, blue: 0.17, alpha: 1.0).cgColor
-        settingsButton.translatesAutoresizingMaskIntoConstraints = false
-        settingsButton.addTarget(self, action: #selector(settingsButtonTapped), for: .touchUpInside)
-        
-        headerView.addSubview(settingsButton)
         contentView.addSubview(headerView)
     }
     
     private func setupWalletSection() {
-        walletSection.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Wallet balance display - don't set initial text to avoid overlap
-        walletBalanceLabel.text = "" // Start empty, will be filled when wallet loads
-        walletBalanceLabel.font = UIFont.systemFont(ofSize: 32, weight: .heavy)
-        walletBalanceLabel.textAlignment = .center
-        walletBalanceLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        walletSection.addSubview(walletBalanceLabel)
-        contentView.addSubview(walletSection)
-        
-        // Add gradient to balance text
-        DispatchQueue.main.async {
-            self.applyGradientToLabel(self.walletBalanceLabel)
+        // Check if wallet section is already added to prevent duplicates
+        if walletSectionView.superview != nil {
+            walletSectionView.removeFromSuperview()
         }
         
-        // Make it tappable to navigate to wallet
-        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(walletSectionTapped))
-        walletSection.addGestureRecognizer(tapGesture)
-        walletSection.isUserInteractionEnabled = true
+        walletSectionView.translatesAutoresizingMaskIntoConstraints = false
+        walletSectionView.delegate = self
+        contentView.addSubview(walletSectionView)
         
         // Development feature: Triple tap to generate app icons
         #if DEBUG
         let tripleTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTripleTap))
         tripleTapGesture.numberOfTapsRequired = 3
-        walletSection.addGestureRecognizer(tripleTapGesture)
+        walletSectionView.addGestureRecognizer(tripleTapGesture)
         #endif
     }
     
     private func setupNavigationGrid() {
         navigationGrid.translatesAutoresizingMaskIntoConstraints = false
         
-        // Create navigation cards - 3 cards (Teams, Lottery, and Profile)
+        // Create navigation cards - 3 cards (Profile, Teams, RUNSTR REWARDS)
+        let profileCard = NavigationCard(
+            title: "Profile",
+            subtitle: "your stats",
+            iconName: "person.fill",
+            action: { [weak self] in
+                self?.navigateToProfile()
+            }
+        )
+        
         let teamsCard = NavigationCard(
             title: "Teams",
             subtitle: "Join & Create",
@@ -158,16 +147,7 @@ class ViewController: UIViewController {
             }
         )
         
-        let profileCard = NavigationCard(
-            title: "Profile",
-            subtitle: "your stats",
-            iconName: "person.fill",
-            action: { [weak self] in
-                self?.navigateToProfile()
-            }
-        )
-        
-        navigationCards = [teamsCard, lotteryCard, profileCard]
+        navigationCards = [profileCard, teamsCard, lotteryCard]
         
         for card in navigationCards {
             card.translatesAutoresizingMaskIntoConstraints = false
@@ -175,6 +155,11 @@ class ViewController: UIViewController {
         }
         
         contentView.addSubview(navigationGrid)
+    }
+    
+    private func setupNotificationToggles() {
+        notificationTogglesView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(notificationTogglesView)
     }
     
     // setupStatsBar method removed - stats no longer displayed at bottom
@@ -200,70 +185,45 @@ class ViewController: UIViewController {
             headerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -IndustrialDesign.Spacing.xLarge),
             headerView.heightAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.avatarSize),
             
-            // Settings button
-            settingsButton.trailingAnchor.constraint(equalTo: headerView.trailingAnchor),
-            settingsButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-            settingsButton.widthAnchor.constraint(equalToConstant: 40),
-            settingsButton.heightAnchor.constraint(equalToConstant: 40),
-            
             // Wallet section
-            walletSection.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: IndustrialDesign.Spacing.xxxLarge),
-            walletSection.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            walletSection.widthAnchor.constraint(equalTo: contentView.widthAnchor),
-            walletSection.heightAnchor.constraint(equalToConstant: 60),
-            
-            // Wallet balance text - centered in section
-            walletBalanceLabel.centerXAnchor.constraint(equalTo: walletSection.centerXAnchor),
-            walletBalanceLabel.centerYAnchor.constraint(equalTo: walletSection.centerYAnchor),
+            walletSectionView.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: IndustrialDesign.Spacing.large),
+            walletSectionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            walletSectionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            walletSectionView.heightAnchor.constraint(equalToConstant: 100),
             
             // Navigation grid
-            navigationGrid.topAnchor.constraint(equalTo: walletSection.bottomAnchor, constant: 60),
+            navigationGrid.topAnchor.constraint(equalTo: walletSectionView.bottomAnchor, constant: 20),
             navigationGrid.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: IndustrialDesign.Spacing.xLarge),
             navigationGrid.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -IndustrialDesign.Spacing.xLarge),
-            navigationGrid.heightAnchor.constraint(equalToConstant: 460), // Increased for 3 cards
+            navigationGrid.heightAnchor.constraint(equalToConstant: 280), // Further reduced
             
-            // Navigation cards - 3 cards layout: Teams, Lottery, Profile (all full width)
+            // Navigation cards - 3 cards layout: Profile, Teams, RUNSTR REWARDS (all full width, slimmer)
             navigationCards[0].topAnchor.constraint(equalTo: navigationGrid.topAnchor),
             navigationCards[0].leadingAnchor.constraint(equalTo: navigationGrid.leadingAnchor),
             navigationCards[0].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
-            navigationCards[0].heightAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.cardMinHeight),
+            navigationCards[0].heightAnchor.constraint(equalToConstant: 100), // Reduced from 140
             
-            navigationCards[1].topAnchor.constraint(equalTo: navigationCards[0].bottomAnchor, constant: IndustrialDesign.Spacing.large),
+            navigationCards[1].topAnchor.constraint(equalTo: navigationCards[0].bottomAnchor, constant: IndustrialDesign.Spacing.medium),
             navigationCards[1].leadingAnchor.constraint(equalTo: navigationGrid.leadingAnchor),
             navigationCards[1].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
-            navigationCards[1].heightAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.cardMinHeight),
+            navigationCards[1].heightAnchor.constraint(equalToConstant: 80), // Further reduced
             
-            navigationCards[2].topAnchor.constraint(equalTo: navigationCards[1].bottomAnchor, constant: IndustrialDesign.Spacing.large),
+            navigationCards[2].topAnchor.constraint(equalTo: navigationCards[1].bottomAnchor, constant: IndustrialDesign.Spacing.medium),
             navigationCards[2].leadingAnchor.constraint(equalTo: navigationGrid.leadingAnchor),
             navigationCards[2].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
-            navigationCards[2].heightAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.cardMinHeight),
+            navigationCards[2].heightAnchor.constraint(equalToConstant: 80), // Further reduced
             
-            // Navigation grid is now the bottom element
-            navigationGrid.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -IndustrialDesign.Spacing.xxxLarge)
+            // Notification toggles section
+            notificationTogglesView.topAnchor.constraint(equalTo: navigationGrid.bottomAnchor, constant: 20),
+            notificationTogglesView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            notificationTogglesView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            notificationTogglesView.heightAnchor.constraint(equalToConstant: 240),
+            
+            // Notification toggles is now the bottom element
+            notificationTogglesView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -IndustrialDesign.Spacing.large)
         ])
     }
     
-    private func applyGradientToLabel(_ label: UILabel) {
-        let gradient = CAGradientLayer.logo()
-        gradient.frame = label.bounds
-        
-        let gradientColor = UIColor { _ in
-            return UIColor.white
-        }
-        label.textColor = gradientColor
-        
-        // Create a mask for the gradient
-        let maskLayer = CATextLayer()
-        maskLayer.string = label.text
-        maskLayer.font = label.font
-        maskLayer.fontSize = label.font.pointSize
-        maskLayer.frame = label.bounds
-        maskLayer.alignmentMode = .center
-        maskLayer.foregroundColor = UIColor.black.cgColor
-        
-        gradient.mask = maskLayer
-        label.layer.addSublayer(gradient)
-    }
     
     // MARK: - Navigation Methods
     
@@ -346,11 +306,12 @@ class ViewController: UIViewController {
             return
         }
         
-        // Navigate to WorkoutsViewController which contains user stats/profile info
-        let workoutsViewController = WorkoutsViewController()
-        navigationController.pushViewController(workoutsViewController, animated: true)
+        // Navigate to new ProfileViewController with integrated workouts and account sections
+        let profileViewController = ProfileViewController()
+        profileViewController.delegate = self
+        navigationController.pushViewController(profileViewController, animated: true)
         
-        print("👤 RunstrRewards: Successfully navigated to Profile/Workouts page")
+        print("👤 RunstrRewards: Successfully navigated to new Profile page")
     }
     
     private func navigateToLottery() {
@@ -372,24 +333,7 @@ class ViewController: UIViewController {
         navigateToProfile() // Redirect to profile method
     }
     
-    @objc private func settingsButtonTapped() {
-        print("⚙️ RunstrRewards: Settings navigation requested")
-        
-        guard let navigationController = navigationController else {
-            print("❌ RunstrRewards: NavigationController is nil - cannot navigate to Settings")
-            return
-        }
-        
-        let settingsViewController = SettingsViewController()
-        navigationController.pushViewController(settingsViewController, animated: true)
-        
-        print("⚙️ RunstrRewards: Successfully navigated to Settings page")
-    }
     
-    @objc private func walletSectionTapped() {
-        print("💰 RunstrRewards: Wallet section tapped")
-        navigateToWallet()
-    }
     
     // Level League removed - competitions now handled by individual teams
     
@@ -511,15 +455,14 @@ extension ViewController {
         guard let userSession = AuthenticationService.shared.loadSession() else {
             print("🏭 RunstrRewards: No user session found for wallet balance - showing default")
             await MainActor.run {
-                walletBalanceLabel.text = "0 sats"
+                walletSectionView.updateBalance("0 sats")
             }
             return
         }
         
         // Show loading state
         await MainActor.run {
-            walletBalanceLabel.text = "Loading..."
-            walletBalanceLabel.alpha = 0.5
+            walletSectionView.updateBalance("Loading...")
         }
         
         // Try to get real Lightning wallet balance
@@ -547,14 +490,7 @@ extension ViewController {
                 }
                 
                 print("🏭 RunstrRewards: Setting wallet balance text to: '\(formattedBalance)'")
-                walletBalanceLabel.text = formattedBalance
-                walletBalanceLabel.alpha = 1.0 // Restore full opacity
-                
-                // Force layout update to ensure text changes are visible
-                walletBalanceLabel.setNeedsLayout()
-                walletBalanceLabel.layoutIfNeeded()
-                walletSection.setNeedsLayout()
-                walletSection.layoutIfNeeded()
+                walletSectionView.updateBalance(formattedBalance)
                 
                 print("🏭 RunstrRewards: Wallet balance updated and layout refreshed")
             }
@@ -563,8 +499,7 @@ extension ViewController {
             print("🏭 RunstrRewards: Failed to load Lightning wallet balance: \(error)")
             
             await MainActor.run {
-                walletBalanceLabel.text = "0 sats"
-                walletBalanceLabel.alpha = 1.0 // Restore full opacity even on error
+                walletSectionView.updateBalance("0 sats")
             }
         }
     }
@@ -908,5 +843,206 @@ extension ViewController {
         Task {
             await loadUserTeam()
         }
+    }
+}
+
+// MARK: - WalletSectionViewDelegate
+
+extension ViewController: WalletSectionViewDelegate {
+    func didTapSendButton() {
+        print("💰 RunstrRewards: Send button tapped from home screen")
+        showSendPaymentDialog()
+    }
+    
+    func didTapReceiveButton() {
+        print("💰 RunstrRewards: Receive button tapped from home screen")
+        showReceiveInvoiceDialog()
+    }
+    
+    func didTapWalletSection() {
+        print("💰 RunstrRewards: Wallet section tapped")
+        navigateToWallet()
+    }
+    
+    private func showSendPaymentDialog() {
+        let alert = UIAlertController(
+            title: "Send Bitcoin ⚡",
+            message: "Paste Lightning invoice to send payment",
+            preferredStyle: .alert
+        )
+        
+        alert.addTextField { textField in
+            textField.placeholder = "Lightning invoice (lnbc...)"
+            textField.autocapitalizationType = .none
+        }
+        
+        let sendAction = UIAlertAction(title: "Send Payment", style: .default) { [weak self] _ in
+            guard let invoice = alert.textFields?[0].text,
+                  !invoice.isEmpty,
+                  invoice.lowercased().hasPrefix("lnbc") else {
+                self?.showErrorAlert("Please enter a valid Lightning invoice")
+                return
+            }
+            
+            self?.sendLightningPayment(invoice: invoice)
+        }
+        
+        alert.addAction(sendAction)
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+    
+    private func showReceiveInvoiceDialog() {
+        let alert = UIAlertController(
+            title: "Receive Bitcoin ⚡",
+            message: "Enter amount in satoshis to generate Lightning invoice",
+            preferredStyle: .alert
+        )
+        
+        alert.addTextField { textField in
+            textField.placeholder = "Amount (sats)"
+            textField.keyboardType = .numberPad
+        }
+        
+        alert.addTextField { textField in
+            textField.placeholder = "Memo (optional)"
+        }
+        
+        let generateAction = UIAlertAction(title: "Generate Invoice", style: .default) { [weak self] _ in
+            guard let amountText = alert.textFields?[0].text,
+                  let amount = Int(amountText),
+                  amount > 0 else {
+                self?.showErrorAlert("Please enter a valid amount")
+                return
+            }
+            
+            let memo = alert.textFields?[1].text ?? ""
+            self?.generateLightningInvoice(amount: amount, memo: memo)
+        }
+        
+        alert.addAction(generateAction)
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+    
+    private func generateLightningInvoice(amount: Int, memo: String) {
+        Task {
+            do {
+                print("💰 RunstrRewards: Generating Lightning invoice for \(amount) sats")
+                let lightningWalletManager = LightningWalletManager.shared
+                let invoice = try await lightningWalletManager.createInvoice(amount: amount, memo: memo)
+                
+                await MainActor.run {
+                    self.showInvoiceResult(invoice)
+                }
+            } catch {
+                await MainActor.run {
+                    self.handleWalletError(error, context: "generateLightningInvoice")
+                }
+            }
+        }
+    }
+    
+    private func sendLightningPayment(invoice: String) {
+        Task {
+            do {
+                print("💰 RunstrRewards: Sending Lightning payment")
+                let lightningWalletManager = LightningWalletManager.shared
+                let result = try await lightningWalletManager.payInvoice(invoice)
+                
+                await MainActor.run {
+                    if result.success {
+                        self.showSuccessAlert("Payment sent successfully! ⚡")
+                        Task { await self.loadWalletBalance() } // Refresh balance
+                    } else {
+                        self.showErrorAlert("Payment failed")
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.handleWalletError(error, context: "sendLightningPayment")
+                }
+            }
+        }
+    }
+    
+    private func showInvoiceResult(_ invoice: LightningInvoice) {
+        let alert = UIAlertController(
+            title: "Lightning Invoice Generated ⚡",
+            message: "Share this invoice to receive \(invoice.amount) sats",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Copy Invoice", style: .default) { _ in
+            UIPasteboard.general.string = invoice.paymentRequest
+            print("💰 RunstrRewards: Invoice copied to clipboard")
+        })
+        
+        alert.addAction(UIAlertAction(title: "Share", style: .default) { [weak self] _ in
+            let activityVC = UIActivityViewController(
+                activityItems: [invoice.paymentRequest],
+                applicationActivities: nil
+            )
+            self?.present(activityVC, animated: true)
+        })
+        
+        alert.addAction(UIAlertAction(title: "Done", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+    
+    private func showSuccessAlert(_ message: String) {
+        let alert = UIAlertController(title: "Success", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+    
+    private func showErrorAlert(_ message: String) {
+        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+    
+    private func handleWalletError(_ error: Error, context: String) {
+        print("💰 RunstrRewards: Error in \(context): \(error)")
+        
+        var message = error.localizedDescription
+        
+        // Handle specific errors with user-friendly messages
+        if let coinOSError = error as? CoinOSError {
+            switch coinOSError {
+            case .notAuthenticated:
+                message = "Please sign in to your wallet again."
+            case .apiError(let code) where code == 500:
+                message = "Insufficient funds. Please add Bitcoin to your wallet first."
+            case .apiError(let code):
+                message = "Service temporarily unavailable (Error \(code)). Please try again."
+            case .walletCreationFailed:
+                message = "Failed to create wallet. Please try again or contact support."
+            default:
+                break
+            }
+        }
+        
+        showErrorAlert(message)
+    }
+}
+
+// MARK: - ProfileViewControllerDelegate
+
+extension ViewController: ProfileViewControllerDelegate {
+    func didRequestSignOut() {
+        print("👤 Main: Sign out requested from Profile")
+        
+        // Clear any cached data
+        userActiveTeam = nil
+        
+        // Reset UI to signed-out state
+        walletSectionView.updateBalance("0 sats")
+        
+        // Show sign-in flow or handle sign-out completion
+        // This will depend on your authentication flow
     }
 }

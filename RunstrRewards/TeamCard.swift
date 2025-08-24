@@ -230,7 +230,8 @@ class TeamCard: UIView {
     }
     
     private func updateJoinButtonState() {
-        let isSubscribed = SubscriptionService.shared.isSubscribedToTeam(teamData.id)
+        // Use the teamData.isJoined property which is now properly set from database membership check
+        let isSubscribed = teamData.isJoined
         
         if isSubscribed {
             joinButton.setTitle("SUBSCRIBED", for: .normal)
@@ -318,8 +319,8 @@ class TeamCard: UIView {
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
         
-        // Check if already subscribed
-        if SubscriptionService.shared.isSubscribedToTeam(teamData.id) {
+        // Check if already subscribed using the teamData.isJoined property
+        if teamData.isJoined {
             print("Already subscribed to team \(teamData.name)")
             return
         }

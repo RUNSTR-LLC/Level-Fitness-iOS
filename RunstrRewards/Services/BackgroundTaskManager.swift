@@ -25,7 +25,7 @@ class BackgroundTaskManager {
     private let leaderboardTracker = LeaderboardTracker.shared
     private let notificationIntelligence = NotificationIntelligence.shared
     private let workoutRewardCalculator = WorkoutRewardCalculator.shared
-    private let streakTracker = StreakTracker.shared
+    // StreakTracker removed - only used for streak events now
     // Note: WorkoutSyncQueue.shared accessed directly in methods to avoid compilation order issues
     
     private var lastSyncDate: Date {

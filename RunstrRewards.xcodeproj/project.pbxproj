@@ -37,7 +37,6 @@
 		424939540FA242208280E808FB11D618 /* EventCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 382EA177BF544287894A2965A64DBEBA /* EventCard.swift */; };
 		4455667788990AABBCCDDEEFF001122 /* TransactionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 221100FFEEDDCCBBAA99887766554 /* TransactionCard.swift */; };
 		480C497EFA494A81B1628DF3EB7DDAD8 /* MessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2B60D5CE514427DA660A3D66F3DCF04 /* MessageView.swift */; };
-		51F169A39FA7430097A6BD5C49FA204B /* TeamDetailChallengesViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E052336717CE4E698348BD7D33E29F96 /* TeamDetailChallengesViewController.swift */; };
 		55667788990AABBCCDDEEFF00112233 /* TransactionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 332211FFEEDDCCBBAA9988776655 /* TransactionHistoryView.swift */; };
 		667788990AABBCCDDEEFF0011223344 /* EarningsHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4433221FFEEDDCCBBAA998877665 /* EarningsHeaderView.swift */; };
 		7788990AABBCCDDEEFF001122334455 /* WorkoutsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55443322FFEEDDCCBBAA99887766 /* WorkoutsViewController.swift */; };
@@ -48,6 +47,16 @@
 		BBCCDDEEFF00112233445566778899 /* WorkoutSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99887766FFEEDDCCBBAA99887764 /* WorkoutSyncView.swift */; };
 		CCDDEEFF0011223344556677889900 /* WorkoutStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCCDDEEFF001122334455663 /* WorkoutStatsView.swift */; };
 		CCFF508128234567B7DF292F3B2DDC10 /* MessageInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25CD67441C2849C092B9FF72E3D013BA /* MessageInputView.swift */; };
+		PROFILE001122334455667788990ABB /* ProfileViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROFILE1FEEDDCCBBAA99887766554433 /* ProfileViewController.swift */; };
+		PROFILE112233445566778899AABBCC /* ProfileHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROFILE2EEDDCCBBAA99887766554433 /* ProfileHeaderView.swift */; };
+		PROFILE223344556677889900AABBCC /* ProfileTabNavigationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROFILE3EDDCCBBAA99887766554433 /* ProfileTabNavigationView.swift */; };
+		PROFILE334455667788990AABBCCDDE /* ProfileWorkoutsTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROFILE4DDCCBBAA99887766554433 /* ProfileWorkoutsTabView.swift */; };
+		PROFILE445566778899AABBCCDDEEF /* ProfileAccountTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROFILE5DCCBBAA99887766554433 /* ProfileAccountTabView.swift */; };
+		PROFILE55667788990AABBCCDDEEFF /* ProfileSyncSourcesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROFILE6CCBBAA99887766554433 /* ProfileSyncSourcesView.swift */; };
+		PROFILE6677889900AABBCCDDEEFF0 /* ProfileWorkoutHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROFILE7CBBAA99887766554433 /* ProfileWorkoutHistoryView.swift */; };
+		PROFILE77889900AABBCCDDEEFF001 /* ProfileSubscriptionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROFILE8BBAA99887766554433 /* ProfileSubscriptionView.swift */; };
+		PROFILE8899AABBCCDDEEFF0011223 /* ProfileSupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROFILE9BAA99887766554433 /* ProfileSupportView.swift */; };
+		PROFILE99AABBCCDDEEFF00112233 /* EditProfileViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROFILEAAA99887766554433 /* EditProfileViewController.swift */; };
 		CFF490A67D8A4DDEA14E79F24C6BBBD6 /* TeamDetailAboutSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8579AB0D8AC14317BA37877636217187 /* TeamDetailAboutSection.swift */; };
 		COMP1122334455667788990011AABBCC /* CompetitionsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = COMP1111222233334444555566667777 /* CompetitionsViewController.swift */; };
 		MEMB1122334455667788990011AABBCC /* TeamMembersListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MEMB1111222233334444555566667777 /* TeamMembersListView.swift */; };
@@ -60,8 +69,12 @@
 		COMP7788990AABBCCDDEEFF0011223 /* EventCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = COMP7777888899990000111122223333 /* EventCardView.swift */; };
 		COMP8899AABBCCDDEEFF001122334 /* ChatMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = COMP8888999900001111222233334444 /* ChatMessageView.swift */; };
 		D613E78D324148849B773D801477004E /* SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7FEA8665C6A4B22986DA6438533D80C /* SupabaseService.swift */; };
+		C6AA161B00864A709A90C2A82910D3DD /* AuthDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36BCD51F8F4D4232AB2F2E1D6527B57E /* AuthDataService.swift */; };
+		B3889174-2CA8-42ED-A5A5-40C10577FA06 /* WorkoutDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DB6D835-BA20-4DEC-A94B-CF02B95476A2 /* WorkoutDataService.swift */; };
+		E39BB939-EFB4-4A17-9421-10CE2D43E4EE /* CompetitionDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B807CFA-B685-4049-8B87-E722FECB863E /* CompetitionDataService.swift */; };
+		57A38C02-A0CF-4C37-94B3-1AB20BF2C523 /* TransactionDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 739341BA-43E6-4EF0-AA07-F7BAE94335EF /* TransactionDataService.swift */; };
+		D444523B-3161-40AD-88B2-0606F573CA33 /* TeamDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78EF85D8-35D1-415A-9126-31F4A89175F9 /* TeamDataService.swift */; };
 		REWARD123456789ABCDEF0011223344 /* WorkoutRewardCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CALCULATOR1234567890ABCDEF001122 /* WorkoutRewardCalculator.swift */; };
-		13AE25D6CFEE4E5D868CD870B20FEA83 /* StreakTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5897B15B54C4630970D449B0F5C3F0E /* StreakTracker.swift */; };
 		F274E58B8DB14A08BD0C0B0C7DD64028 /* AuthenticationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */; };
 		COIN123456789ABCDEF01234567890AB /* CoinOSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = COINABCDEF123456789ABCDEF12345678 /* CoinOSService.swift */; };
 		LIGHT123456789ABCDEF01234567890B /* LightningWalletManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = LIGHTABCDEF123456789ABCDEF123456 /* LightningWalletManager.swift */; };
@@ -75,6 +88,8 @@
 		CHAL5566778899001122334455667788 /* ChallengeDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHAL9900112233445566778899001122 /* ChallengeDetailViewController.swift */; };
 		EE2A80B3C0B7449CA243D4333061A535 /* ChallengeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5801F4E4750540CABC6C94EBB8DD0B79 /* ChallengeCard.swift */; };
 		LOGIN123456789ABCDEF123456789012 /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = LOGIN987654321FEDCBA987654321098 /* LoginViewController.swift */; };
+		5861DDCB839345C4B8C2006539B6026F /* WalletSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7854B1DC6BDB4917A72214527EBD300E /* WalletSectionView.swift */; };
+		E868079477DB4136B5EB9FEFB508FBFB /* NotificationTogglesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2B2C180E9B948489A2DCEBE598329E9 /* NotificationTogglesView.swift */; };
 		WIZARD123456789ABCDEF012345678901 /* TeamCreationWizardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = WIZARD987654321FEDCBA987654321012 /* TeamCreationWizardViewController.swift */; };
 		BASIC123456789ABCDEF0123456789012 /* TeamBasicInfoStepViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BASIC987654321FEDCBA9876543210123 /* TeamBasicInfoStepViewController.swift */; };
 		METRIC123456789ABCDEF012345678901 /* TeamMetricSelectionStepViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = METRIC987654321FEDCBA987654321012 /* TeamMetricSelectionStepViewController.swift */; };
@@ -123,6 +138,16 @@
 		11002FFEEDDCCBBAA9988776655443 /* WalletActionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletActionButton.swift; sourceTree = "<group>"; };
 		221100FFEEDDCCBBAA99887766554 /* TransactionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionCard.swift; sourceTree = "<group>"; };
 		25CD67441C2849C092B9FF72E3D013BA /* MessageInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputView.swift; sourceTree = "<group>"; };
+		PROFILE1FEEDDCCBBAA99887766554433 /* ProfileViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewController.swift; sourceTree = "<group>"; };
+		PROFILE2EEDDCCBBAA99887766554433 /* ProfileHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileHeaderView.swift; sourceTree = "<group>"; };
+		PROFILE3EDDCCBBAA99887766554433 /* ProfileTabNavigationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileTabNavigationView.swift; sourceTree = "<group>"; };
+		PROFILE4DDCCBBAA99887766554433 /* ProfileWorkoutsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileWorkoutsTabView.swift; sourceTree = "<group>"; };
+		PROFILE5DCCBBAA99887766554433 /* ProfileAccountTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAccountTabView.swift; sourceTree = "<group>"; };
+		PROFILE6CCBBAA99887766554433 /* ProfileSyncSourcesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSyncSourcesView.swift; sourceTree = "<group>"; };
+		PROFILE7CBBAA99887766554433 /* ProfileWorkoutHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileWorkoutHistoryView.swift; sourceTree = "<group>"; };
+		PROFILE8BBAA99887766554433 /* ProfileSubscriptionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSubscriptionView.swift; sourceTree = "<group>"; };
+		PROFILE9BAA99887766554433 /* ProfileSupportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSupportView.swift; sourceTree = "<group>"; };
+		PROFILEAAA99887766554433 /* EditProfileViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditProfileViewController.swift; sourceTree = "<group>"; };
 		332211FFEEDDCCBBAA9988776655 /* TransactionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionHistoryView.swift; sourceTree = "<group>"; };
 		382EA177BF544287894A2965A64DBEBA /* EventCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventCard.swift; sourceTree = "<group>"; };
 		3D4A1B892C5F7A8E00F3E2B3 /* RunstrRewards.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RunstrRewards.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -174,14 +199,19 @@
 		COMP7777888899990000111122223333 /* EventCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventCardView.swift; sourceTree = "<group>"; };
 		COMP8888999900001111222233334444 /* ChatMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageView.swift; sourceTree = "<group>"; };
 		DDEEFF00112233445566778899AABBCC /* TeamDetailTabNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamDetailTabNavigation.swift; sourceTree = "<group>"; };
-		E052336717CE4E698348BD7D33E29F96 /* TeamDetailChallengesViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamDetailChallengesViewController.swift; sourceTree = "<group>"; };
 		E2B60D5CE514427DA660A3D66F3DCF04 /* MessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageView.swift; sourceTree = "<group>"; };
 		ENTITLEMENTS12345678901234567890 /* LevelFitness.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LevelFitness.entitlements; sourceTree = "<group>"; };
 		FFEEDDCCBBAA99887766554433221100 /* EarningsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EarningsViewController.swift; sourceTree = "<group>"; };
 		LOGIN987654321FEDCBA987654321098 /* LoginViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewController.swift; sourceTree = "<group>"; };
+		7854B1DC6BDB4917A72214527EBD300E /* WalletSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletSectionView.swift; sourceTree = "<group>"; };
+		B2B2C180E9B948489A2DCEBE598329E9 /* NotificationTogglesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationTogglesView.swift; sourceTree = "<group>"; };
 		A7FEA8665C6A4B22986DA6438533D80C /* SupabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/SupabaseService.swift"; sourceTree = "<group>"; };
+		36BCD51F8F4D4232AB2F2E1D6527B57E /* AuthDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/AuthDataService.swift"; sourceTree = "<group>"; };
+		5DB6D835-BA20-4DEC-A94B-CF02B95476A2 /* WorkoutDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/WorkoutDataService.swift"; sourceTree = "<group>"; };
+		6B807CFA-B685-4049-8B87-E722FECB863E /* CompetitionDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/CompetitionDataService.swift"; sourceTree = "<group>"; };
+		739341BA-43E6-4EF0-AA07-F7BAE94335EF /* TransactionDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/TransactionDataService.swift"; sourceTree = "<group>"; };
+		78EF85D8-35D1-415A-9126-31F4A89175F9 /* TeamDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/TeamDataService.swift"; sourceTree = "<group>"; };
 		CALCULATOR1234567890ABCDEF001122 /* WorkoutRewardCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/WorkoutRewardCalculator.swift"; sourceTree = "<group>"; };
-		B5897B15B54C4630970D449B0F5C3F0E /* StreakTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/StreakTracker.swift"; sourceTree = "<group>"; };
 		97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/AuthenticationService.swift"; sourceTree = "<group>"; };
 		COINABCDEF123456789ABCDEF12345678 /* CoinOSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/CoinOSService.swift"; sourceTree = "<group>"; };
 		LIGHTABCDEF123456789ABCDEF123456 /* LightningWalletManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/LightningWalletManager.swift"; sourceTree = "<group>"; };
@@ -265,6 +295,8 @@
 			children = (
 				3D4A1B8C2C5F7A8E00F3E2B3 /* AppDelegate.swift */,
 				LOGIN987654321FEDCBA987654321098 /* LoginViewController.swift */,
+				7854B1DC6BDB4917A72214527EBD300E /* WalletSectionView.swift */,
+				B2B2C180E9B948489A2DCEBE598329E9 /* NotificationTogglesView.swift */,
 				3D4A1B8E2C5F7A8E00F3E2B3 /* ViewController.swift */,
 				3D4A1B9E2C5F7AB900F3E2B3 /* DesignSystem.swift */,
 				ICONABCDEF1234567890ABCDEF123456 /* IconGenerator.swift */,
@@ -288,7 +320,6 @@
 				5801F4E4750540CABC6C94EBB8DD0B79 /* ChallengeCard.swift */,
 				382EA177BF544287894A2965A64DBEBA /* EventCard.swift */,
 				756D64652432492F8611D7B8B43FC86E /* TeamDetailChatViewController.swift */,
-				E052336717CE4E698348BD7D33E29F96 /* TeamDetailChallengesViewController.swift */,
 				BCB683446B2F4C6397E096106C4813E9 /* TeamDetailEventsViewController.swift */,
 				EVENT8899001122334455667788990011 /* EventDetailViewController.swift */,
 				CHAL9900112233445566778899001122 /* ChallengeDetailViewController.swift */,
@@ -316,8 +347,12 @@
 				COMP7777888899990000111122223333 /* EventCardView.swift */,
 				COMP8888999900001111222233334444 /* ChatMessageView.swift */,
 				A7FEA8665C6A4B22986DA6438533D80C /* SupabaseService.swift */,
+				36BCD51F8F4D4232AB2F2E1D6527B57E /* AuthDataService.swift */,
+				5DB6D835-BA20-4DEC-A94B-CF02B95476A2 /* WorkoutDataService.swift */,
+				6B807CFA-B685-4049-8B87-E722FECB863E /* CompetitionDataService.swift */,
+				739341BA-43E6-4EF0-AA07-F7BAE94335EF /* TransactionDataService.swift */,
+				78EF85D8-35D1-415A-9126-31F4A89175F9 /* TeamDataService.swift */,
 				CALCULATOR1234567890ABCDEF001122 /* WorkoutRewardCalculator.swift */,
-				B5897B15B54C4630970D449B0F5C3F0E /* StreakTracker.swift */,
 				97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */,
 				COINABCDEF123456789ABCDEF12345678 /* CoinOSService.swift */,
 				LIGHTABCDEF123456789ABCDEF123456 /* LightningWalletManager.swift */,
@@ -371,6 +406,16 @@
 				B493D1F9F45E49D19563503FA6B517A8 /* TeamWalletAccessController.swift */,
 				CC4FF82330A24A959EBD2C8C2B1E6E55 /* TeamWalletBalanceView.swift */,
 				F08D7F38987A496B9E9ED7591DDA5299 /* TeamWalletFundingViewController.swift */,
+				PROFILE1FEEDDCCBBAA99887766554433 /* ProfileViewController.swift */,
+				PROFILE2EEDDCCBBAA99887766554433 /* ProfileHeaderView.swift */,
+				PROFILE3EDDCCBBAA99887766554433 /* ProfileTabNavigationView.swift */,
+				PROFILE4DDCCBBAA99887766554433 /* ProfileWorkoutsTabView.swift */,
+				PROFILE5DCCBBAA99887766554433 /* ProfileAccountTabView.swift */,
+				PROFILE6CCBBAA99887766554433 /* ProfileSyncSourcesView.swift */,
+				PROFILE7CBBAA99887766554433 /* ProfileWorkoutHistoryView.swift */,
+				PROFILE8BBAA99887766554433 /* ProfileSubscriptionView.swift */,
+				PROFILE9BAA99887766554433 /* ProfileSupportView.swift */,
+				PROFILEAAA99887766554433 /* EditProfileViewController.swift */,
 			);
 			path = RunstrRewards;
 			sourceTree = "<group>";
@@ -475,7 +520,6 @@
 				EE2A80B3C0B7449CA243D4333061A535 /* ChallengeCard.swift in Sources */,
 				424939540FA242208280E808FB11D618 /* EventCard.swift in Sources */,
 				136A03D2FFEC45DA932F5FD57E76081A /* TeamDetailChatViewController.swift in Sources */,
-				51F169A39FA7430097A6BD5C49FA204B /* TeamDetailChallengesViewController.swift in Sources */,
 				E87FF620924C4D69A271F8ED9EDC6202 /* TeamDetailEventsViewController.swift in Sources */,
 				EVENT4455667788990011223344556677 /* EventDetailViewController.swift in Sources */,
 				CHAL5566778899001122334455667788 /* ChallengeDetailViewController.swift in Sources */,
@@ -505,8 +549,12 @@
 				COMP7788990AABBCCDDEEFF0011223 /* EventCardView.swift in Sources */,
 				COMP8899AABBCCDDEEFF001122334 /* ChatMessageView.swift in Sources */,
 				D613E78D324148849B773D801477004E /* SupabaseService.swift in Sources */,
+				C6AA161B00864A709A90C2A82910D3DD /* AuthDataService.swift in Sources */,
+				B3889174-2CA8-42ED-A5A5-40C10577FA06 /* WorkoutDataService.swift in Sources */,
+				E39BB939-EFB4-4A17-9421-10CE2D43E4EE /* CompetitionDataService.swift in Sources */,
+				57A38C02-A0CF-4C37-94B3-1AB20BF2C523 /* TransactionDataService.swift in Sources */,
+				D444523B-3161-40AD-88B2-0606F573CA33 /* TeamDataService.swift in Sources */,
 				REWARD123456789ABCDEF0011223344 /* WorkoutRewardCalculator.swift in Sources */,
-				13AE25D6CFEE4E5D868CD870B20FEA83 /* StreakTracker.swift in Sources */,
 				F274E58B8DB14A08BD0C0B0C7DD64028 /* AuthenticationService.swift in Sources */,
 				COIN123456789ABCDEF01234567890AB /* CoinOSService.swift in Sources */,
 				LIGHT123456789ABCDEF01234567890B /* LightningWalletManager.swift in Sources */,
@@ -558,6 +606,18 @@
 				AB7C74C0F5414E4C8F3C9DF8BFF84B5C /* TeamWalletFundingViewController.swift in Sources */,
 				3D4A1B8D2C5F7A8E00F3E2B3 /* AppDelegate.swift in Sources */,
 				LOGIN123456789ABCDEF123456789012 /* LoginViewController.swift in Sources */,
+				5861DDCB839345C4B8C2006539B6026F /* WalletSectionView.swift in Sources */,
+				E868079477DB4136B5EB9FEFB508FBFB /* NotificationTogglesView.swift in Sources */,
+				PROFILE001122334455667788990ABB /* ProfileViewController.swift in Sources */,
+				PROFILE112233445566778899AABBCC /* ProfileHeaderView.swift in Sources */,
+				PROFILE223344556677889900AABBCC /* ProfileTabNavigationView.swift in Sources */,
+				PROFILE334455667788990AABBCCDDE /* ProfileWorkoutsTabView.swift in Sources */,
+				PROFILE445566778899AABBCCDDEEF /* ProfileAccountTabView.swift in Sources */,
+				PROFILE55667788990AABBCCDDEEFF /* ProfileSyncSourcesView.swift in Sources */,
+				PROFILE6677889900AABBCCDDEEFF0 /* ProfileWorkoutHistoryView.swift in Sources */,
+				PROFILE77889900AABBCCDDEEFF001 /* ProfileSubscriptionView.swift in Sources */,
+				PROFILE8899AABBCCDDEEFF0011223 /* ProfileSupportView.swift in Sources */,
+				PROFILE99AABBCCDDEEFF00112233 /* EditProfileViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,5 +1,30 @@
 import UIKit
 
+// MARK: - Streak Data Models (for streak events only)
+
+struct StreakData {
+    let type: StreakType
+    let value: Int
+    let label: String
+    let emoji: String
+}
+
+enum StreakType {
+    case daily
+    case weekly
+    case total
+    case rank
+    
+    var title: String {
+        switch self {
+        case .daily: return "Daily Streak"
+        case .weekly: return "Weekly Goals"
+        case .total: return "Total Activities"
+        case .rank: return "League Rank"
+        }
+    }
+}
+
 protocol StreakCardViewDelegate: AnyObject {
     func didTapStreakCard(_ type: StreakType)
 }

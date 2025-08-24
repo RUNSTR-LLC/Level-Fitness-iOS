@@ -758,7 +758,7 @@ class SubscriptionService: NSObject, ObservableObject {
         guard let userId = AuthenticationService.shared.currentUserId else { return false }
         
         do {
-            let teamCount = try await SupabaseService.shared.getCaptainTeamCount(captainId: userId)
+            let teamCount = try await TeamDataService.shared.getCaptainTeamCount(captainId: userId)
             return teamCount > 0
         } catch {
             print("SubscriptionService: Failed to check existing teams: \(error)")
@@ -847,7 +847,7 @@ class SubscriptionService: NSObject, ObservableObject {
         
         // Store in Supabase
         do {
-            try await SupabaseService.shared.storeSubscriptionData(subscriptionData)
+            try await TransactionDataService.shared.storeSubscriptionData(subscriptionData)
             print("SubscriptionService: Successfully stored subscription in database for user \(userId)")
         } catch {
             print("SubscriptionService: Failed to store subscription in database: \(error)")
@@ -873,7 +873,7 @@ class SubscriptionService: NSObject, ObservableObject {
         
         // Update user profile with subscription tier
         do {
-            try await SupabaseService.shared.updateUserSubscriptionTier(userId: userId, tier: tier)
+            try await TransactionDataService.shared.updateUserSubscriptionTier(userId: userId, tier: tier)
             print("SubscriptionService: Successfully updated user subscription tier to: \(tier) for user \(userId)")
         } catch {
             print("SubscriptionService: Failed to update user subscription tier: \(error)")
@@ -1082,16 +1082,16 @@ class SubscriptionService: NSObject, ObservableObject {
             updatedAt: Date()
         )
         
-        try await SupabaseService.shared.createTeamSubscription(subscription)
+        try await TransactionDataService.shared.createTeamSubscription(subscription)
         print("SubscriptionService: Successfully stored team subscription in database")
     }
     
     private func fetchTeamSubscriptionFromSupabase(userId: String, transactionId: String) async throws -> DatabaseTeamSubscription? {
-        return try await SupabaseService.shared.fetchTeamSubscription(userId: userId, transactionId: transactionId)
+        return try await TransactionDataService.shared.fetchTeamSubscription(userId: userId, transactionId: transactionId)
     }
     
     private func updateTeamSubscriptionStatus(userId: String, transactionId: String, status: String, expirationDate: Date?) async throws {
-        try await SupabaseService.shared.updateTeamSubscriptionStatus(
+        try await TransactionDataService.shared.updateTeamSubscriptionStatus(
             userId: userId,
             transactionId: transactionId,
             status: status,

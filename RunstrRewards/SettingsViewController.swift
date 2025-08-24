@@ -1,6 +1,11 @@
 import UIKit
 import StoreKit
 
+// MARK: - DEPRECATED
+// This controller has been replaced by ProfileViewController with integrated account and support sections.
+// Kept for reference and potential rollback. All settings functionality is now in ProfileViewController -> Account tab.
+
+@available(*, deprecated, message: "Use ProfileViewController instead. This controller is kept for reference only.")
 class SettingsViewController: UIViewController {
     
     // MARK: - UI Components
@@ -353,14 +358,14 @@ class SettingsViewController: UIViewController {
         
         do {
             // First get the user's teams 
-            let userTeams = try await SupabaseService.shared.fetchUserTeams(userId: userSession.id)
+            let userTeams = try await TeamDataService.shared.fetchUserTeams(userId: userSession.id)
             print("⚙️ Settings: User is member of \(userTeams.count) teams")
             
             // Now check which teams user is captain of
             var captainedTeams: [String] = []
             
             for team in userTeams {
-                let members = try await SupabaseService.shared.fetchTeamMembers(teamId: team.id)
+                let members = try await TeamDataService.shared.fetchTeamMembers(teamId: team.id)
                 let isCaptain = members.contains { $0.profile.id == userSession.id && $0.role == "captain" }
                 
                 if isCaptain {

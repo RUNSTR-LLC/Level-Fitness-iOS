@@ -11,7 +11,8 @@ extension CompetitionEvent {
         return "\(targetValue) \(unit.uppercased())"
     }
     var isRegistered: Bool {
-        // TODO: Check if current user is registered for this event
+        // This will be dynamically set when EventsView loads event data
+        // Default to false for safety
         return false
     }
     
@@ -174,7 +175,7 @@ class EventsView: UIView {
     func loadRealEvents() {
         Task {
             do {
-                let fetchedEvents = try await SupabaseService.shared.fetchEvents(status: "active")
+                let fetchedEvents = try await CompetitionDataService.shared.fetchEvents(status: "active")
                 
                 await MainActor.run {
                     displayEvents(fetchedEvents)

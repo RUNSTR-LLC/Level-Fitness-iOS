@@ -353,12 +353,12 @@ class TeamDetailViewController: UIViewController {
     private func loadRealTeamAboutData() async {
         do {
             // Fetch the full team details from Supabase
-            let teams = try await SupabaseService.shared.fetchTeams()
+            let teams = try await TeamDataService.shared.fetchTeams()
             let currentTeam = teams.first { $0.id == teamData.id }
             
             // Calculate average weekly KM from team workouts
-            // Calculate average weekly km if needed in the future
-            // let avgWeeklyKm = try await calculateAverageWeeklyKm()
+            // Check team wallet status
+            let walletConfigured = await checkTeamWalletStatus()
             
             await MainActor.run {
                 let description = currentTeam?.description
@@ -367,7 +367,7 @@ class TeamDetailViewController: UIViewController {
                 aboutSection.configure(
                     description: description,
                     prizePool: prizePool,
-                    walletConfigured: false // TODO: Check actual wallet status
+                    walletConfigured: walletConfigured
                 )
             }
         } catch {
@@ -383,10 +383,22 @@ class TeamDetailViewController: UIViewController {
         }
     }
     
+    private func checkTeamWalletStatus() async -> Bool {
+        do {
+            // Try to get team wallet balance - if successful, wallet is configured
+            _ = try await TransactionDataService.shared.getTeamWalletBalance(teamId: teamData.id)
+            print("🏗️ RunstrRewards: Team wallet is configured for team \(teamData.id)")
+            return true
+        } catch {
+            print("🏗️ RunstrRewards: Team wallet not configured for team \(teamData.id): \(error)")
+            return false
+        }
+    }
+    
     private func calculateAverageWeeklyKm() async throws -> Double {
         do {
             // Fetch last 4 weeks of team workouts to calculate average
-            let workouts = try await SupabaseService.shared.fetchTeamWorkouts(teamId: teamData.id, period: "monthly")
+            let workouts = try await WorkoutDataService.shared.fetchTeamWorkouts(teamId: teamData.id, period: "monthly")
             
             // Group workouts by week and calculate distances
             let calendar = Calendar.current
@@ -433,7 +445,7 @@ class TeamDetailViewController: UIViewController {
         }
         
         do {
-            let members = try await SupabaseService.shared.fetchTeamMembers(teamId: teamData.id)
+            let members = try await TeamDataService.shared.fetchTeamMembers(teamId: teamData.id)
             print("🏗️ TeamDetailMain: Fetched \(members.count) members for team \(teamData.id)")
             print("🏗️ TeamDetailMain: User ID = \(userSession.id)")
             
@@ -520,7 +532,7 @@ class TeamDetailViewController: UIViewController {
         
         Task {
             do {
-                let members = try await SupabaseService.shared.fetchTeamMembers(teamId: teamData.id)
+                let members = try await TeamDataService.shared.fetchTeamMembers(teamId: teamData.id)
                 
                 await MainActor.run {
                     // Check if current user is team owner/captain
@@ -547,7 +559,7 @@ class TeamDetailViewController: UIViewController {
         
         Task {
             do {
-                let activities = try await SupabaseService.shared.fetchTeamActivity(teamId: teamData.id, limit: 20)
+                let activities = try await TeamDataService.shared.fetchTeamActivity(teamId: teamData.id, limit: 20)
                 
                 await MainActor.run {
                     self.teamActivityView.configure(with: activities)
@@ -880,7 +892,7 @@ extension TeamDetailViewController: TeamDetailHeaderViewDelegate {
                 // Restore Supabase session if we have valid tokens
                 if userSession.accessToken != "temp_token" && userSession.refreshToken != "temp_refresh_token" {
                     do {
-                        try await SupabaseService.shared.restoreSession(accessToken: userSession.accessToken, refreshToken: userSession.refreshToken)
+                        try await AuthDataService.shared.restoreSession(accessToken: userSession.accessToken, refreshToken: userSession.refreshToken)
                         print("🏗️ RUNSTR: Successfully restored Supabase session for team deletion")
                     } catch {
                         print("🏗️ RUNSTR: Failed to restore Supabase session: \(error)")
@@ -889,16 +901,16 @@ extension TeamDetailViewController: TeamDetailHeaderViewDelegate {
                 }
                 
                 // Verify we have a valid Supabase session
-                let currentSupabaseUser = try await SupabaseService.shared.getCurrentUser()
+                let currentSupabaseUser = try await AuthDataService.shared.getCurrentUser()
                 if currentSupabaseUser == nil {
                     throw NSError(domain: "TeamDeletion", code: 1003, userInfo: [NSLocalizedDescriptionKey: "Session expired. Please sign in again to delete teams."])
                 }
                 
                 // Delete team from Supabase
-                try await SupabaseService.shared.deleteTeam(teamId: teamData.id)
+                try await TeamDataService.shared.deleteTeam(teamId: teamData.id)
                 
                 // CRITICAL: Verify the team was actually deleted
-                let verificationResult = try? await SupabaseService.shared.getTeam(teamData.id)
+                let verificationResult = try? await TeamDataService.shared.getTeam(teamData.id)
                 if verificationResult != nil {
                     // Team still exists - deletion failed
                     throw NSError(domain: "TeamDeletion", code: 1005, userInfo: [NSLocalizedDescriptionKey: "Team deletion failed. The team still exists in the database. You may not have permission to delete this team."])
@@ -1098,7 +1110,7 @@ extension TeamDetailViewController: TeamDetailHeaderViewDelegate {
         
         Task {
             do {
-                let members = try await SupabaseService.shared.fetchTeamMembers(teamId: teamData.id)
+                let members = try await TeamDataService.shared.fetchTeamMembers(teamId: teamData.id)
                 
                 await MainActor.run {
                     let alert = UIAlertController(

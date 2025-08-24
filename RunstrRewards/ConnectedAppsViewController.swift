@@ -81,14 +81,9 @@ class ConnectedAppsViewController: UIViewController {
     private func setupConnectedAppsSection() {
         connectedAppsSection.translatesAutoresizingMaskIntoConstraints = false
         
-        // Create app connection views
+        // Simplified app connections - only Apple Health
         let apps = [
-            AppConnectionData(name: "Apple Health", icon: "heart.fill", isConnected: true, description: "Syncing workouts automatically"),
-            AppConnectionData(name: "Strava", icon: "figure.run", isConnected: false, description: "Connect to sync running and cycling data"),
-            AppConnectionData(name: "Garmin Connect", icon: "watch", isConnected: false, description: "Sync from Garmin devices"),
-            AppConnectionData(name: "Fitbit", icon: "figure.walk", isConnected: false, description: "Connect Fitbit tracking data"),
-            AppConnectionData(name: "Google Fit", icon: "figure.strengthtraining.traditional", isConnected: false, description: "Sync Google Fit activities"),
-            AppConnectionData(name: "MyFitnessPal", icon: "fork.knife", isConnected: false, description: "Nutrition and calorie tracking")
+            AppConnectionData(name: "Apple Health", icon: "heart.fill", isConnected: true, description: "Syncing workouts automatically")
         ]
         
         for (index, appData) in apps.enumerated() {
@@ -179,8 +174,8 @@ extension ConnectedAppsViewController: AppConnectionViewDelegate {
         )
         
         alert.addAction(UIAlertAction(title: "Connect", style: .default) { _ in
-            // TODO: Implement actual OAuth flow for each platform
-            self.showAlert(title: "Connection Initiated", message: "\(appData.name) connection will be available in a future update with full OAuth integration.")
+            // Third-party OAuth flows removed from scope
+            self.showAlert(title: "Connection Not Available", message: "Only Apple Health integration is supported in this version.")
         })
         
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
@@ -196,8 +191,8 @@ extension ConnectedAppsViewController: AppConnectionViewDelegate {
         )
         
         alert.addAction(UIAlertAction(title: "Disconnect", style: .destructive) { _ in
-            // TODO: Implement actual disconnection logic
-            self.showAlert(title: "Disconnected", message: "\(appData.name) has been disconnected successfully.")
+            // Third-party disconnection removed from scope
+            self.showAlert(title: "Cannot Disconnect", message: "Apple Health cannot be disconnected from this screen. Manage in iOS Settings.")
         })
         
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))

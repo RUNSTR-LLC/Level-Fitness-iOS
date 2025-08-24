@@ -142,7 +142,7 @@ class AuthenticationService: NSObject {
         if accessToken != "temp_token" && refreshToken != "temp_refresh_token" {
             Task {
                 do {
-                    try await SupabaseService.shared.restoreSession(accessToken: accessToken, refreshToken: refreshToken)
+                    try await AuthDataService.shared.restoreSession(accessToken: accessToken, refreshToken: refreshToken)
                     print("AuthenticationService: Supabase session restored successfully")
                 } catch {
                     print("AuthenticationService: Failed to restore Supabase session: \(error)")
@@ -219,7 +219,7 @@ class AuthenticationService: NSObject {
     func signOut() async {
         do {
             // Sign out from Supabase first
-            try await SupabaseService.shared.signOut()
+            try await AuthDataService.shared.signOut()
             print("AuthenticationService: Successfully signed out from Supabase")
         } catch {
             print("AuthenticationService: Supabase sign out error: \(error)")
@@ -263,7 +263,7 @@ class AuthenticationService: NSObject {
         do {
             // Use profile.username as both username and fullName for now
             // This ensures team members display properly with the name the user provided
-            try await SupabaseService.shared.syncLocalProfileToSupabase(
+            try await AuthDataService.shared.syncLocalProfileToSupabase(
                 userId: currentSession.id,
                 username: profile.username,
                 fullName: profile.username
@@ -293,7 +293,7 @@ class AuthenticationService: NSObject {
         
         do {
             // Sync the local profile data to Supabase
-            try await SupabaseService.shared.syncLocalProfileToSupabase(
+            try await AuthDataService.shared.syncLocalProfileToSupabase(
                 userId: currentSession.id,
                 username: profileData.username,
                 fullName: profileData.username
@@ -478,7 +478,7 @@ extension AuthenticationService: ASAuthorizationControllerDelegate {
                     }
                     
                     // Sign in with Supabase
-                    let supabaseSession = try await SupabaseService.shared.signInWithApple(
+                    let supabaseSession = try await AuthDataService.shared.signInWithApple(
                         idToken: idTokenString,
                         nonce: nonce
                     )
