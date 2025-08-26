@@ -30,7 +30,8 @@ struct CompetitionEvent: Codable {
     let createdAt: Date
     
     enum CodingKeys: String, CodingKey {
-        case id, name, description, type, unit, status, createdAt
+        case id, name, description, type, unit, status
+        case createdAt = "created_at"
         case targetValue = "target_value"
         case entryFee = "entry_fee"
         case prizePool = "prize_pool"
@@ -152,6 +153,49 @@ struct TeamLeaderboardEntry: Codable {
         case totalPoints = "total_points"
         case totalRewards = "total_rewards"
         case rank
+    }
+}
+
+struct TeamLeague: Codable {
+    let id: String
+    let teamId: String
+    let name: String
+    let type: String
+    let startDate: Date
+    let endDate: Date
+    let status: String
+    let payoutPercentages: [Int]
+    let createdBy: String
+    let createdAt: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, type, status
+        case teamId = "team_id"
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case payoutPercentages = "payout_percentages"
+        case createdBy = "created_by"
+        case createdAt = "created_at"
+    }
+    
+    // Helper properties
+    var isActive: Bool {
+        return status == "active"
+    }
+    
+    var isCompleted: Bool {
+        return status == "completed"
+    }
+    
+    var daysRemaining: Int {
+        let calendar = Calendar.current
+        return calendar.dateComponents([.day], from: Date(), to: endDate).day ?? 0
+    }
+    
+    var formattedDateRange: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, yyyy"
+        return "\(formatter.string(from: startDate)) - \(formatter.string(from: endDate))"
     }
 }
 
@@ -842,6 +886,187 @@ class CompetitionDataService {
         print("CompetitionDataService: Prize distribution completed")
     }
     
+    // MARK: - Team League Management
+    
+    func fetchActiveTeamLeague(teamId: String) async throws -> TeamLeague? {
+        do {
+            let response = try await client
+                .from("team_leagues")
+                .select()
+                .eq("team_id", value: teamId)
+                .eq("status", value: "active")
+                .single()
+                .execute()
+            
+            let data = response.data
+            return try SupabaseService.shared.customJSONDecoder().decode(TeamLeague.self, from: data)
+        } catch {
+            // No active league found is not an error
+            return nil
+        }
+    }
+    
+    func createTeamLeague(_ league: TeamLeague) async throws -> TeamLeague {
+        print("CompetitionDataService: Creating team league \(league.name) for team \(league.teamId)")
+        
+        if !NetworkMonitorService.shared.isCurrentlyConnected() {
+            throw AppError.networkUnavailable
+        }
+        
+        do {
+            // Check if team already has an active league
+            if try await fetchActiveTeamLeague(teamId: league.teamId) != nil {
+                throw AppError.dataCorrupted // Team already has an active league
+            }
+            
+            try await client
+                .from("team_leagues")
+                .insert(league)
+                .execute()
+            
+            print("CompetitionDataService: Team league created successfully")
+            return league
+        } catch {
+            ErrorHandlingService.shared.logError(error, context: "createTeamLeague")
+            throw error
+        }
+    }
+    
+    func completeTeamLeague(leagueId: String) async throws {
+        print("CompetitionDataService: Completing team league \(leagueId)")
+        
+        do {
+            try await client
+                .from("team_leagues")
+                .update(["status": "completed", "completed_at": ISO8601DateFormatter().string(from: Date())])
+                .eq("id", value: leagueId)
+                .execute()
+            
+            print("CompetitionDataService: Team league marked as completed")
+        } catch {
+            ErrorHandlingService.shared.logError(error, context: "completeTeamLeague")
+            throw error
+        }
+    }
+    
+    func fetchTeamLeagueHistory(teamId: String, limit: Int = 10) async throws -> [TeamLeague] {
+        do {
+            let response = try await client
+                .from("team_leagues")
+                .select()
+                .eq("team_id", value: teamId)
+                .order("created_at", ascending: false)
+                .limit(limit)
+                .execute()
+            
+            let data = response.data
+            return try SupabaseService.shared.customJSONDecoder().decode([TeamLeague].self, from: data)
+        } catch {
+            ErrorHandlingService.shared.logError(error, context: "fetchTeamLeagueHistory")
+            throw error
+        }
+    }
+    
+    func calculateLeaguePrizeDistribution(leagueId: String, teamWalletBalance: Int) async throws -> [LeaguePrizeDistribution] {
+        print("CompetitionDataService: Calculating league prize distribution for league \(leagueId)")
+        
+        do {
+            // Get the league details
+            guard let league = try await fetchTeamLeague(leagueId: leagueId) else {
+                throw AppError.dataCorrupted // League not found
+            }
+            
+            // Get final team rankings for this league period using existing leaderboard method
+            let teamLeaderboard = try await SupabaseService.shared.fetchTeamLeaderboard(teamId: league.teamId, type: "distance", period: "monthly")
+            
+            // Calculate prize distributions based on league payout structure
+            var distributions: [LeaguePrizeDistribution] = []
+            let payoutPercentages = league.payoutPercentages
+            
+            for (index, member) in teamLeaderboard.enumerated() {
+                // Check if this rank qualifies for a prize
+                guard index < payoutPercentages.count else {
+                    break // No more prizes for lower ranks
+                }
+                
+                // Calculate prize amount (index is 0-based, percentages correspond to ranks)
+                let percentage = payoutPercentages[index]
+                let prizeAmount = Int(Double(teamWalletBalance) * Double(percentage) / 100.0)
+                
+                let distribution = LeaguePrizeDistribution(
+                    userId: member.userId,
+                    leagueId: leagueId,
+                    rank: index + 1, // Convert to 1-based rank
+                    prizeAmount: prizeAmount,
+                    distributedAt: Date()
+                )
+                
+                distributions.append(distribution)
+            }
+            
+            print("CompetitionDataService: Calculated \(distributions.count) prize distributions")
+            return distributions
+            
+        } catch {
+            ErrorHandlingService.shared.logError(error, context: "calculateLeaguePrizeDistribution")
+            throw error
+        }
+    }
+    
+    private func fetchTeamLeague(leagueId: String) async throws -> TeamLeague? {
+        do {
+            let response = try await client
+                .from("team_leagues")
+                .select()
+                .eq("id", value: leagueId)
+                .single()
+                .execute()
+            
+            let data = response.data
+            return try SupabaseService.shared.customJSONDecoder().decode(TeamLeague.self, from: data)
+        } catch {
+            return nil
+        }
+    }
+    
+    func distributeLeaguePrizes(distributions: [LeaguePrizeDistribution], fromTeamWallet teamWalletId: String) async throws {
+        print("CompetitionDataService: Distributing \(distributions.count) league prizes")
+        
+        // TODO: Integrate with LightningWalletManager to transfer from team wallet to user wallets
+        // For now, create transaction records
+        
+        for distribution in distributions {
+            do {
+                let transaction = DatabaseTransaction(
+                    id: UUID().uuidString,
+                    userId: distribution.userId,
+                    walletId: nil,
+                    type: "league_prize",
+                    amount: distribution.prizeAmount,
+                    usdAmount: nil,
+                    description: "Monthly league prize - Rank #\(distribution.rank)",
+                    status: "completed",
+                    transactionHash: nil,
+                    preimage: nil,
+                    processedAt: Date(),
+                    createdAt: Date()
+                )
+                
+                try await client
+                    .from("transactions")
+                    .insert(transaction)
+                    .execute()
+                
+                print("CompetitionDataService: League prize distributed: \(distribution.prizeAmount) sats to user \(distribution.userId)")
+            } catch {
+                ErrorHandlingService.shared.logError(error, context: "distributeLeaguePrize", userId: distribution.userId)
+                continue
+            }
+        }
+        
+        print("CompetitionDataService: League prize distribution completed")
+    }
+    
 }
 
 // MARK: - Models moved to top of file
@@ -873,6 +1098,14 @@ struct CompetitionStats {
 struct EventPrizeDistribution {
     let userId: String
     let eventId: String
+    let rank: Int
+    let prizeAmount: Int
+    let distributedAt: Date
+}
+
+struct LeaguePrizeDistribution {
+    let userId: String
+    let leagueId: String
     let rank: Int
     let prizeAmount: Int
     let distributedAt: Date

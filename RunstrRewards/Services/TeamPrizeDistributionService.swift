@@ -450,6 +450,18 @@ class TeamPrizeDistributionService {
         
         if success {
             print("💰 Payout: Successfully sent ₿\(Int(amount)) to user \(userId)")
+            
+            // Send prize distribution notification to the user
+            Task {
+                await MainActor.run {
+                    NotificationService.shared.schedulePrizeDistributionNotification(
+                        amount: Int(amount),
+                        reason: "league performance",  // This should be passed from context
+                        teamName: "Your Team"          // This should be passed from context
+                    )
+                }
+            }
+            
         } else {
             print("💰 Payout: Failed to send ₿\(Int(amount)) to user \(userId)")
         }
@@ -692,6 +704,13 @@ class TeamPrizeDistributionService {
     private func getUserDisplayName(userId: String) -> String {
         // In a real implementation, this would fetch from user service
         return "User \(userId.prefix(8))"
+    }
+    
+    func getPendingDistributions(teamId: String) async throws -> [PrizeDistribution] {
+        // Return pending distributions for the team
+        return distributions.values.filter { distribution in
+            distribution.teamId == teamId && distribution.status == .pending
+        }
     }
 }
 

@@ -276,6 +276,43 @@ class SupabaseService {
         return try await TransactionDataService.shared.fetchUserTeamSubscriptions(userId: userId)
     }
     
+    // MARK: - Storage Methods (Profile Images)
+    
+    func uploadProfileImage(_ imageData: Data, userId: String, fileName: String) async throws -> String {
+        print("SupabaseService: Uploading profile image for user: \(userId)")
+        
+        let filePath = "profiles/\(userId)/\(fileName)"
+        
+        let file = File(
+            name: fileName,
+            data: imageData,
+            fileName: fileName,
+            contentType: "image/jpeg"
+        )
+        
+        let response = try await client.storage
+            .from("profile-images")
+            .upload(path: filePath, file: imageData)
+        
+        // Get the public URL for the uploaded image
+        let publicURL = try client.storage
+            .from("profile-images")
+            .getPublicURL(path: filePath)
+        
+        print("SupabaseService: Profile image uploaded successfully to: \(publicURL)")
+        return publicURL.absoluteString
+    }
+    
+    func deleteProfileImage(userId: String, fileName: String) async throws {
+        let filePath = "profiles/\(userId)/\(fileName)"
+        
+        try await client.storage
+            .from("profile-images")
+            .remove(paths: [filePath])
+        
+        print("SupabaseService: Deleted profile image: \(filePath)")
+    }
+    
     // MARK: - Enhanced Team Data Methods
     
     func fetchTeamMembers(teamId: String) async throws -> [TeamMemberWithProfile] {
@@ -339,6 +376,76 @@ class SupabaseService {
     func getTeamWalletBalance(teamId: String) async throws -> Int {
         return try await TransactionDataService.shared.getTeamWalletBalance(teamId: teamId)
     }
+    
+    // MARK: - Bulk Query Methods for Payment Coordination
+    
+    func fetchAllActiveUsers() async throws -> [BasicUserInfo] {
+        print("SupabaseService: Fetching all active users for payment coordination")
+        
+        let response = try await client
+            .from("users")
+            .select("id, email, display_name, created_at, last_active_at")
+            .eq("is_active", value: true)
+            .execute()
+        
+        let users = try customJSONDecoder().decode([BasicUserInfo].self, from: response.data)
+        print("SupabaseService: Retrieved \(users.count) active users")
+        return users
+    }
+    
+    func fetchAllTeams() async throws -> [BasicTeamInfo] {
+        print("SupabaseService: Fetching all teams for payment coordination")
+        
+        let response = try await client
+            .from("teams")
+            .select("id, name, captain_id, is_active, created_at, member_count")
+            .eq("is_active", value: true)
+            .execute()
+        
+        let teams = try customJSONDecoder().decode([BasicTeamInfo].self, from: response.data)
+        print("SupabaseService: Retrieved \(teams.count) active teams")
+        return teams
+    }
+    
+    func fetchAllUserTransactions(since: Date) async throws -> [TransactionSummary] {
+        print("SupabaseService: Fetching all user transactions since \(since)")
+        
+        let sinceString = ISO8601DateFormatter().string(from: since)
+        
+        let response = try await client
+            .from("transactions")
+            .select("id, user_id, amount, type, description, created_at")
+            .gte("created_at", value: sinceString)
+            .execute()
+        
+        let transactions = try customJSONDecoder().decode([TransactionSummary].self, from: response.data)
+        print("SupabaseService: Retrieved \(transactions.count) transactions since \(since)")
+        return transactions
+    }
+    
+    func getPaymentCoordinationSummary() async throws -> PaymentCoordinationSummary {
+        print("SupabaseService: Generating payment coordination summary")
+        
+        async let users = fetchAllActiveUsers()
+        async let teams = fetchAllTeams()
+        async let recentTransactions = fetchAllUserTransactions(since: Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date())
+        
+        let (userList, teamList, transactionList) = try await (users, teams, recentTransactions)
+        
+        let summary = PaymentCoordinationSummary(
+            totalActiveUsers: userList.count,
+            totalActiveTeams: teamList.count,
+            totalRecentTransactions: transactionList.count,
+            totalTransactionVolume: transactionList.reduce(0) { $0 + abs($1.amount) },
+            generatedAt: Date(),
+            users: userList,
+            teams: teamList,
+            recentTransactions: transactionList
+        )
+        
+        print("SupabaseService: Generated coordination summary - \(summary.totalActiveUsers) users, \(summary.totalActiveTeams) teams")
+        return summary
+    }
 }
 
 // MARK: - Core Data Models
@@ -376,4 +483,69 @@ struct Workout: Codable {
         case endedAt = "ended_at"  // Map to snake_case column name
         case syncedAt = "synced_at"
     }
+}
+
+// MARK: - Payment Coordination Data Models
+
+struct BasicUserInfo: Codable {
+    let id: String
+    let email: String?
+    let displayName: String?
+    let createdAt: Date
+    let lastActiveAt: Date?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case email
+        case displayName = "display_name"
+        case createdAt = "created_at"
+        case lastActiveAt = "last_active_at"
+    }
+}
+
+struct BasicTeamInfo: Codable {
+    let id: String
+    let name: String
+    let captainId: String
+    let isActive: Bool
+    let createdAt: Date
+    let memberCount: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case captainId = "captain_id"
+        case isActive = "is_active"
+        case createdAt = "created_at"
+        case memberCount = "member_count"
+    }
+}
+
+struct TransactionSummary: Codable {
+    let id: String
+    let userId: String
+    let amount: Int
+    let type: String
+    let description: String?
+    let createdAt: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case amount
+        case type
+        case description
+        case createdAt = "created_at"
+    }
+}
+
+struct PaymentCoordinationSummary: Codable {
+    let totalActiveUsers: Int
+    let totalActiveTeams: Int
+    let totalRecentTransactions: Int
+    let totalTransactionVolume: Int
+    let generatedAt: Date
+    let users: [BasicUserInfo]
+    let teams: [BasicTeamInfo]
+    let recentTransactions: [TransactionSummary]
 }

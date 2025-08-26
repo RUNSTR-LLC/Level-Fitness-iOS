@@ -834,7 +834,7 @@ class SettingsViewController: UIViewController {
             <p>When participating in teams:</p>
             <ul>
                 <li>Follow team-specific rules set by team captains</li>
-                <li>Maintain respectful communication in team chats</li>
+                <li>Respect team announcements and participate in team events</li>
                 <li>Report inappropriate behavior to moderators</li>
                 <li>Understand that team data may be visible to other members</li>
             </ul>

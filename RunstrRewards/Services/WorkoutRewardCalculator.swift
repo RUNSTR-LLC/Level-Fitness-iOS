@@ -6,6 +6,7 @@ struct WorkoutReward {
     let reason: String
 }
 
+// DEPRECATED: Individual workout rewards removed - rewards now come from team prize pools only
 class WorkoutRewardCalculator {
     static let shared = WorkoutRewardCalculator()
     
@@ -14,52 +15,13 @@ class WorkoutRewardCalculator {
     // MARK: - Reward Calculation
     
     func calculateReward(for workout: HealthKitWorkout) -> WorkoutReward {
-        var baseSats = 0
-        var reason = ""
-        
-        // Base reward for completing any workout
-        baseSats += 100 // 100 sats base reward
-        reason = "Workout completion"
-        
-        // Distance bonus (10 sats per km for distance-based workouts)
-        if workout.totalDistance > 0 {
-            let distanceKm = workout.totalDistance / 1000.0
-            let distanceBonus = Int(distanceKm * 10)
-            baseSats += distanceBonus
-            reason += " + distance (\(String(format: "%.1f", distanceKm))km)"
-        }
-        
-        // Duration bonus (1 sat per minute over 10 minutes)
-        let durationMinutes = workout.duration / 60.0
-        if durationMinutes > 10 {
-            let durationBonus = Int(durationMinutes - 10)
-            baseSats += durationBonus
-            reason += " + duration (\(Int(durationMinutes))min)"
-        }
-        
-        // Calories bonus (1 sat per 10 calories burned)
-        if workout.totalEnergyBurned > 0 {
-            let caloriesBonus = Int(workout.totalEnergyBurned / 10)
-            baseSats += caloriesBonus
-            reason += " + calories (\(Int(workout.totalEnergyBurned))cal)"
-        }
-        
-        // Workout type multiplier
-        let typeMultiplier = getTypeMultiplier(for: workout.workoutType)
-        baseSats = Int(Double(baseSats) * typeMultiplier)
-        
-        if typeMultiplier > 1.0 {
-            reason += " × \(typeMultiplier) (\(workout.workoutType))"
-        }
-        
-        // Convert sats to approximate USD (using rough conversion rate)
-        // Note: In production, this would use real-time Bitcoin price
-        let usdAmount = Double(baseSats) * 0.0005 // Rough estimate: 1 sat ≈ $0.0005
+        // DEPRECATED: Individual workout rewards removed
+        print("⚠️ DEPRECATED: calculateReward called - individual workout rewards no longer supported")
         
         return WorkoutReward(
-            satsAmount: baseSats,
-            usdAmount: usdAmount,
-            reason: reason
+            satsAmount: 0,
+            usdAmount: 0.0,
+            reason: "Individual workout rewards deprecated - rewards come from team prize pools"
         )
     }
     

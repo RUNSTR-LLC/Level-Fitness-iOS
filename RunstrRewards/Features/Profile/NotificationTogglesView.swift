@@ -10,22 +10,28 @@ class NotificationTogglesView: UIView {
     private var gradientLayer: CAGradientLayer?
     
     // Toggle Views
-    private let competitionToggleView = NotificationToggleItemView(
-        title: "Competition Updates",
-        subtitle: "Leaderboards, results",
-        key: "competition_updates"
+    private let eventToggleView = NotificationToggleItemView(
+        title: "Event Notifications",
+        subtitle: "Competitions, deadlines, results",
+        key: "event_notifications"
+    )
+    
+    private let leagueToggleView = NotificationToggleItemView(
+        title: "League Updates",
+        subtitle: "Rank changes, position moves",
+        key: "league_updates"
+    )
+    
+    private let announcementToggleView = NotificationToggleItemView(
+        title: "Team Announcements",
+        subtitle: "Captain messages, updates",
+        key: "team_announcements"
     )
     
     private let bitcoinToggleView = NotificationToggleItemView(
         title: "Bitcoin Rewards",
-        subtitle: "Earning notifications",
+        subtitle: "Workout earnings, payouts",
         key: "bitcoin_rewards"
-    )
-    
-    private let teamToggleView = NotificationToggleItemView(
-        title: "Team Messages",
-        subtitle: "Chat, challenges",
-        key: "team_messages"
     )
     
     // MARK: - Initialization
@@ -93,19 +99,25 @@ class NotificationTogglesView: UIView {
         boltDecoration.layer.borderColor = UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0).cgColor
         
         // Add toggle views to stack
-        togglesStackView.addArrangedSubview(competitionToggleView)
+        togglesStackView.addArrangedSubview(eventToggleView)
         
         // Add separator
         let separator1 = createSeparator()
         togglesStackView.addArrangedSubview(separator1)
         
-        togglesStackView.addArrangedSubview(bitcoinToggleView)
+        togglesStackView.addArrangedSubview(leagueToggleView)
         
         // Add separator
         let separator2 = createSeparator()
         togglesStackView.addArrangedSubview(separator2)
         
-        togglesStackView.addArrangedSubview(teamToggleView)
+        togglesStackView.addArrangedSubview(announcementToggleView)
+        
+        // Add separator
+        let separator3 = createSeparator()
+        togglesStackView.addArrangedSubview(separator3)
+        
+        togglesStackView.addArrangedSubview(bitcoinToggleView)
         
         // Add subviews
         containerView.addSubview(titleLabel)
@@ -144,19 +156,21 @@ class NotificationTogglesView: UIView {
     }
     
     private func loadToggleStates() {
-        // Load states from UserDefaults using existing notification keys
-        competitionToggleView.setToggleState(
-            UserDefaults.standard.bool(forKey: "notification_competition_results") ||
-            UserDefaults.standard.bool(forKey: "notification_leaderboard_updates")
+        // Load states from UserDefaults using keys that match NotificationService
+        eventToggleView.setToggleState(
+            UserDefaults.standard.bool(forKey: "notifications.event_reminders")
+        )
+        
+        leagueToggleView.setToggleState(
+            UserDefaults.standard.bool(forKey: "notifications.leaderboard_changes")
+        )
+        
+        announcementToggleView.setToggleState(
+            UserDefaults.standard.bool(forKey: "notifications.team_announcements")
         )
         
         bitcoinToggleView.setToggleState(
-            UserDefaults.standard.bool(forKey: "notification_bitcoin_rewards")
-        )
-        
-        teamToggleView.setToggleState(
-            UserDefaults.standard.bool(forKey: "notification_team_messages") ||
-            UserDefaults.standard.bool(forKey: "notification_team_challenges")
+            UserDefaults.standard.bool(forKey: "notifications.workout_rewards")
         )
     }
 }
@@ -251,18 +265,35 @@ class NotificationToggleItemView: UIView {
         let isOn = toggleSwitch.isOn
         print("📱 NotificationToggle: \(notificationKey) set to \(isOn)")
         
-        // Update UserDefaults based on the toggle key
+        // Update UserDefaults using keys that match NotificationService.shouldShowNotification()
         switch notificationKey {
-        case "competition_updates":
-            UserDefaults.standard.set(isOn, forKey: "notification_competition_results")
-            UserDefaults.standard.set(isOn, forKey: "notification_leaderboard_updates")
+        case "event_notifications":
+            UserDefaults.standard.set(isOn, forKey: "notifications.event_reminders")
+        case "league_updates":
+            UserDefaults.standard.set(isOn, forKey: "notifications.leaderboard_changes")
+        case "team_announcements":
+            UserDefaults.standard.set(isOn, forKey: "notifications.team_announcements")
         case "bitcoin_rewards":
-            UserDefaults.standard.set(isOn, forKey: "notification_bitcoin_rewards")
-        case "team_messages":
-            UserDefaults.standard.set(isOn, forKey: "notification_team_messages")
-            UserDefaults.standard.set(isOn, forKey: "notification_team_challenges")
+            UserDefaults.standard.set(isOn, forKey: "notifications.workout_rewards")
         default:
             break
+        }
+        
+        // Update NotificationIntelligence preferences if user is logged in
+        if let userId = AuthenticationService.shared.currentUserId {
+            let preferences = NotificationPreferences(
+                workoutRewards: UserDefaults.standard.bool(forKey: "notifications.workout_rewards"),
+                leaderboardChanges: UserDefaults.standard.bool(forKey: "notifications.leaderboard_changes"),
+                eventReminders: UserDefaults.standard.bool(forKey: "notifications.event_reminders"),
+                challengeInvites: UserDefaults.standard.bool(forKey: "notifications.challenge_invites"),
+                streakReminders: UserDefaults.standard.bool(forKey: "notifications.streak_reminders"),
+                weeklySummaries: UserDefaults.standard.bool(forKey: "notifications.weekly_summaries"),
+                teamActivity: UserDefaults.standard.bool(forKey: "notifications.team_announcements"),
+                achievements: UserDefaults.standard.bool(forKey: "notifications.achievements")
+            )
+            
+            NotificationIntelligence.shared.updateUserPreferences(userId: userId, preferences: preferences)
+            print("📱 NotificationToggle: Updated NotificationIntelligence preferences for user \(userId)")
         }
         
         // Haptic feedback

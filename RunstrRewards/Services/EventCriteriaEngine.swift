@@ -186,15 +186,30 @@ class EventCriteriaEngine {
     
     func evaluateWorkout(_ workout: HealthKitWorkout, userId: String) async -> [EventMatch] {
         var matches: [EventMatch] = []
+        let now = Date()
+        
+        print("🎯 EventCriteriaEngine: Evaluating workout against \(activeCriteria.count) active criteria")
         
         for criteria in activeCriteria {
+            print("🎯 Checking event: '\(criteria.name)' (Active: \(criteria.isActive), Auto-entry: \(criteria.autoEntry))")
+            
             // Check if event is currently active
-            let now = Date()
-            guard criteria.isActive && 
-                  now >= criteria.startDate && 
-                  now <= criteria.endDate else {
+            guard criteria.isActive else {
+                print("🎯 Event '\(criteria.name)' is not active - skipping")
                 continue
             }
+            
+            guard now >= criteria.startDate else {
+                print("🎯 Event '\(criteria.name)' hasn't started yet - skipping")
+                continue
+            }
+            
+            guard now <= criteria.endDate else {
+                print("🎯 Event '\(criteria.name)' has ended - skipping")
+                continue
+            }
+            
+            print("🎯 Event '\(criteria.name)' is active and within time window - evaluating")
             
             let match = evaluateWorkoutAgainstCriteria(workout, criteria: criteria)
             
@@ -278,7 +293,7 @@ class EventCriteriaEngine {
     // MARK: - Individual Rule Evaluators
     
     private func evaluateDistanceRule(_ rule: CriteriaRule, workout: HealthKitWorkout) -> (passes: Bool, progress: Double, reason: String) {
-        let workoutDistance = workout.totalDistance // meters
+        let workoutDistance = workout.totalDistance ?? 0.0 // meters
         var targetDistance = rule.value
         
         // Convert units if necessary
@@ -295,7 +310,17 @@ class EventCriteriaEngine {
         
         let passes = compareValues(workoutDistance, targetDistance, rule.comparisonOperator)
         let progress = min(workoutDistance / targetDistance, 1.0)
-        let reason = passes ? "" : "Distance \(workoutDistance/1000)km < required \(targetDistance/1000)km"
+        
+        let reason: String
+        if passes {
+            reason = ""
+        } else {
+            let workoutKm = String(format: "%.1f", workoutDistance/1000)
+            let targetKm = String(format: "%.1f", targetDistance/1000)
+            reason = "Distance \(workoutKm)km < required \(targetKm)km"
+        }
+        
+        print("🎯 EventCriteriaEngine: Distance rule - Workout: \(String(format: "%.1f", workoutDistance/1000))km, Target: \(String(format: "%.1f", targetDistance/1000))km, Passes: \(passes)")
         
         return (passes: passes, progress: progress, reason: reason)
     }
@@ -324,12 +349,12 @@ class EventCriteriaEngine {
     }
     
     private func evaluatePaceRule(_ rule: CriteriaRule, workout: HealthKitWorkout) -> (passes: Bool, progress: Double, reason: String) {
-        guard workout.totalDistance > 0 && workout.duration > 0 else {
+        guard (workout.totalDistance ?? 0.0) > 0 && workout.duration > 0 else {
             return (passes: false, progress: 0, reason: "Insufficient data for pace calculation")
         }
         
         // Calculate pace in minutes per kilometer
-        let paceMinutesPerKm = (workout.duration / 60) / (workout.totalDistance / 1000)
+        let paceMinutesPerKm = (workout.duration / 60) / ((workout.totalDistance ?? 0.0) / 1000)
         let targetPace = rule.value
         
         let passes = compareValues(paceMinutesPerKm, targetPace, rule.comparisonOperator)
@@ -340,7 +365,7 @@ class EventCriteriaEngine {
     }
     
     private func evaluateCaloriesRule(_ rule: CriteriaRule, workout: HealthKitWorkout) -> (passes: Bool, progress: Double, reason: String) {
-        let workoutCalories = workout.totalEnergyBurned
+        let workoutCalories = workout.totalEnergyBurned ?? 0.0
         let targetCalories = rule.value
         
         let passes = compareValues(workoutCalories, targetCalories, rule.comparisonOperator)
@@ -355,9 +380,35 @@ class EventCriteriaEngine {
             return (passes: true, progress: 1.0, reason: "")
         }
         
-        let passes = allowedTypes.contains(workout.workoutType.lowercased())
+        // Check for exact match or compatible workout types
+        let workoutTypeLower = workout.workoutType.lowercased()
+        let passes = allowedTypes.contains { allowedType in
+            let allowedLower = allowedType.lowercased()
+            
+            // Direct match
+            if workoutTypeLower == allowedLower {
+                return true
+            }
+            
+            // Handle similar workout types
+            switch (workoutTypeLower, allowedLower) {
+            case ("running", "run"), ("run", "running"):
+                return true
+            case ("cycling", "bike"), ("bike", "cycling"), ("biking", "cycling"):
+                return true
+            case ("walking", "walk"), ("walk", "walking"):
+                return true
+            case ("strength training", "strength"), ("strength", "strength training"):
+                return true
+            default:
+                return false
+            }
+        }
+        
         let progress = passes ? 1.0 : 0.0
-        let reason = passes ? "" : "Workout type '\(workout.workoutType)' not in allowed types: \(allowedTypes.joined(separator: ", "))"
+        let reason = passes ? "" : "Workout type '\(workout.workoutType)' not compatible with allowed types: \(allowedTypes.joined(separator: ", "))"
+        
+        print("🎯 EventCriteriaEngine: Workout type rule - Type: '\(workout.workoutType)', Allowed: \(allowedTypes), Passes: \(passes)")
         
         return (passes: passes, progress: progress, reason: reason)
     }
@@ -366,11 +417,26 @@ class EventCriteriaEngine {
         let workoutTime = workout.startDate.timeIntervalSince1970
         let windowStart = rule.value
         
-        // For time windows, we need the end time from the criteria
-        // For now, assume it's a current event if workout is recent
-        let passes = workoutTime >= windowStart
+        // Get current time for validation
+        let now = Date().timeIntervalSince1970
+        
+        // Check if workout occurred after event start and before now
+        let passes = workoutTime >= windowStart && workoutTime <= now
         let progress = passes ? 1.0 : 0.0
-        let reason = passes ? "" : "Workout outside event time window"
+        
+        let reason: String
+        if passes {
+            reason = ""
+        } else if workoutTime < windowStart {
+            reason = "Workout occurred before event started"
+        } else {
+            reason = "Workout timestamp invalid"
+        }
+        
+        let workoutDate = Date(timeIntervalSince1970: workoutTime).formatted(.dateTime.month(.abbreviated).day().hour().minute())
+        let startDate = Date(timeIntervalSince1970: windowStart).formatted(.dateTime.month(.abbreviated).day().hour().minute())
+        
+        print("🎯 EventCriteriaEngine: Time window rule - Workout: \(workoutDate), Event start: \(startDate), Passes: \(passes)")
         
         return (passes: passes, progress: progress, reason: reason)
     }
@@ -402,25 +468,60 @@ class EventCriteriaEngine {
         do {
             try await supabaseService.joinEvent(eventId: eventId, userId: userId)
             
-            // Send notification about auto-entry
-            await MainActor.run {
-                notificationService.scheduleWorkoutRewardNotification(
-                    amount: 100, // Base reward for event entry
-                    workoutType: "Event Auto-Entry: \(workout.workoutType)"
-                )
+            print("🎯 EventCriteriaEngine: ✅ Auto-entered user \(userId) in event \(eventId)")
+            
+            // Get event details for enhanced notification
+            let events = try await supabaseService.fetchEvents(status: "active")
+            if let event = events.first(where: { $0.id == eventId }) {
+                await MainActor.run {
+                    notificationService.scheduleEventCompletionNotification(
+                        eventName: event.name,
+                        achievement: "Qualified!"
+                    )
+                }
+                
+                print("🎯 EventCriteriaEngine: Sent event completion notification for \(event.name)")
             }
             
-            print("EventCriteriaEngine: Auto-entered user \(userId) in event \(eventId)")
-            
         } catch {
-            print("EventCriteriaEngine: Failed to auto-enter user in event: \(error)")
+            print("❌ EventCriteriaEngine: Failed to auto-enter user in event: \(error)")
         }
     }
     
     private func updateEventProgress(userId: String, eventId: String, progress: Double) async {
-        // Update participant progress in database
-        // This would require extending SupabaseService with progress update method
-        print("EventCriteriaEngine: Would update progress for user \(userId) in event \(eventId): \(progress)")
+        // Update participant progress (placeholder for future database implementation)
+        let progressPercent = Int(progress * 100)
+        
+        print("🎯 EventCriteriaEngine: Progress for user \(userId) in event \(eventId): \(progressPercent)%")
+        
+        // Send progress notification if significant milestone
+        if progressPercent >= 25 && progressPercent % 25 == 0 {
+            await sendProgressNotification(userId: userId, eventId: eventId, progress: progressPercent)
+        }
+    }
+    
+    private func sendProgressNotification(userId: String, eventId: String, progress: Int) async {
+        do {
+            // Get event details for notification
+            let events = try await supabaseService.fetchEvents(status: "active")
+            guard let event = events.first(where: { $0.id == eventId }) else {
+                print("❌ EventCriteriaEngine: Event not found for progress notification")
+                return
+            }
+            
+            await MainActor.run {
+                notificationService.scheduleEventProgressNotification(
+                    eventName: event.name,
+                    progress: progress,
+                    targetDescription: "completion"
+                )
+            }
+            
+            print("🎯 EventCriteriaEngine: Sent progress notification for \(progress)% completion in \(event.name)")
+            
+        } catch {
+            print("❌ EventCriteriaEngine: Failed to send progress notification: \(error)")
+        }
     }
     
     // MARK: - Public Interface
@@ -434,19 +535,29 @@ class EventCriteriaEngine {
     }
     
     func processWorkoutForEvents(_ workout: HealthKitWorkout, userId: String) async {
+        print("🎯 EventCriteriaEngine: Processing workout against \(activeCriteria.count) active events")
+        print("🎯 Workout details: Type=\(workout.workoutType), Distance=\(String(format: "%.1f", (workout.totalDistance ?? 0)/1000))km, Duration=\(Int(workout.duration/60))min")
+        
         let matches = await evaluateWorkout(workout, userId: userId)
+        
+        print("🎯 EventCriteriaEngine: Found \(matches.count) event matches")
         
         for match in matches {
             switch match.qualification {
             case .qualified:
-                print("EventCriteriaEngine: ✅ User qualified for event: \(match.criteria.name)")
+                print("🎯 EventCriteriaEngine: ✅ User qualified for event: \(match.criteria.name)")
+                print("🎯 Matched rules: \(match.matchedRules.count)/\(match.criteria.rules.count)")
                 
             case .inProgress(let progress):
-                print("EventCriteriaEngine: 🔄 User progress in event \(match.criteria.name): \(Int(progress * 100))%")
+                print("🎯 EventCriteriaEngine: 🔄 User progress in event \(match.criteria.name): \(Int(progress * 100))%")
                 
             case .notQualified(let reason):
-                print("EventCriteriaEngine: ❌ User not qualified for event \(match.criteria.name): \(reason)")
+                print("🎯 EventCriteriaEngine: ❌ User not qualified for event \(match.criteria.name): \(reason)")
             }
+        }
+        
+        if matches.isEmpty {
+            print("🎯 EventCriteriaEngine: No matching events found for this workout")
         }
     }
 }

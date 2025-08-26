@@ -16,10 +16,12 @@ class WorkoutDataService {
     // MARK: - Workout Sync Operations
     
     func syncWorkout(_ workout: Workout) async throws {
+        print("🔄 WorkoutDataService: Starting sync for workout \(workout.id) - \(workout.type)")
+        
         // If offline, queue the workout sync
         if !NetworkMonitorService.shared.isCurrentlyConnected() {
             OfflineDataService.shared.queueWorkoutSync(workout)
-            print("🏃‍♂️ WorkoutDataService: Queued workout sync (offline): \(workout.id)")
+            print("📴 WorkoutDataService: Queued workout sync (offline): \(workout.id)")
             return
         }
         
@@ -36,7 +38,7 @@ class WorkoutDataService {
                     .from("workouts")
                     .insert(workout)
                     .execute()
-                print("🏃‍♂️ WorkoutDataService: New workout synced: \(workout.id)")
+                print("✅ WorkoutDataService: New workout synced: \(workout.id) - \(workout.type)")
             } else {
                 // Update existing workout
                 try await client
@@ -44,7 +46,7 @@ class WorkoutDataService {
                     .update(workout)
                     .eq("id", value: workout.id)
                     .execute()
-                print("🏃‍♂️ WorkoutDataService: Existing workout updated: \(workout.id)")
+                print("🔄 WorkoutDataService: Existing workout updated: \(workout.id) - \(workout.type)")
             }
         } catch {
             ErrorHandlingService.shared.logError(error, context: "syncWorkout", userId: workout.userId)
@@ -137,7 +139,7 @@ class WorkoutDataService {
         let response = try await client
             .from("workouts")
             .select()
-            .in("user_id", value: memberIds)
+            .in("user_id", values: memberIds)
             .gte("started_at", value: ISO8601DateFormatter().string(from: startDate))
             .lte("started_at", value: ISO8601DateFormatter().string(from: endDate))
             .order("started_at", ascending: false)
@@ -276,23 +278,22 @@ class WorkoutDataService {
             return
         }
         
-        // Calculate rewards
-        let reward = WorkoutRewardCalculator.shared.calculateReward(for: healthKitWorkout)
-        
         // Store the processed workout
         try await syncWorkout(workout)
         
-        // Create reward transaction if rewards were earned
-        if reward.satsAmount > 0 {
-            try await createRewardTransaction(
-                userId: workout.userId,
-                workoutId: workout.id,
-                satsAmount: reward.satsAmount,
-                description: reward.reason
-            )
-        }
+        // Send workout completion notification (achievement only, no Bitcoin reward)
+        await sendWorkoutCompletionNotification(
+            userId: workout.userId,
+            workoutType: workout.type
+        )
         
-        print("🏃‍♂️ WorkoutDataService: Workout processed for rewards: \(workout.id), earned \(reward.satsAmount) sats")
+        // Process workout against active events and challenges
+        await processWorkoutForEvents(healthKitWorkout, userId: workout.userId)
+        
+        // Update team leaderboards immediately after successful sync
+        await updateTeamLeaderboards(userId: workout.userId, workout: workout)
+        
+        print("🏆 WorkoutDataService: Workout processed for team participation: \(workout.id)")
     }
     
     // MARK: - Helper Methods
@@ -301,40 +302,61 @@ class WorkoutDataService {
         // Convert Supabase Workout to HealthKitWorkout for reward calculation
         return HealthKitWorkout(
             id: workout.id,
-            workoutType: workout.type,
+            activityType: .other, // Default activity type - would need proper mapping
             startDate: workout.startedAt,
             endDate: workout.endedAt ?? Date(),
             duration: TimeInterval(workout.duration),
             totalDistance: Double(workout.distance ?? 0),
             totalEnergyBurned: Double(workout.calories ?? 0),
-            source: workout.source,
+            syncSource: .healthKit, // Default - would need proper mapping
             metadata: [:]
         )
     }
     
-    private func createRewardTransaction(userId: String, workoutId: String, satsAmount: Int, description: String) async throws {
-        // Create a transaction record for the workout reward
-        let transaction = DatabaseTransaction(
-            id: UUID().uuidString,
-            userId: userId,
-            walletId: nil, // Will be linked to user's wallet
-            type: "workout_reward",
-            amount: satsAmount,
-            usdAmount: nil, // Will be calculated later
-            description: description,
-            status: "completed",
-            transactionHash: nil,
-            preimage: nil,
-            processedAt: Date(),
-            createdAt: Date()
-        )
-        
-        try await client
-            .from("transactions")
-            .insert(transaction)
-            .execute()
-        
-        print("💰 WorkoutDataService: Reward transaction created: \(satsAmount) sats for workout \(workoutId)")
+    // Note: Individual workout rewards removed - rewards now come from team prize pools only
+    
+    // MARK: - Team-Branded Notifications
+    
+    private func sendWorkoutCompletionNotification(userId: String, workoutType: String) async {
+        do {
+            // Fetch user's teams to get team branding
+            let teams = try await TeamDataService.shared.fetchUserTeams(userId: userId)
+            
+            if let primaryTeam = teams.first {
+                // Send team-branded achievement notification (no Bitcoin reward)
+                await MainActor.run {
+                    NotificationService.shared.scheduleTeamBrandedNotification(
+                        teamName: primaryTeam.name,
+                        title: "Workout Complete! 🏃‍♂️",
+                        message: "Your \(workoutType.capitalized) workout was synced to Team \(primaryTeam.name)! Contributing to team leaderboards 💪",
+                        identifier: "workout_sync_\(UUID().uuidString)",
+                        type: "workout_completion",
+                        userInfo: [
+                            "workout_type": workoutType,
+                            "team_id": primaryTeam.id,
+                            "user_id": userId
+                        ]
+                    )
+                }
+                print("💪 WorkoutDataService: Team achievement notification sent for \(primaryTeam.name)")
+            } else {
+                // Fallback to generic achievement notification if no team found
+                await MainActor.run {
+                    NotificationService.shared.scheduleWorkoutCompletionNotification(
+                        workoutType: workoutType
+                    )
+                }
+                print("🏃‍♂️ WorkoutDataService: Generic achievement notification sent (no team found)")
+            }
+        } catch {
+            print("❌ WorkoutDataService: Failed to fetch teams for notification: \(error)")
+            // Fallback to generic achievement notification
+            await MainActor.run {
+                NotificationService.shared.scheduleWorkoutCompletionNotification(
+                    workoutType: workoutType
+                )
+            }
+        }
     }
     
     // MARK: - Batch Operations
@@ -351,6 +373,33 @@ class WorkoutDataService {
         }
         
         print("WorkoutDataService: Batch sync completed for \(workouts.count) workouts")
+    }
+    
+    // MARK: - Team Leaderboard Updates
+    
+    private func updateTeamLeaderboards(userId: String, workout: Workout) async {
+        print("🏆 WorkoutDataService: Tracking user positions after workout")
+        
+        // Track all leaderboard positions for user after workout
+        let positionChanges = await LeaderboardTracker.shared.trackUserPositions(userId: userId)
+        
+        print("🏆 WorkoutDataService: Found \(positionChanges.count) leaderboard position changes")
+        
+        // Process any position change notifications
+        if !positionChanges.isEmpty {
+            await LeaderboardTracker.shared.processPositionChanges(positionChanges)
+        }
+    }
+    
+    // MARK: - Event Processing
+    
+    private func processWorkoutForEvents(_ workout: HealthKitWorkout, userId: String) async {
+        print("🎯 WorkoutDataService: Processing workout for events and challenges")
+        
+        // Use EventCriteriaEngine to check workout against all active events
+        await EventCriteriaEngine.shared.processWorkoutForEvents(workout, userId: userId)
+        
+        print("🎯 WorkoutDataService: Event processing completed for workout \(workout.id)")
     }
     
 }

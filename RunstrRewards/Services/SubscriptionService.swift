@@ -6,6 +6,11 @@ import UIKit
 class SubscriptionService: NSObject, ObservableObject {
     static let shared = SubscriptionService()
     
+    // MARK: - Development Mode Flag
+    // Set this to true to bypass subscription checks for testing
+    // WARNING: Set to false for production builds!
+    static let DEVELOPMENT_MODE = true
+    
     // Product IDs (must match App Store Connect)
     enum ProductID {
         static let captainSubscription = "com.runstrrewards.captain" // $19.99/month captain subscription
@@ -20,7 +25,7 @@ class SubscriptionService: NSObject, ObservableObject {
     
     // Products  
     private var captainProduct: Product? // $29.99/month captain subscription product
-    private var teamProduct: Product? // $3.99/month team subscription product
+    private var teamProduct: Product? // $1.99/month team subscription product
     private var availableProducts: [Product] = []
     
     // Transaction listener
@@ -439,6 +444,14 @@ class SubscriptionService: NSObject, ObservableObject {
     }
     
     func checkSubscriptionStatus() async -> SubscriptionStatus {
+        // Development mode bypass - always return captain status for testing
+        if SubscriptionService.DEVELOPMENT_MODE {
+            print("SubscriptionService: DEVELOPMENT MODE - Returning captain status for testing")
+            subscriptionStatus = .captain
+            captainSubscriptionActive = true
+            return .captain
+        }
+        
         print("SubscriptionService: Checking subscription status...")
         
         // Try to update from live data first
@@ -743,11 +756,20 @@ class SubscriptionService: NSObject, ObservableObject {
     // MARK: - Feature Gates
     
     func canCreateTeam() -> Bool {
+        // Development mode bypass
+        if SubscriptionService.DEVELOPMENT_MODE {
+            print("SubscriptionService: DEVELOPMENT MODE - Allowing team creation")
+            return true
+        }
         // Must be a captain and not already have a team
         return captainSubscriptionActive && !hasExistingTeam()
     }
     
     func hasExistingTeam() -> Bool {
+        // Development mode bypass
+        if SubscriptionService.DEVELOPMENT_MODE {
+            return false // Always allow team creation in dev mode
+        }
         // Check if captain already has a team
         // This checks synchronously using cached data
         // For now, return false to allow team creation during development
@@ -755,6 +777,11 @@ class SubscriptionService: NSObject, ObservableObject {
     }
     
     func hasExistingTeamAsync() async throws -> Bool {
+        // Development mode bypass
+        if SubscriptionService.DEVELOPMENT_MODE {
+            return false // Always allow team creation in dev mode
+        }
+        
         guard let userId = AuthenticationService.shared.currentUserId else { return false }
         
         do {
@@ -775,18 +802,30 @@ class SubscriptionService: NSObject, ObservableObject {
     }
     
     func canManageTeam() -> Bool {
+        if SubscriptionService.DEVELOPMENT_MODE {
+            return true
+        }
         return captainSubscriptionActive
     }
     
     func canCreateLeaderboards() -> Bool {
+        if SubscriptionService.DEVELOPMENT_MODE {
+            return true
+        }
         return captainSubscriptionActive
     }
     
     func canCreateEvents() -> Bool {
+        if SubscriptionService.DEVELOPMENT_MODE {
+            return true
+        }
         return captainSubscriptionActive
     }
     
     func canAccessAnalytics() -> Bool {
+        if SubscriptionService.DEVELOPMENT_MODE {
+            return true
+        }
         return captainSubscriptionActive
     }
     
@@ -806,6 +845,9 @@ class SubscriptionService: NSObject, ObservableObject {
     }
     
     func isSubscribedToTeam(_ teamId: String) -> Bool {
+        if SubscriptionService.DEVELOPMENT_MODE {
+            return true // Always subscribed in dev mode
+        }
         return activeTeamSubscriptions.contains { $0.teamId == teamId && $0.isActive }
     }
     
@@ -926,7 +968,6 @@ class SubscriptionService: NSObject, ObservableObject {
         UserDefaults.standard.set(true, forKey: "features.team_subscriptions")
         UserDefaults.standard.set(true, forKey: "features.enhanced_rewards")
         UserDefaults.standard.set(true, forKey: "features.priority_competitions")
-        UserDefaults.standard.set(true, forKey: "features.team_chat")
         UserDefaults.standard.set(true, forKey: "features.team_leaderboards")
         
         NotificationCenter.default.post(name: .subscriptionStatusChanged, object: nil)
@@ -940,7 +981,6 @@ class SubscriptionService: NSObject, ObservableObject {
             UserDefaults.standard.set(false, forKey: "features.team_subscriptions")
             UserDefaults.standard.set(false, forKey: "features.enhanced_rewards")
             UserDefaults.standard.set(false, forKey: "features.priority_competitions")
-            UserDefaults.standard.set(false, forKey: "features.team_chat")
             UserDefaults.standard.set(false, forKey: "features.team_leaderboards")
         }
         

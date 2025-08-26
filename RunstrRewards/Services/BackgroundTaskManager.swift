@@ -226,6 +226,13 @@ class BackgroundTaskManager {
         return elapsed < emergencyThreshold && !isTaskExpiring
     }
     
+    private func shouldUseQuickMode() -> Bool {
+        // Use quick mode when background time is limited
+        guard let startTime = taskStartTime else { return false }
+        let elapsed = Date().timeIntervalSince(startTime)
+        return elapsed > (emergencyThreshold / 2) // Use quick mode after 10 seconds
+    }
+    
     private func saveBackgroundTaskState() {
         // Save current progress for resumption in next background task
         let state = [
@@ -290,7 +297,7 @@ class BackgroundTaskManager {
             }
             
             // Fetch workouts since last sync (reduced limit for background)
-            let limit = shouldContinueOperation() ? 20 : 5 // Smaller batches in background
+            let limit = shouldContinueOperation() ? 10 : 5 // Smaller batches in background for reliability
             let rawWorkouts = try await healthKitService.fetchWorkoutsSince(lastSyncDate, limit: limit)
             print("BackgroundTaskManager: Found \(rawWorkouts.count) raw workouts (limit: \(limit))")
             
@@ -343,19 +350,25 @@ class BackgroundTaskManager {
                     
                     let supabaseWorkout = healthKitService.convertToSupabaseWorkout(workout, userId: userId)
                     
-                    // Try quick sync first, fall back to queue
-                    await WorkoutSyncQueue.shared.quickSync(workout: supabaseWorkout)
-                    queuedCount += 1
-                    
-                    // For background mode, defer complex processing to foreground or next task
-                    if shouldContinueOperation() {
-                        // Only do lightweight processing in background
-                        queueWorkoutForProcessing(supabaseWorkout, userId: userId, teamMultiplier: teamMultiplier)
+                    if shouldUseQuickMode() {
+                        // Quick mode: just queue for later processing
+                        WorkoutSyncQueue.shared.queueWorkout(supabaseWorkout)
+                        print("⚡ BackgroundTaskManager: Quick queued workout \(workout.id)")
                     } else {
-                        // Queue for later processing
-                        queueWorkoutForProcessing(supabaseWorkout, userId: userId, teamMultiplier: teamMultiplier)
-                        break
+                        // Normal mode: try immediate sync
+                        await WorkoutSyncQueue.shared.quickSync(workout: supabaseWorkout)
+                        
+                        // Only do complex processing if we have time
+                        if shouldContinueOperation() {
+                            queueWorkoutForProcessing(supabaseWorkout, userId: userId, teamMultiplier: teamMultiplier)
+                        } else {
+                            // Queue for later processing
+                            queueWorkoutForProcessing(supabaseWorkout, userId: userId, teamMultiplier: teamMultiplier)
+                            break
+                        }
                     }
+                    
+                    queuedCount += 1
                 }
                 
                 print("📋 BackgroundTaskManager: Processed \(queuedCount)/\(workouts.count) workouts in background")

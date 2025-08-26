@@ -430,27 +430,70 @@ class TeamWalletBalanceView: UIView {
     private func loadWalletData() {
         showLoadingState()
         
-        // Load wallet data from TeamPrizeDistributionService
-        if let wallet = distributionService.getTeamWallet(teamId: teamId) {
-            teamWallet = wallet
-            currentBalance = Int(wallet.totalBalance)
+        Task {
+            await loadRealWalletData()
+        }
+    }
+    
+    private func loadRealWalletData() async {
+        guard let userSession = AuthenticationService.shared.loadSession() else {
+            await MainActor.run {
+                showErrorState(error: TeamWalletError.authenticationRequired)
+            }
+            return
+        }
+        
+        do {
+            // Get real team wallet balance using TeamWalletManager
+            let teamWalletManager = TeamWalletManager.shared
+            let balance = try await teamWalletManager.getTeamWalletBalance(teamId: teamId, userId: userSession.id)
             
             // Load pending distributions
-            pendingDistributions = distributionService.getDistributionsForTeam(teamId: teamId)
-                .filter { $0.status == .pending || $0.status == .approved || $0.status == .draft }
+            let distributions = try await distributionService.getPendingDistributions(teamId: teamId)
             
-            // Simulate user role (in real app, get from authentication)
-            userRole = .captain // For demo purposes
-            
-            DispatchQueue.main.async {
-                self.updateBalanceDisplay(wallet: wallet)
-                self.updatePendingDistributions()
-                self.updateButtonVisibility()
-                self.hideLoadingState()
+            await MainActor.run {
+                // Create TeamWalletBalance from real balance
+                let wallet = TeamWalletBalance(
+                    teamId: teamId,
+                    totalBalance: Double(balance.total),
+                    availableBalance: Double(balance.total), // Use total as available for now
+                    pendingDistributions: 0.0,
+                    lastUpdated: Date(),
+                    transactions: []
+                )
+                
+                self.teamWallet = wallet
+                self.currentBalance = balance.total
+                self.pendingDistributions = distributions
+                
+                // Check if user is captain
+                Task {
+                    do {
+                        let isCaptain = try await teamWalletManager.verifyTeamCaptainAccess(teamId: self.teamId, userId: userSession.id)
+                        await MainActor.run {
+                            self.userRole = isCaptain ? .captain : .member
+                            self.updateBalanceDisplay(wallet: wallet)
+                            self.updatePendingDistributions()
+                            self.updateButtonVisibility()
+                            self.hideLoadingState()
+                        }
+                    } catch {
+                        // If captain verification fails, assume member role
+                        await MainActor.run {
+                            self.userRole = .member
+                            self.updateBalanceDisplay(wallet: wallet)
+                            self.updatePendingDistributions()
+                            self.updateButtonVisibility()
+                            self.hideLoadingState()
+                        }
+                    }
+                }
             }
-        } else {
-            DispatchQueue.main.async {
-                self.showErrorState(error: TeamWalletError.teamWalletNotFound)
+            
+        } catch {
+            print("TeamWalletBalanceView: ❌ Error loading wallet data: \(error)")
+            await MainActor.run {
+                self.showErrorState(error: error)
             }
         }
     }

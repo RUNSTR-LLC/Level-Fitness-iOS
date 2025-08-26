@@ -152,7 +152,7 @@ class TeamReviewStepViewController: UIViewController {
             items: [
                 ("Team Name", teamData.teamName.isEmpty ? "Not specified" : teamData.teamName),
                 ("Description", teamData.description.isEmpty ? "None" : teamData.description),
-                ("Monthly Price", "$\(String(format: "%.2f", teamData.subscriptionPrice))")
+                ("Monthly Price", "$1.99")
             ]
         )
         addContentToSection(teamInfoSection, content: teamInfoContent)

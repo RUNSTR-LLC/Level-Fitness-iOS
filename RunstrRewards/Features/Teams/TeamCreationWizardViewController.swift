@@ -42,6 +42,9 @@ class TeamCreationWizardViewController: UIViewController {
         super.viewDidLoad()
         print("🧙‍♂️ TeamCreationWizard: Starting team creation wizard")
         
+        // Configure modal presentation for better text input compatibility
+        configureModalPresentation()
+        
         setupIndustrialBackground()
         setupScrollView()
         setupHeader()
@@ -59,7 +62,43 @@ class TeamCreationWizardViewController: UIViewController {
         print("🧙‍♂️ TeamCreationWizard: Wizard initialized successfully")
     }
     
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        // Ensure proper input session establishment after view is fully presented
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            self.configureWizardInputSessions()
+        }
+        
+        print("🧙‍♂️ TeamCreationWizard: Wizard appeared, configuring input system")
+    }
+    
     // MARK: - Setup Methods
+    
+    private func configureModalPresentation() {
+        // Ensure proper modal presentation configuration for text input compatibility
+        modalPresentationCapturesStatusBarAppearance = true
+        
+        // Configure for full screen to avoid input session conflicts
+        if let navigationController = navigationController {
+            navigationController.modalPresentationStyle = .fullScreen
+            navigationController.modalTransitionStyle = .coverVertical
+        }
+        
+        print("🧙‍♂️ TeamCreationWizard: Modal presentation configured for text input compatibility")
+    }
+    
+    private func configureWizardInputSessions() {
+        print("🧙‍♂️ TeamCreationWizard: Configuring wizard-level input sessions")
+        
+        // Ensure the current step's input sessions are properly configured
+        if currentStepViewController is TeamBasicInfoStepViewController {
+            // The step view controller will handle its own input session configuration
+            print("🧙‍♂️ TeamCreationWizard: Current step is basic info - input sessions will be configured by step")
+        }
+        
+        print("🧙‍♂️ TeamCreationWizard: Wizard input sessions configured")
+    }
     
     private func setupIndustrialBackground() {
         view.backgroundColor = IndustrialDesign.Colors.background
@@ -420,18 +459,24 @@ class TeamCreationWizardViewController: UIViewController {
             do {
                 // Check captain subscription status
                 let subscriptionStatus = await SubscriptionService.shared.checkSubscriptionStatus()
-                guard subscriptionStatus == .captain else {
-                    throw NSError(domain: "TeamCreation", code: 1004, userInfo: [
-                        NSLocalizedDescriptionKey: "Captain subscription required to create teams"
-                    ])
-                }
                 
-                // Check if captain already has a team
-                let hasExistingTeam = try await SubscriptionService.shared.hasExistingTeamAsync()
-                if hasExistingTeam {
-                    throw NSError(domain: "TeamCreation", code: 1005, userInfo: [
-                        NSLocalizedDescriptionKey: "You can only create one team per captain subscription"
-                    ])
+                // Only enforce subscription in production mode
+                if !SubscriptionService.DEVELOPMENT_MODE {
+                    guard subscriptionStatus == .captain else {
+                        throw NSError(domain: "TeamCreation", code: 1004, userInfo: [
+                            NSLocalizedDescriptionKey: "Captain subscription required to create teams"
+                        ])
+                    }
+                    
+                    // Check if captain already has a team
+                    let hasExistingTeam = try await SubscriptionService.shared.hasExistingTeamAsync()
+                    if hasExistingTeam {
+                        throw NSError(domain: "TeamCreation", code: 1005, userInfo: [
+                            NSLocalizedDescriptionKey: "You can only create one team per captain subscription"
+                        ])
+                    }
+                } else {
+                    print("🧙‍♂️ TeamCreationWizard: DEVELOPMENT MODE - Bypassing subscription checks")
                 }
                 
                 // Show loading state
@@ -631,7 +676,7 @@ class TeamCreationData: ObservableObject {
     @Published var teamName: String = ""
     @Published var description: String = ""
     @Published var selectedMetrics: [String] = ["running"] // Pre-select running to ensure UI has content
-    @Published var subscriptionPrice: Double = 3.99
+    @Published var subscriptionPrice: Double = 1.99
     @Published var leaderboardType: TeamLeaderboardType = .distance
     @Published var leaderboardPeriod: LeaderboardPeriod = .weekly
     

@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "post-tool": {
+      "enabled": true,
+      "prompt": "After tool execution, check if this was a debugging or fix operation:\n\n1. Check for fix indicators:\n   - Edit/MultiEdit files after error messages\n   - Bash commands with 'git commit' containing 'Fix:', 'Resolve:', 'BUILD FIX:', or '🐛'\n   - Successful builds after previous failures\n   - Resolution of blank pages, navigation issues, or constraint errors\n\n2. Check conversation for learning patterns:\n   - 'didn't work' followed by 'fixed by' or 'working now'\n   - 'turns out', 'the issue was', 'root cause'\n   - Time indicators: 'spent X hours', 'finally got it'\n\n3. If a lesson is detected:\n   - Use the lessons-learned-tracker agent\n   - Extract problem-solution pair with context\n   - Add to LESSONS_LEARNED.md with current timestamp\n   - Include affected files and time spent if mentioned\n   - Categorize: UI/Layout, Navigation, API, Build, or Architecture\n\n4. Skip if:\n   - Regular feature development without issues\n   - Documentation or comment updates only\n   - Test file changes\n   - No clear problem-solution pattern\n\nBe silent unless capturing a lesson - don't interrupt the user's workflow."
+    }
+  }
+}

@@ -566,25 +566,234 @@ class TeamWalletViewController: UIViewController {
     
     @objc private func sendBitcoinTapped() {
         print("🏗️ TeamWalletViewController: Send Bitcoin tapped")
+        showSendBitcoinInterface()
+    }
+    
+    private func showSendBitcoinInterface() {
+        guard let wallet = teamWallet, wallet.totalBalance > 0 else {
+            showErrorAlert("Insufficient balance to send Bitcoin")
+            return
+        }
         
         let alert = UIAlertController(
             title: "Send Bitcoin",
-            message: "Bitcoin sending functionality will be available soon.",
+            message: "Enter Lightning invoice or Bitcoin address",
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        
+        alert.addTextField { textField in
+            textField.placeholder = "Lightning invoice or Bitcoin address"
+            textField.autocapitalizationType = .none
+            textField.autocorrectionType = .no
+        }
+        
+        alert.addTextField { textField in
+            textField.placeholder = "Amount (sats)"
+            textField.keyboardType = .numberPad
+        }
+        
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        
+        alert.addAction(UIAlertAction(title: "Send", style: .default) { _ in
+            guard let invoiceField = alert.textFields?[0],
+                  let amountField = alert.textFields?[1],
+                  let invoice = invoiceField.text, !invoice.isEmpty,
+                  let amountText = amountField.text, let amount = Int(amountText) else {
+                self.showErrorAlert("Please enter valid invoice and amount")
+                return
+            }
+            
+            if amount > Int(wallet.totalBalance) {
+                self.showErrorAlert("Amount exceeds available balance")
+                return
+            }
+            
+            Task {
+                await self.processBitcoinPayment(invoice: invoice, amount: amount)
+            }
+        })
+        
         present(alert, animated: true)
+    }
+    
+    private func processBitcoinPayment(invoice: String, amount: Int) async {
+        guard let userSession = AuthenticationService.shared.loadSession() else {
+            await MainActor.run {
+                self.showErrorAlert("Authentication required")
+            }
+            return
+        }
+        
+        do {
+            // Load team wallet credentials
+            guard let credentials = teamWalletManager.loadTeamWalletCredentials(teamId: teamData.id) else {
+                await MainActor.run {
+                    self.showErrorAlert("Team wallet not available")
+                }
+                return
+            }
+            
+            await MainActor.run {
+                self.loadingIndicator.startAnimating()
+            }
+            
+            // Authenticate with team wallet
+            let authResponse = try await CoinOSService.shared.loginUser(
+                username: credentials.username,
+                password: credentials.password
+            )
+            CoinOSService.shared.setAuthToken(authResponse.token)
+            
+            // Process payment
+            let paymentResult = try await CoinOSService.shared.payInvoice(invoice)
+            
+            if paymentResult.success {
+                // Record transaction
+                try await TransactionDataService.shared.recordTeamTransaction(
+                    teamId: teamData.id,
+                    userId: userSession.id,
+                    amount: -amount, // Negative for outgoing payment
+                    type: "manual_send",
+                    description: "Manual Bitcoin payment"
+                )
+                
+                await MainActor.run {
+                    self.loadingIndicator.stopAnimating()
+                    self.showSuccessAlert("Bitcoin sent successfully! ⚡")
+                    // Reload wallet data to show updated balance
+                    Task {
+                        await self.loadWalletData()
+                    }
+                }
+            } else {
+                await MainActor.run {
+                    self.loadingIndicator.stopAnimating()
+                    self.showErrorAlert("Payment failed: Unable to process Lightning payment")
+                }
+            }
+            
+        } catch {
+            await MainActor.run {
+                self.loadingIndicator.stopAnimating()
+                self.showErrorAlert("Failed to send Bitcoin: \(error.localizedDescription)")
+            }
+        }
     }
     
     @objc private func receiveBitcoinTapped() {
         print("🏗️ TeamWalletViewController: Receive Bitcoin tapped")
-        
+        showReceiveBitcoinInterface()
+    }
+    
+    private func showReceiveBitcoinInterface() {
         let alert = UIAlertController(
             title: "Receive Bitcoin",
-            message: "Bitcoin receiving functionality will be available soon. Team members can fund the wallet through team subscriptions and event entries.",
+            message: "Enter amount to receive (sats)",
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        
+        alert.addTextField { textField in
+            textField.placeholder = "Amount (sats)"
+            textField.keyboardType = .numberPad
+            textField.text = "10000" // Default amount
+        }
+        
+        alert.addTextField { textField in
+            textField.placeholder = "Memo (optional)"
+            textField.text = "Team wallet funding"
+        }
+        
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        
+        alert.addAction(UIAlertAction(title: "Create Invoice", style: .default) { _ in
+            guard let amountField = alert.textFields?[0],
+                  let memoField = alert.textFields?[1],
+                  let amountText = amountField.text, let amount = Int(amountText) else {
+                self.showErrorAlert("Please enter valid amount")
+                return
+            }
+            
+            let memo = memoField.text ?? "Team wallet funding"
+            
+            Task {
+                await self.createReceiveInvoice(amount: amount, memo: memo)
+            }
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    private func createReceiveInvoice(amount: Int, memo: String) async {
+        do {
+            // Load team wallet credentials
+            guard let credentials = teamWalletManager.loadTeamWalletCredentials(teamId: teamData.id) else {
+                await MainActor.run {
+                    self.showErrorAlert("Team wallet not available")
+                }
+                return
+            }
+            
+            await MainActor.run {
+                self.loadingIndicator.startAnimating()
+            }
+            
+            // Authenticate with team wallet
+            let authResponse = try await CoinOSService.shared.loginUser(
+                username: credentials.username,
+                password: credentials.password
+            )
+            CoinOSService.shared.setAuthToken(authResponse.token)
+            
+            // Create invoice
+            let invoice = try await CoinOSService.shared.addInvoice(amount: amount, memo: memo)
+            
+            await MainActor.run {
+                self.loadingIndicator.stopAnimating()
+                self.showInvoiceDetails(invoice: invoice)
+            }
+            
+        } catch {
+            await MainActor.run {
+                self.loadingIndicator.stopAnimating()
+                self.showErrorAlert("Failed to create invoice: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    private func showInvoiceDetails(invoice: LightningInvoice) {
+        let alert = UIAlertController(
+            title: "Lightning Invoice Created",
+            message: "Invoice for \(invoice.amount) sats has been created. Share this invoice to receive payment.",
+            preferredStyle: .alert
+        )
+        
+        // Add copy invoice action
+        alert.addAction(UIAlertAction(title: "Copy Invoice", style: .default) { _ in
+            UIPasteboard.general.string = invoice.paymentRequest
+            
+            let copyAlert = UIAlertController(
+                title: "Copied!",
+                message: "Invoice copied to clipboard",
+                preferredStyle: .alert
+            )
+            copyAlert.addAction(UIAlertAction(title: "OK", style: .default))
+            self.present(copyAlert, animated: true)
+        })
+        
+        // Add show QR code action (placeholder for now)
+        alert.addAction(UIAlertAction(title: "Show QR Code", style: .default) { _ in
+            // TODO: Implement QR code display
+            let qrAlert = UIAlertController(
+                title: "QR Code",
+                message: "QR code functionality coming soon. For now, use 'Copy Invoice' to share the payment request.",
+                preferredStyle: .alert
+            )
+            qrAlert.addAction(UIAlertAction(title: "OK", style: .default))
+            self.present(qrAlert, animated: true)
+        })
+        
+        alert.addAction(UIAlertAction(title: "Done", style: .cancel))
+        
         present(alert, animated: true)
     }
     
@@ -652,6 +861,16 @@ class TeamWalletViewController: UIViewController {
     private func showErrorAlert(_ message: String) {
         let alert = UIAlertController(
             title: "Error",
+            message: message,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+    
+    private func showSuccessAlert(_ message: String) {
+        let alert = UIAlertController(
+            title: "Success",
             message: message,
             preferredStyle: .alert
         )

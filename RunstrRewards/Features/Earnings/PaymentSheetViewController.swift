@@ -5,7 +5,7 @@ class PaymentSheetViewController: UIViewController {
     
     // MARK: - Properties
     private let teamData: TeamData
-    private let subscriptionPrice: Double = 3.99
+    private let subscriptionPrice: Double = 1.99
     
     // Completion handler
     var onCompletion: ((Bool) -> Void)?
@@ -140,7 +140,7 @@ class PaymentSheetViewController: UIViewController {
             ("checkmark.circle.fill", "Compete in team leaderboards"),
             ("trophy.fill", "Participate in team events"),
             ("bitcoinsign.circle.fill", "Earn Bitcoin rewards"),
-            ("message.fill", "Access team chat"),
+            ("megaphone.fill", "Receive team announcements"),
             ("chart.bar.fill", "Track your progress")
         ]
         

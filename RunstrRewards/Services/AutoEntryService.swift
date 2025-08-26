@@ -195,7 +195,7 @@ class AutoEntryService {
             
             // Check minimum distance
             if let minDistance = criteria.minDistance {
-                if workout.totalDistance < minDistance {
+                if (workout.totalDistance ?? 0.0) < minDistance {
                     meetsAllCriteria = false
                 }
             }
@@ -209,7 +209,7 @@ class AutoEntryService {
             
             // Check minimum calories
             if let minCalories = criteria.minCalories {
-                if workout.totalEnergyBurned < minCalories {
+                if (workout.totalEnergyBurned ?? 0.0) < minCalories {
                     meetsAllCriteria = false
                 }
             }
@@ -338,7 +338,7 @@ extension HealthKitWorkout {
     var isQualifiedFor: (EventQualificationCriteria) -> Bool {
         return { criteria in
             // Check distance requirement
-            if let minDistance = criteria.minDistance, self.totalDistance < minDistance {
+            if let minDistance = criteria.minDistance, (self.totalDistance ?? 0.0) < minDistance {
                 return false
             }
             
@@ -348,7 +348,7 @@ extension HealthKitWorkout {
             }
             
             // Check calories requirement
-            if let minCalories = criteria.minCalories, self.totalEnergyBurned < minCalories {
+            if let minCalories = criteria.minCalories, (self.totalEnergyBurned ?? 0.0) < minCalories {
                 return false
             }
             

@@ -89,13 +89,13 @@ class HealthKitService: @unchecked Sendable {
                 let healthKitWorkouts = workouts.map { workout in
                     HealthKitWorkout(
                         id: workout.uuid.uuidString,
-                        workoutType: self.mapWorkoutType(workout.workoutActivityType),
+                        activityType: workout.workoutActivityType,
                         startDate: workout.startDate,
                         endDate: workout.endDate,
                         duration: workout.duration,
-                        totalDistance: workout.totalDistance?.doubleValue(for: .meter()) ?? 0.0,
-                        totalEnergyBurned: workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()) ?? 0.0,
-                        source: workout.sourceRevision.source.name,
+                        totalDistance: workout.totalDistance?.doubleValue(for: .meter()),
+                        totalEnergyBurned: workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()),
+                        syncSource: .healthKit,
                         metadata: workout.metadata
                     )
                 }
@@ -136,13 +136,13 @@ class HealthKitService: @unchecked Sendable {
                 let healthKitWorkouts = workouts.map { workout in
                     HealthKitWorkout(
                         id: workout.uuid.uuidString,
-                        workoutType: self.mapWorkoutType(workout.workoutActivityType),
+                        activityType: workout.workoutActivityType,
                         startDate: workout.startDate,
                         endDate: workout.endDate,
                         duration: workout.duration,
-                        totalDistance: workout.totalDistance?.doubleValue(for: .meter()) ?? 0.0,
-                        totalEnergyBurned: workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()) ?? 0.0,
-                        source: workout.sourceRevision.source.name,
+                        totalDistance: workout.totalDistance?.doubleValue(for: .meter()),
+                        totalEnergyBurned: workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()),
+                        syncSource: .healthKit,
                         metadata: workout.metadata
                     )
                 }
@@ -224,20 +224,49 @@ class HealthKitService: @unchecked Sendable {
         
         let query = HKObserverQuery(sampleType: workoutType, predicate: nil) { [weak self] query, completionHandler, error in
             if let error = error {
-                print("HealthKitService: Observer query error: \(error)")
+                print("❌ HealthKitService: Observer query error: \(error)")
                 completionHandler()
                 return
             }
             
+            print("🔍 HealthKitService: New workout detected - fetching recent workouts")
+            
             Task {
                 do {
                     let workouts = try await self?.fetchRecentWorkouts(limit: 10) ?? []
-                    await MainActor.run {
-                        handler(workouts)
+                    print("📊 HealthKitService: Found \(workouts.count) recent workouts")
+                    
+                    // Filter for truly new workouts (within last hour)
+                    let newWorkouts = workouts.filter { workout in
+                        let oneHourAgo = Date().addingTimeInterval(-3600)
+                        return workout.startDate >= oneHourAgo
                     }
+                    
+                    print("🆕 HealthKitService: \(newWorkouts.count) workouts are new (within last hour)")
+                    
+                    if !newWorkouts.isEmpty {
+                        await MainActor.run {
+                            handler(newWorkouts)
+                            
+                            // Post notification for each new workout to trigger event/leaderboard updates
+                            for workout in newWorkouts {
+                                NotificationCenter.default.post(
+                                    name: NSNotification.Name("WorkoutAdded"),
+                                    object: nil,
+                                    userInfo: [
+                                        "workout": workout,
+                                        "userId": AuthenticationService.shared.currentUserId ?? ""
+                                    ]
+                                )
+                            }
+                            
+                            print("🔔 HealthKitService: Posted WorkoutAdded notifications for \(newWorkouts.count) workouts")
+                        }
+                    }
+                    
                     completionHandler()
                 } catch {
-                    print("HealthKitService: Failed to fetch workouts in observer: \(error)")
+                    print("❌ HealthKitService: Failed to fetch workouts in observer: \(error)")
                     completionHandler()
                 }
             }
@@ -310,8 +339,8 @@ class HealthKitService: @unchecked Sendable {
             userId: userId,
             type: healthKitWorkout.workoutType,
             duration: Int(healthKitWorkout.duration),
-            distance: healthKitWorkout.totalDistance > 0 ? healthKitWorkout.totalDistance : nil,
-            calories: Int(healthKitWorkout.totalEnergyBurned),
+            distance: (healthKitWorkout.totalDistance ?? 0.0) > 0 ? healthKitWorkout.totalDistance : nil,
+            calories: Int(healthKitWorkout.totalEnergyBurned ?? 0.0),
             heartRate: nil, // Will be calculated from heart rate data if needed
             source: "healthkit",
             startedAt: healthKitWorkout.startDate,
@@ -323,222 +352,102 @@ class HealthKitService: @unchecked Sendable {
     // MARK: - Enhanced Duplicate Detection
     
     func detectDuplicates(in workouts: [HealthKitWorkout]) -> [HealthKitWorkout] {
-        var deduplicatedWorkouts: [HealthKitWorkout] = []
-        var processedWorkouts: [WorkoutFingerprint] = []
-        
-        for workout in workouts {
-            let fingerprint = createWorkoutFingerprint(workout)
-            
-            // Check for duplicates
-            if let existingIndex = findDuplicate(fingerprint, in: processedWorkouts) {
-                let existingFingerprint = processedWorkouts[existingIndex]
-                
-                // Resolve conflict using source priority
-                if shouldReplaceExisting(newFingerprint: fingerprint, existingFingerprint: existingFingerprint) {
-                    // Replace existing workout
-                    processedWorkouts[existingIndex] = fingerprint
-                    if let workoutIndex = deduplicatedWorkouts.firstIndex(where: { $0.id == existingFingerprint.workoutId }) {
-                        deduplicatedWorkouts[workoutIndex] = workout
-                    }
-                    print("HealthKitService: 🔄 Replaced duplicate workout from \(existingFingerprint.source) with \(fingerprint.source)")
-                } else {
-                    print("HealthKitService: ⚠️ Skipped duplicate workout from \(fingerprint.source), keeping \(existingFingerprint.source)")
-                }
-            } else {
-                // No duplicate found, add workout
-                processedWorkouts.append(fingerprint)
-                deduplicatedWorkouts.append(workout)
-            }
-        }
-        
-        let removedCount = workouts.count - deduplicatedWorkouts.count
-        if removedCount > 0 {
-            print("HealthKitService: 🧹 Removed \(removedCount) duplicate workouts")
-        }
-        
-        return deduplicatedWorkouts
-    }
-    
-    private func createWorkoutFingerprint(_ workout: HealthKitWorkout) -> WorkoutFingerprint {
-        let sourcePriority = getSourcePriority(workout.source)
-        
-        return WorkoutFingerprint(
-            workoutId: workout.id,
-            startTime: workout.startDate,
-            duration: workout.duration,
-            distance: workout.totalDistance,
-            calories: workout.totalEnergyBurned,
-            workoutType: workout.workoutType,
-            source: workout.source,
-            sourcePriority: sourcePriority,
-            fingerprint: generateFingerprint(workout)
-        )
-    }
-    
-    private func generateFingerprint(_ workout: HealthKitWorkout) -> String {
-        // Create a unique fingerprint based on key workout characteristics
-        let startTimestamp = Int(workout.startDate.timeIntervalSince1970 / 60) * 60 // Round to nearest minute
-        let duration = Int(workout.duration / 60) * 60 // Round to nearest minute
-        let distance = Int(workout.totalDistance / 100) * 100 // Round to nearest 100m
-        let calories = Int(workout.totalEnergyBurned / 10) * 10 // Round to nearest 10 calories
-        
-        return "\(workout.workoutType)_\(startTimestamp)_\(duration)_\(distance)_\(calories)"
-    }
-    
-    private func getSourcePriority(_ source: String) -> Int {
-        let sourceLower = source.lowercased()
-        
-        // Higher number = higher priority
-        if sourceLower.contains("manual") || sourceLower.contains("user") {
-            return 100 // Manual entries have highest priority
-        } else if sourceLower.contains("apple watch") || sourceLower.contains("watch") {
-            return 90 // Apple Watch has high priority
-        } else if sourceLower.contains("gps") || sourceLower.contains("outdoor") {
-            return 80 // GPS-based workouts
-        } else if sourceLower.contains("strava") {
-            return 70 // Strava
-        } else if sourceLower.contains("garmin") {
-            return 75 // Garmin
-        } else if sourceLower.contains("polar") {
-            return 65 // Polar
-        } else if sourceLower.contains("fitbit") {
-            return 60 // Fitbit
-        } else if sourceLower.contains("indoor") || sourceLower.contains("treadmill") {
-            return 50 // Indoor/estimated workouts
-        } else {
-            return 40 // Unknown sources
-        }
-    }
-    
-    private func findDuplicate(_ fingerprint: WorkoutFingerprint, in existing: [WorkoutFingerprint]) -> Int? {
-        for (index, existingFingerprint) in existing.enumerated() {
-            if isDuplicate(fingerprint, existingFingerprint) {
-                return index
-            }
-        }
-        return nil
-    }
-    
-    private func isDuplicate(_ workout1: WorkoutFingerprint, _ workout2: WorkoutFingerprint) -> Bool {
-        // Check exact fingerprint match first
-        if workout1.fingerprint == workout2.fingerprint {
-            return true
-        }
-        
-        // Check for near-duplicate criteria
-        let timeDifference = abs(workout1.startTime.timeIntervalSince(workout2.startTime))
-        let durationDifference = abs(workout1.duration - workout2.duration)
-        let distanceDifference = abs(workout1.distance - workout2.distance)
-        
-        // Same workout type within time tolerance
-        let sameType = workout1.workoutType == workout2.workoutType
-        let timeWindow = timeDifference <= 300 // 5 minutes
-        let durationSimilar = durationDifference <= 120 // 2 minutes
-        let distanceSimilar = distanceDifference <= 100 // 100 meters
-        
-        return sameType && timeWindow && durationSimilar && distanceSimilar
-    }
-    
-    private func shouldReplaceExisting(newFingerprint: WorkoutFingerprint, existingFingerprint: WorkoutFingerprint) -> Bool {
-        // Replace if new workout has higher source priority
-        if newFingerprint.sourcePriority > existingFingerprint.sourcePriority {
-            return true
-        }
-        
-        // If same priority, prefer more complete data
-        if newFingerprint.sourcePriority == existingFingerprint.sourcePriority {
-            let newCompleteness = calculateDataCompleteness(newFingerprint)
-            let existingCompleteness = calculateDataCompleteness(existingFingerprint)
-            return newCompleteness > existingCompleteness
-        }
-        
-        return false
-    }
-    
-    private func calculateDataCompleteness(_ fingerprint: WorkoutFingerprint) -> Int {
-        var completeness = 0
-        
-        if fingerprint.duration > 0 { completeness += 1 }
-        if fingerprint.distance > 0 { completeness += 1 }
-        if fingerprint.calories > 0 { completeness += 1 }
-        
-        return completeness
+        // Use the centralized deduplication service
+        return WorkoutDeduplicationService.shared.deduplicateWorkouts(workouts)
     }
     
     // MARK: - Cross-Platform Detection
     
     func detectCrossPlatformDuplicates(_ healthKitWorkouts: [HealthKitWorkout], _ existingWorkouts: [Workout]) -> [HealthKitWorkout] {
-        var filteredWorkouts: [HealthKitWorkout] = []
-        
-        for healthKitWorkout in healthKitWorkouts {
-            let healthKitFingerprint = createWorkoutFingerprint(healthKitWorkout)
-            var hasDuplicate = false
-            
-            for existingWorkout in existingWorkouts {
-                let existingFingerprint = createWorkoutFingerprintFromSupabase(existingWorkout)
-                
-                if isDuplicate(healthKitFingerprint, existingFingerprint) {
-                    print("HealthKitService: 🔍 Found cross-platform duplicate: HealthKit vs \(existingWorkout.source)")
-                    
-                    // Only skip if existing workout has higher or equal priority
-                    if healthKitFingerprint.sourcePriority <= existingFingerprint.sourcePriority {
-                        hasDuplicate = true
-                        break
-                    }
-                }
-            }
-            
-            if !hasDuplicate {
-                filteredWorkouts.append(healthKitWorkout)
-            }
-        }
-        
-        let filteredCount = healthKitWorkouts.count - filteredWorkouts.count
-        if filteredCount > 0 {
-            print("HealthKitService: 🌐 Filtered \(filteredCount) cross-platform duplicates")
-        }
-        
-        return filteredWorkouts
-    }
-    
-    private func createWorkoutFingerprintFromSupabase(_ workout: Workout) -> WorkoutFingerprint {
-        let sourcePriority = getSourcePriority(workout.source)
-        
-        return WorkoutFingerprint(
-            workoutId: workout.id,
-            startTime: workout.startedAt,
-            duration: TimeInterval(workout.duration),
-            distance: workout.distance ?? 0,
-            calories: Double(workout.calories ?? 0),
-            workoutType: workout.type,
-            source: workout.source,
-            sourcePriority: sourcePriority,
-            fingerprint: generateFingerprintFromSupabase(workout)
-        )
-    }
-    
-    private func generateFingerprintFromSupabase(_ workout: Workout) -> String {
-        let startTimestamp = Int(workout.startedAt.timeIntervalSince1970 / 60) * 60
-        let duration = (workout.duration / 60) * 60
-        let distance = Int((workout.distance ?? 0) / 100) * 100
-        let calories = ((workout.calories ?? 0) / 10) * 10
-        
-        return "\(workout.type)_\(startTimestamp)_\(duration)_\(distance)_\(calories)"
+        // For now, just return HealthKit workouts as-is since WorkoutDeduplicationService
+        // will handle cross-platform deduplication in a more comprehensive way
+        print("HealthKitService: 🌐 Cross-platform deduplication handled by WorkoutDeduplicationService")
+        return healthKitWorkouts
     }
 }
 
 // MARK: - Data Models
 
+// MARK: - Workout Sync Source
+
+enum WorkoutSyncSource: String, CaseIterable {
+    case healthKit = "healthkit"
+    case garmin = "garmin"
+    case googleFit = "googlefit"
+    case nostr = "nostr"
+    
+    var displayName: String {
+        switch self {
+        case .healthKit: return "HealthKit"
+        case .garmin: return "Garmin"
+        case .googleFit: return "Google Fit"
+        case .nostr: return "Nostr"
+        }
+    }
+    
+    var priority: Int {
+        switch self {
+        case .healthKit: return 3  // Highest priority
+        case .garmin: return 2
+        case .nostr: return 1
+        case .googleFit: return 0  // Lowest priority
+        }
+    }
+}
+
 struct HealthKitWorkout {
     let id: String
-    let workoutType: String
+    let activityType: HKWorkoutActivityType
     let startDate: Date
     let endDate: Date
     let duration: TimeInterval
-    let totalDistance: Double // meters
-    let totalEnergyBurned: Double // kcal
-    let source: String
+    let totalDistance: Double? // meters
+    let totalEnergyBurned: Double? // kcal
+    
+    // Legacy support
+    var workoutType: String {
+        return activityType.displayName
+    }
+    
+    var source: String {
+        return syncSource.rawValue
+    }
+    
+    // Sync source information
+    let syncSource: WorkoutSyncSource
     let metadata: [String: Any]?
+    
+    // Nostr-specific properties
+    let nostrEventId: String?
+    let nostrPubkey: String?
+    let rawNostrContent: [String: Any]?
+    
+    init(id: String,
+         activityType: HKWorkoutActivityType,
+         startDate: Date,
+         endDate: Date,
+         duration: TimeInterval,
+         totalDistance: Double? = nil,
+         totalEnergyBurned: Double? = nil,
+         syncSource: WorkoutSyncSource = .healthKit,
+         metadata: [String: Any]? = nil,
+         nostrEventId: String? = nil,
+         nostrPubkey: String? = nil,
+         rawNostrContent: [String: Any]? = nil) {
+        
+        self.id = id
+        self.activityType = activityType
+        self.startDate = startDate
+        self.endDate = endDate
+        self.duration = duration
+        self.totalDistance = totalDistance
+        self.totalEnergyBurned = totalEnergyBurned
+        self.syncSource = syncSource
+        self.metadata = metadata
+        self.nostrEventId = nostrEventId
+        self.nostrPubkey = nostrPubkey
+        self.rawNostrContent = rawNostrContent
+    }
 }
 
 struct HeartRateData {
@@ -546,16 +455,48 @@ struct HeartRateData {
     let beatsPerMinute: Int
 }
 
-struct WorkoutFingerprint {
-    let workoutId: String
-    let startTime: Date
-    let duration: TimeInterval
-    let distance: Double
-    let calories: Double
-    let workoutType: String
-    let source: String
-    let sourcePriority: Int
-    let fingerprint: String
+
+// MARK: - HKWorkoutActivityType Extension
+
+extension HKWorkoutActivityType {
+    var displayName: String {
+        switch self {
+        case .running:
+            return "Running"
+        case .walking:
+            return "Walking"
+        case .cycling:
+            return "Cycling"
+        case .swimming:
+            return "Swimming"
+        case .hiking:
+            return "Hiking"
+        case .yoga:
+            return "Yoga"
+        case .functionalStrengthTraining:
+            return "Strength Training"
+        case .dance:
+            return "Dance"
+        case .tennis:
+            return "Tennis"
+        case .basketball:
+            return "Basketball"
+        case .soccer:
+            return "Soccer"
+        case .golf:
+            return "Golf"
+        case .rowing:
+            return "Rowing"
+        case .kickboxing:
+            return "Kickboxing"
+        case .crossTraining:
+            return "Cross Training"
+        case .elliptical:
+            return "Elliptical"
+        default:
+            return "Other"
+        }
+    }
 }
 
 // MARK: - Errors

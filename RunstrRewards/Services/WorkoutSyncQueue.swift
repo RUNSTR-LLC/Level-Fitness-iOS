@@ -107,6 +107,18 @@ class WorkoutSyncQueue {
                 
                 print("WorkoutSyncQueue: Synced workout \(queuedWorkout.workout.id)")
                 
+                // Post WorkoutAdded notification for event/leaderboard tracking
+                await MainActor.run {
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("WorkoutAdded"),
+                        object: nil,
+                        userInfo: [
+                            "workout": queuedWorkout.workout,
+                            "userId": queuedWorkout.workout.userId
+                        ]
+                    )
+                }
+                
                 // Add small delay to avoid overwhelming the server
                 try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
                 
@@ -571,6 +583,18 @@ extension WorkoutSyncQueue {
             do {
                 try await supabaseService.syncWorkout(workout)
                 print("WorkoutSyncQueue: Quick sync successful for workout \(workout.id)")
+                
+                // Post WorkoutAdded notification for event/leaderboard tracking
+                await MainActor.run {
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("WorkoutAdded"),
+                        object: nil,
+                        userInfo: [
+                            "workout": workout,
+                            "userId": workout.userId
+                        ]
+                    )
+                }
             } catch {
                 // If quick sync fails, add to queue
                 queueWorkout(workout)
@@ -600,6 +624,18 @@ extension WorkoutSyncQueue {
             do {
                 try await supabaseService.syncWorkout(workout)
                 synced += 1
+                
+                // Post WorkoutAdded notification for event/leaderboard tracking
+                await MainActor.run {
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("WorkoutAdded"),
+                        object: nil,
+                        userInfo: [
+                            "workout": workout,
+                            "userId": workout.userId
+                        ]
+                    )
+                }
                 
                 // Small delay between batch items
                 try await Task.sleep(nanoseconds: 50_000_000) // 0.05 seconds

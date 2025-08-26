@@ -310,7 +310,7 @@ class HelpSupportViewController: UIViewController {
         • Be respectful to all team members
         • No harassment, spam, or inappropriate content
         • Play fair - cheating results in account suspension
-        • Keep team chat relevant to fitness and challenges
+        • Follow team announcements and stay engaged with events
         • Report suspicious activity to moderators
         
         Violations may result in removal from teams or account suspension.

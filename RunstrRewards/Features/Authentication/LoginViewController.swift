@@ -12,6 +12,10 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
     private let logoImageView = UIImageView()
     private let taglineLabel = UILabel()
     private let signInButton = ASAuthorizationAppleIDButton(type: .signIn, style: .white)
+    private let nostrSignInButton = UIButton(type: .custom)
+    private let nsecInputField = UITextField()
+    private var isNostrInputVisible = false
+    private var nostrButtonTopConstraint: NSLayoutConstraint?
     private let loadingDotsContainer = UIView()
     private let termsLabel = UILabel()
     private let backgroundGridLayer = CALayer()
@@ -255,10 +259,54 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
     }
     
     private func setupLoginSection() {
+        // Apple Sign In button
         signInButton.addTarget(self, action: #selector(handleAppleSignIn), for: .touchUpInside)
         signInButton.layer.cornerRadius = 10
         signInButton.alpha = 1  // Show immediately
         view.addSubview(signInButton)
+        
+        // Nostr nsec input field - Hidden by default
+        nsecInputField.placeholder = "Enter your nsec (private key)"
+        nsecInputField.borderStyle = .roundedRect
+        nsecInputField.backgroundColor = UIColor(red: 0.16, green: 0.16, blue: 0.16, alpha: 1.0)
+        nsecInputField.textColor = IndustrialDesign.Colors.primaryText
+        nsecInputField.layer.borderWidth = 1
+        nsecInputField.layer.borderColor = UIColor(red: 0.27, green: 0.27, blue: 0.27, alpha: 1.0).cgColor
+        nsecInputField.layer.cornerRadius = 10
+        nsecInputField.isSecureTextEntry = true
+        nsecInputField.autocapitalizationType = .none
+        nsecInputField.autocorrectionType = .no
+        nsecInputField.alpha = 0  // Hidden by default
+        nsecInputField.isHidden = true
+        nsecInputField.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(nsecInputField)
+        
+        // Nostr Sign In button - White and black like Apple button
+        nostrSignInButton.setTitle("Sign in with Nostr", for: .normal)
+        nostrSignInButton.setTitleColor(.black, for: .normal)
+        nostrSignInButton.backgroundColor = .white
+        nostrSignInButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        nostrSignInButton.layer.cornerRadius = 10
+        nostrSignInButton.layer.borderWidth = 1
+        nostrSignInButton.layer.borderColor = UIColor.lightGray.cgColor
+        nostrSignInButton.addTarget(self, action: #selector(nostrButtonTapped), for: .touchUpInside)
+        nostrSignInButton.alpha = 0  // Hidden temporarily while Nostr feature is being fixed
+        nostrSignInButton.isHidden = true  // Completely hide from users
+        nostrSignInButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(nostrSignInButton)
+        
+        // Add Nostr logo to button
+        let nostrIcon = UIImageView(image: UIImage(systemName: "key.fill"))
+        nostrIcon.tintColor = .black
+        nostrIcon.translatesAutoresizingMaskIntoConstraints = false
+        nostrSignInButton.addSubview(nostrIcon)
+        
+        NSLayoutConstraint.activate([
+            nostrIcon.leadingAnchor.constraint(equalTo: nostrSignInButton.leadingAnchor, constant: 20),
+            nostrIcon.centerYAnchor.constraint(equalTo: nostrSignInButton.centerYAnchor),
+            nostrIcon.widthAnchor.constraint(equalToConstant: 20),
+            nostrIcon.heightAnchor.constraint(equalToConstant: 20)
+        ])
     }
     
     private func setupLoadingDots() {
@@ -299,12 +347,17 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
         logoImageView.translatesAutoresizingMaskIntoConstraints = false
         // taglineLabel removed
         signInButton.translatesAutoresizingMaskIntoConstraints = false
+        nsecInputField.translatesAutoresizingMaskIntoConstraints = false
+        nostrSignInButton.translatesAutoresizingMaskIntoConstraints = false
         loadingDotsContainer.translatesAutoresizingMaskIntoConstraints = false
         termsLabel.translatesAutoresizingMaskIntoConstraints = false
         gear1View.translatesAutoresizingMaskIntoConstraints = false
         gear2View.translatesAutoresizingMaskIntoConstraints = false
         bgGear1View.translatesAutoresizingMaskIntoConstraints = false
         bgGear2View.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Set up the Nostr button constraint
+        nostrButtonTopConstraint = nostrSignInButton.topAnchor.constraint(equalTo: signInButton.bottomAnchor, constant: 12)
         
         NSLayoutConstraint.activate([
             // Logo container
@@ -345,6 +398,17 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
             signInButton.widthAnchor.constraint(equalToConstant: 320),
             signInButton.heightAnchor.constraint(equalToConstant: 50),
             
+            // Nostr sign in button - positioned right after Apple button initially
+            nostrSignInButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            nostrSignInButton.widthAnchor.constraint(equalToConstant: 320),
+            nostrSignInButton.heightAnchor.constraint(equalToConstant: 50),
+            
+            // Nsec input field - positioned between Apple and Nostr buttons when shown
+            nsecInputField.topAnchor.constraint(equalTo: signInButton.bottomAnchor, constant: 20),
+            nsecInputField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            nsecInputField.widthAnchor.constraint(equalToConstant: 320),
+            nsecInputField.heightAnchor.constraint(equalToConstant: 50),
+            
             // Loading dots
             loadingDotsContainer.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             loadingDotsContainer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -60),
@@ -368,6 +432,9 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
             bgGear2View.widthAnchor.constraint(equalToConstant: 150),
             bgGear2View.heightAnchor.constraint(equalToConstant: 150)
         ])
+        
+        // Activate the Nostr button constraint
+        nostrButtonTopConstraint?.isActive = true
     }
     
     override func viewDidLayoutSubviews() {
@@ -507,6 +574,74 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
         }
     }
     
+    @objc private func nostrButtonTapped() {
+        print("LoginViewController: Nostr button tapped")
+        
+        if !isNostrInputVisible {
+            // Show nsec input field
+            showNostrInput()
+        } else {
+            // Input is visible, proceed with sign in
+            handleNostrSignIn()
+        }
+    }
+    
+    @objc private func handleNostrSignIn() {
+        print("LoginViewController: Starting Nostr Sign In")
+        
+        guard let nsec = nsecInputField.text, !nsec.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            showErrorAlert(message: "Please enter your nsec private key")
+            return
+        }
+        
+        showLoadingState(true)
+        
+        // Use NostrAuthenticationService for real authentication
+        NostrAuthenticationService.shared.signInWithNsec(nsec) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.showLoadingState(false)
+                
+                switch result {
+                case .success(let credentials):
+                    print("LoginViewController: Nostr sign in successful - Public Key: \(credentials.npub)")
+                    
+                    // Create a minimal user session for Nostr authentication
+                    self?.createNostrSession()
+                    self?.navigateToMainApp()
+                    
+                case .failure(let error):
+                    print("LoginViewController: Nostr sign in failed - \(error.localizedDescription)")
+                    self?.showErrorAlert(message: error.localizedDescription)
+                }
+            }
+        }
+    }
+    
+    private func createNostrSession() {
+        print("LoginViewController: Creating Nostr session")
+        
+        // Clear any existing Apple user session data to ensure complete separation
+        KeychainService.shared.delete(for: .accessToken)
+        KeychainService.shared.delete(for: .refreshToken)
+        KeychainService.shared.delete(for: .userId)
+        
+        // Clear any existing wallet credentials so Nostr user gets their own wallet
+        KeychainService.shared.delete(for: .coinOSUsername)
+        KeychainService.shared.delete(for: .coinOSPassword)
+        
+        // Clear profile data
+        if let profileData = UserDefaults.standard.data(forKey: "userProfile") {
+            UserDefaults.standard.removeObject(forKey: "userProfile")
+            print("LoginViewController: Cleared existing profile data")
+        }
+        
+        // Set authentication state for Nostr
+        UserDefaults.standard.set(true, forKey: "isAuthenticated")
+        UserDefaults.standard.set("nostr", forKey: "loginMethod")
+        
+        print("LoginViewController: Nostr session created with clean slate")
+    }
+    
     private func navigateToMainApp() {
         // Setup post-authentication services now that user is logged in
         if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
@@ -530,6 +665,35 @@ class LoginViewController: UIViewController, ASAuthorizationControllerDelegate, 
         UIView.animate(withDuration: 0.3) {
             self.signInButton.alpha = loading ? 0.5 : 1.0
             self.signInButton.isEnabled = !loading
+            self.nostrSignInButton.alpha = loading ? 0.5 : 1.0
+            self.nostrSignInButton.isEnabled = !loading
+            if self.isNostrInputVisible {
+                self.nsecInputField.alpha = loading ? 0.5 : 1.0
+                self.nsecInputField.isEnabled = !loading
+            }
+        }
+    }
+    
+    private func showNostrInput() {
+        print("LoginViewController: Showing Nostr input field")
+        isNostrInputVisible = true
+        
+        // Update button title to indicate next step
+        nostrSignInButton.setTitle("Continue with Nostr", for: .normal)
+        
+        // Update the Nostr button position to be below the nsec input field
+        nostrButtonTopConstraint?.isActive = false
+        nostrButtonTopConstraint = nostrSignInButton.topAnchor.constraint(equalTo: nsecInputField.bottomAnchor, constant: 12)
+        nostrButtonTopConstraint?.isActive = true
+        
+        // Animate the nsec input field appearing and button repositioning
+        nsecInputField.isHidden = false
+        UIView.animate(withDuration: 0.3, animations: {
+            self.nsecInputField.alpha = 1.0
+            self.view.layoutIfNeeded() // Animate the button position change
+        }) { _ in
+            // Focus the input field
+            self.nsecInputField.becomeFirstResponder()
         }
     }
     

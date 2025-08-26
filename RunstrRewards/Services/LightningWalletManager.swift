@@ -369,6 +369,91 @@ class LightningWalletManager {
             return .error(error.localizedDescription)
         }
     }
+    
+    // MARK: - Payment Coordination for External Scripts
+    
+    func getUserPaymentInfo(for userId: String) async throws -> UserPaymentInfo {
+        // Ensure user wallet exists and is authenticated
+        try await ensureUserWalletExists()
+        
+        // Get payment coordination info from CoinOS
+        let coinOSInfo = try await coinOSService.getUserPaymentCoordinationInfo(for: userId)
+        
+        // Get team memberships from Supabase
+        let userTeams = try await supabaseService.fetchUserTeams(userId: userId)
+        
+        // Get recent transaction info for context
+        let recentTransactions = try await supabaseService.fetchTransactions(userId: userId, limit: 10)
+        
+        let paymentInfo = UserPaymentInfo(
+            userId: userId,
+            lightningAddress: coinOSInfo.lightningAddress,
+            currentBalance: coinOSInfo.currentBalance,
+            coinOSUsername: coinOSInfo.coinOSUsername,
+            teamMemberships: userTeams.map { TeamMembershipInfo(teamId: $0.id, teamName: $0.name, isActive: true) },
+            recentTransactionCount: recentTransactions.count,
+            lastTransactionDate: recentTransactions.first?.createdAt,
+            lastUpdated: Date()
+        )
+        
+        print("LightningWalletManager: Generated payment info for user \(userId) - Address: \(paymentInfo.lightningAddress)")
+        return paymentInfo
+    }
+    
+    func getAllUsersPaymentInfo() async throws -> [UserPaymentInfo] {
+        print("LightningWalletManager: Generating payment coordination data for all users")
+        
+        // Get all active users from Supabase
+        let allUsers = try await supabaseService.fetchAllActiveUsers()
+        
+        var paymentInfos: [UserPaymentInfo] = []
+        
+        for user in allUsers {
+            do {
+                // Switch context to each user to get their payment info
+                // Note: This is a coordination method - would typically be called from a server context
+                // For now, we'll collect basic info that can be queried per user
+                
+                let basicPaymentInfo = UserPaymentInfo(
+                    userId: user.id,
+                    lightningAddress: "pending", // Would be resolved per-user
+                    currentBalance: 0, // Would be resolved per-user
+                    coinOSUsername: "pending", // Would be resolved per-user
+                    teamMemberships: [],
+                    recentTransactionCount: 0,
+                    lastTransactionDate: nil,
+                    lastUpdated: Date()
+                )
+                
+                paymentInfos.append(basicPaymentInfo)
+                
+            } catch {
+                print("LightningWalletManager: Failed to get payment info for user \(user.id): \(error)")
+                // Continue with other users
+            }
+        }
+        
+        print("LightningWalletManager: Generated payment coordination data for \(paymentInfos.count) users")
+        return paymentInfos
+    }
+    
+    func generatePaymentReport() async throws -> PaymentCoordinationReport {
+        print("LightningWalletManager: Generating payment coordination report")
+        
+        let allUsers = try await supabaseService.fetchAllActiveUsers()
+        let allTeams = try await supabaseService.fetchAllTeams()
+        
+        let report = PaymentCoordinationReport(
+            totalActiveUsers: allUsers.count,
+            totalTeams: allTeams.count,
+            reportGeneratedAt: Date(),
+            userCount: allUsers.count,
+            teamCaptainCount: allTeams.count // Assuming each team has one captain
+        )
+        
+        print("LightningWalletManager: Payment report generated - \(report.totalActiveUsers) users, \(report.totalTeams) teams")
+        return report
+    }
 }
 
 // MARK: - Data Models
@@ -398,6 +483,33 @@ enum WalletStatus {
             return "Error: \(message)"
         }
     }
+}
+
+// MARK: - Payment Coordination Models
+
+struct UserPaymentInfo: Codable {
+    let userId: String
+    let lightningAddress: String
+    let currentBalance: Int
+    let coinOSUsername: String
+    let teamMemberships: [TeamMembershipInfo]
+    let recentTransactionCount: Int
+    let lastTransactionDate: Date?
+    let lastUpdated: Date
+}
+
+struct TeamMembershipInfo: Codable {
+    let teamId: String
+    let teamName: String
+    let isActive: Bool
+}
+
+struct PaymentCoordinationReport: Codable {
+    let totalActiveUsers: Int
+    let totalTeams: Int
+    let reportGeneratedAt: Date
+    let userCount: Int
+    let teamCaptainCount: Int
 }
 
 // MARK: - Notifications

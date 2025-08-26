@@ -4,12 +4,14 @@ enum SyncSourceType {
     case healthKit
     case garmin
     case googleFit
+    case nostr
     
     var displayName: String {
         switch self {
         case .healthKit: return "HealthKit"
         case .garmin: return "Garmin"
         case .googleFit: return "Google Fit"
+        case .nostr: return "Nostr"
         }
     }
     
@@ -18,6 +20,7 @@ enum SyncSourceType {
         case .healthKit: return "heart.fill"
         case .garmin: return "location.fill"
         case .googleFit: return "plus.circle.fill"
+        case .nostr: return "key.fill"
         }
     }
     

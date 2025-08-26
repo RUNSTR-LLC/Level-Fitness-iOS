@@ -22,12 +22,6 @@ class TeamBasicInfoStepViewController: UIViewController {
     private let descriptionError = UILabel()
     private let descriptionCharCount = UILabel()
     
-    // Subscription pricing section
-    private let pricingSection = UIView()
-    private let pricingLabel = UILabel()
-    private let pricingInput = UITextField()
-    private let pricingDescription = UILabel()
-    
     // Team data reference
     private let teamData: TeamCreationData
     
@@ -51,6 +45,17 @@ class TeamBasicInfoStepViewController: UIViewController {
         print("📝 TeamBasicInfo: Step view loaded")
     }
     
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        // Ensure text input sessions are properly established after view hierarchy is complete
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.configureTextInputSessions()
+        }
+        
+        print("📝 TeamBasicInfo: View appeared, configuring input sessions")
+    }
+    
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         print("📝 TeamBasicInfo: Layout completed - view frame: \(view.frame)")
@@ -69,7 +74,7 @@ class TeamBasicInfoStepViewController: UIViewController {
         stepTitleLabel.textColor = IndustrialDesign.Colors.primaryText
         stepTitleLabel.translatesAutoresizingMaskIntoConstraints = false
         
-        stepDescriptionLabel.text = "Give your team a name and description that attracts the right members."
+        stepDescriptionLabel.text = "Give your team a name and description that attracts the right members. All team memberships are $1.99/month."
         stepDescriptionLabel.font = UIFont.systemFont(ofSize: 16)
         stepDescriptionLabel.textColor = IndustrialDesign.Colors.secondaryText
         stepDescriptionLabel.numberOfLines = 0
@@ -81,9 +86,6 @@ class TeamBasicInfoStepViewController: UIViewController {
         // Description section
         setupDescriptionSection()
         
-        // Pricing section
-        setupPricingSection()
-        
         // Add to scroll view
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         contentView.translatesAutoresizingMaskIntoConstraints = false
@@ -91,7 +93,7 @@ class TeamBasicInfoStepViewController: UIViewController {
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
         
-        [stepTitleLabel, stepDescriptionLabel, teamNameSection, descriptionSection, pricingSection].forEach {
+        [stepTitleLabel, stepDescriptionLabel, teamNameSection, descriptionSection].forEach {
             contentView.addSubview($0)
             print("📝 TeamBasicInfo: Added subview: \(type(of: $0))")
         }
@@ -123,6 +125,11 @@ class TeamBasicInfoStepViewController: UIViewController {
         teamNameInput.leftViewMode = .always
         teamNameInput.rightView = UIView(frame: CGRect(x: 0, y: 0, width: 12, height: 44))
         teamNameInput.rightViewMode = .always
+        
+        // Ensure proper text input configuration
+        teamNameInput.autocorrectionType = .no
+        teamNameInput.spellCheckingType = .no
+        teamNameInput.returnKeyType = .next
         
         teamNameError.font = UIFont.systemFont(ofSize: 14)
         teamNameError.textColor = UIColor.systemRed
@@ -157,6 +164,11 @@ class TeamBasicInfoStepViewController: UIViewController {
         descriptionInput.text = ""
         descriptionInput.textContainerInset = UIEdgeInsets(top: 12, left: 8, bottom: 12, right: 8)
         
+        // Ensure proper text input configuration
+        descriptionInput.autocorrectionType = .default
+        descriptionInput.spellCheckingType = .default
+        descriptionInput.returnKeyType = .default
+        
         descriptionCharCount.text = "0/200"
         descriptionCharCount.font = UIFont.systemFont(ofSize: 12)
         descriptionCharCount.textColor = IndustrialDesign.Colors.secondaryText
@@ -171,51 +183,6 @@ class TeamBasicInfoStepViewController: UIViewController {
         
         [descriptionLabel, descriptionInput, descriptionCharCount, descriptionError].forEach {
             descriptionSection.addSubview($0)
-        }
-    }
-    
-    private func setupPricingSection() {
-        pricingSection.translatesAutoresizingMaskIntoConstraints = false
-        pricingSection.backgroundColor = UIColor(red: 0.06, green: 0.06, blue: 0.06, alpha: 0.8)
-        pricingSection.layer.cornerRadius = 12
-        pricingSection.layer.borderWidth = 1
-        pricingSection.layer.borderColor = UIColor(red: 0.17, green: 0.17, blue: 0.17, alpha: 1.0).cgColor
-        
-        pricingLabel.text = "Monthly Subscription Price"
-        pricingLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-        pricingLabel.textColor = IndustrialDesign.Colors.primaryText
-        pricingLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        pricingInput.placeholder = "$3.99"
-        pricingInput.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
-        pricingInput.textColor = IndustrialDesign.Colors.primaryText
-        pricingInput.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0)
-        pricingInput.layer.cornerRadius = 8
-        pricingInput.layer.borderWidth = 1
-        pricingInput.layer.borderColor = UIColor(red: 0.17, green: 0.17, blue: 0.17, alpha: 1.0).cgColor
-        pricingInput.keyboardType = .decimalPad
-        pricingInput.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Add dollar sign prefix
-        let dollarLabel = UILabel()
-        dollarLabel.text = "$"
-        dollarLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
-        dollarLabel.textColor = IndustrialDesign.Colors.primaryText
-        dollarLabel.sizeToFit()
-        let dollarView = UIView(frame: CGRect(x: 0, y: 0, width: dollarLabel.frame.width + 16, height: 44))
-        dollarLabel.center = dollarView.center
-        dollarView.addSubview(dollarLabel)
-        pricingInput.leftView = dollarView
-        pricingInput.leftViewMode = .always
-        
-        pricingDescription.text = "Members will pay this amount monthly to join your team. You keep 100% of subscription revenue."
-        pricingDescription.font = UIFont.systemFont(ofSize: 14)
-        pricingDescription.textColor = IndustrialDesign.Colors.secondaryText
-        pricingDescription.numberOfLines = 0
-        pricingDescription.translatesAutoresizingMaskIntoConstraints = false
-        
-        [pricingLabel, pricingInput, pricingDescription].forEach {
-            pricingSection.addSubview($0)
         }
     }
     
@@ -284,34 +251,18 @@ class TeamBasicInfoStepViewController: UIViewController {
             descriptionError.trailingAnchor.constraint(equalTo: descriptionSection.trailingAnchor, constant: -16),
             descriptionError.bottomAnchor.constraint(lessThanOrEqualTo: descriptionSection.bottomAnchor, constant: -16),
             
-            // Pricing section
-            pricingSection.topAnchor.constraint(equalTo: descriptionSection.bottomAnchor, constant: 24),
-            pricingSection.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
-            pricingSection.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
-            
-            pricingLabel.topAnchor.constraint(equalTo: pricingSection.topAnchor, constant: 16),
-            pricingLabel.leadingAnchor.constraint(equalTo: pricingSection.leadingAnchor, constant: 16),
-            pricingLabel.trailingAnchor.constraint(equalTo: pricingSection.trailingAnchor, constant: -16),
-            
-            pricingInput.topAnchor.constraint(equalTo: pricingLabel.bottomAnchor, constant: 8),
-            pricingInput.leadingAnchor.constraint(equalTo: pricingSection.leadingAnchor, constant: 16),
-            pricingInput.widthAnchor.constraint(equalToConstant: 120),
-            pricingInput.heightAnchor.constraint(equalToConstant: 44),
-            
-            pricingDescription.topAnchor.constraint(equalTo: pricingInput.bottomAnchor, constant: 8),
-            pricingDescription.leadingAnchor.constraint(equalTo: pricingSection.leadingAnchor, constant: 16),
-            pricingDescription.trailingAnchor.constraint(equalTo: pricingSection.trailingAnchor, constant: -16),
-            pricingDescription.bottomAnchor.constraint(equalTo: pricingSection.bottomAnchor, constant: -16),
-            
             // Content view bottom anchor to establish content height
-            pricingSection.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -50)
+            descriptionSection.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -50)
         ])
     }
     
     private func setupInputHandlers() {
+        // Text field input handlers
         teamNameInput.addTarget(self, action: #selector(teamNameChanged), for: .editingChanged)
+        teamNameInput.addTarget(self, action: #selector(teamNameEditingDidBegin), for: .editingDidBegin)
+        teamNameInput.addTarget(self, action: #selector(teamNameEditingDidEnd), for: .editingDidEnd)
+        
         descriptionInput.delegate = self
-        pricingInput.addTarget(self, action: #selector(pricingChanged), for: .editingChanged)
         
         // Add tap gesture to dismiss keyboard
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
@@ -325,7 +276,6 @@ class TeamBasicInfoStepViewController: UIViewController {
     private func loadExistingData() {
         teamNameInput.text = teamData.teamName
         descriptionInput.text = teamData.description
-        pricingInput.text = teamData.subscriptionPrice > 0 ? String(format: "%.2f", teamData.subscriptionPrice) : ""
         updateCharCount()
     }
     
@@ -336,9 +286,19 @@ class TeamBasicInfoStepViewController: UIViewController {
         validateTeamName()
     }
     
-    @objc private func pricingChanged() {
-        let text = pricingInput.text ?? ""
-        teamData.subscriptionPrice = Double(text) ?? 3.99
+    // MARK: - First Responder Management
+    
+    @objc private func teamNameEditingDidBegin() {
+        print("📝 TeamBasicInfo: Team name field became first responder")
+        // Ensure input session is active
+        if !teamNameInput.isFirstResponder {
+            print("📝 TeamBasicInfo: WARNING - Team name field should be first responder but isn't")
+        }
+    }
+    
+    @objc private func teamNameEditingDidEnd() {
+        print("📝 TeamBasicInfo: Team name field resigned first responder")
+        validateTeamName()
     }
     
     private func validateTeamName() {
@@ -391,17 +351,68 @@ class TeamBasicInfoStepViewController: UIViewController {
         // Set toolbar to text inputs
         teamNameInput.inputAccessoryView = toolbar
         descriptionInput.inputAccessoryView = toolbar
-        pricingInput.inputAccessoryView = toolbar
     }
     
     @objc private func dismissKeyboard() {
         view.endEditing(true)
+    }
+    
+    // MARK: - Text Input Session Configuration
+    
+    private func configureTextInputSessions() {
+        print("📝 TeamBasicInfo: Configuring text input sessions")
+        
+        // Ensure all text fields have proper input session setup
+        configureTextFieldInputSession(teamNameInput, identifier: "team_name")
+        configureTextViewInputSession(descriptionInput, identifier: "description")
+        
+        print("📝 TeamBasicInfo: Text input sessions configured successfully")
+    }
+    
+    private func configureTextFieldInputSession(_ textField: UITextField, identifier: String) {
+        // Ensure text field can become first responder
+        guard textField.canBecomeFirstResponder else {
+            print("📝 TeamBasicInfo: WARNING - \(identifier) text field cannot become first responder")
+            return
+        }
+        
+        // Configure input traits to ensure stable input session
+        textField.reloadInputViews()
+        
+        print("📝 TeamBasicInfo: \(identifier) text field input session configured")
+    }
+    
+    private func configureTextViewInputSession(_ textView: UITextView, identifier: String) {
+        // Ensure text view can become first responder
+        guard textView.canBecomeFirstResponder else {
+            print("📝 TeamBasicInfo: WARNING - \(identifier) text view cannot become first responder")
+            return
+        }
+        
+        // Configure input traits to ensure stable input session
+        textView.reloadInputViews()
+        
+        print("📝 TeamBasicInfo: \(identifier) text view input session configured")
     }
 }
 
 // MARK: - UITextViewDelegate
 
 extension TeamBasicInfoStepViewController: UITextViewDelegate {
+    func textViewDidBeginEditing(_ textView: UITextView) {
+        print("📝 TeamBasicInfo: Description text view began editing")
+        
+        // Ensure input session is properly established
+        if !textView.isFirstResponder {
+            print("📝 TeamBasicInfo: WARNING - Description text view should be first responder but isn't")
+        }
+    }
+    
+    func textViewDidEndEditing(_ textView: UITextView) {
+        print("📝 TeamBasicInfo: Description text view ended editing")
+        teamData.description = textView.text
+    }
+    
     func textViewDidChange(_ textView: UITextView) {
         teamData.description = textView.text
         updateCharCount()

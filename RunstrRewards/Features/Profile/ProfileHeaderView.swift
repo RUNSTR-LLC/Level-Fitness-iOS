@@ -1,4 +1,5 @@
 import UIKit
+import Foundation
 
 class ProfileHeaderView: UIView {
     
@@ -11,6 +12,10 @@ class ProfileHeaderView: UIView {
     private let usernameLabel = UILabel()
     private let subscriptionBadge = UILabel()
     private let editProfileButton = UIButton(type: .custom)
+    
+    // Loading states
+    private let avatarLoadingIndicator = UIActivityIndicatorView(style: .medium)
+    private let profileLoadingOverlay = UIView()
     
     // Removed stats row - no longer needed
     
@@ -67,7 +72,7 @@ class ProfileHeaderView: UIView {
         containerView.layer.shadowRadius = 8
         containerView.layer.shadowOpacity = 0.3
         
-        // Avatar setup - larger size (80x80)
+            // Avatar setup - larger size (80x80)
         avatarImageView.translatesAutoresizingMaskIntoConstraints = false
         avatarImageView.contentMode = .scaleAspectFill
         avatarImageView.clipsToBounds = true
@@ -77,6 +82,9 @@ class ProfileHeaderView: UIView {
         avatarImageView.backgroundColor = UIColor(red: 0.15, green: 0.15, blue: 0.15, alpha: 1.0)
         avatarImageView.image = UIImage(systemName: "person.circle.fill")
         avatarImageView.tintColor = IndustrialDesign.Colors.secondaryText
+        
+        // Add loading indicator overlay
+        setupLoadingIndicator()
         
         // Username label
         usernameLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -127,6 +135,23 @@ class ProfileHeaderView: UIView {
         bolt.layer.borderColor = UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0).cgColor
     }
     
+    private func setupLoadingIndicator() {
+        // Avatar loading indicator
+        avatarLoadingIndicator.translatesAutoresizingMaskIntoConstraints = false
+        avatarLoadingIndicator.color = UIColor(red: 0.97, green: 0.57, blue: 0.1, alpha: 1.0) // Bitcoin orange
+        avatarLoadingIndicator.hidesWhenStopped = true
+        
+        // Profile loading overlay
+        profileLoadingOverlay.translatesAutoresizingMaskIntoConstraints = false
+        profileLoadingOverlay.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 0.8)
+        profileLoadingOverlay.layer.cornerRadius = 40
+        profileLoadingOverlay.isHidden = true
+        
+        // Add loading components
+        containerView.addSubview(profileLoadingOverlay)
+        profileLoadingOverlay.addSubview(avatarLoadingIndicator)
+    }
+    
     private func setupConstraints() {
         NSLayoutConstraint.activate([
             // Container
@@ -166,7 +191,16 @@ class ProfileHeaderView: UIView {
             boltDecoration2.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -16),
             boltDecoration2.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -16),
             boltDecoration2.widthAnchor.constraint(equalToConstant: 6),
-            boltDecoration2.heightAnchor.constraint(equalToConstant: 6)
+            boltDecoration2.heightAnchor.constraint(equalToConstant: 6),
+            
+            // Loading overlay constraints
+            profileLoadingOverlay.centerXAnchor.constraint(equalTo: avatarImageView.centerXAnchor),
+            profileLoadingOverlay.centerYAnchor.constraint(equalTo: avatarImageView.centerYAnchor),
+            profileLoadingOverlay.widthAnchor.constraint(equalTo: avatarImageView.widthAnchor),
+            profileLoadingOverlay.heightAnchor.constraint(equalTo: avatarImageView.heightAnchor),
+            
+            avatarLoadingIndicator.centerXAnchor.constraint(equalTo: profileLoadingOverlay.centerXAnchor),
+            avatarLoadingIndicator.centerYAnchor.constraint(equalTo: profileLoadingOverlay.centerYAnchor)
         ])
     }
     
@@ -210,10 +244,77 @@ class ProfileHeaderView: UIView {
         loadUserProfile()
     }
     
+    // MARK: - Loading States
+    
+    func showAvatarLoading() {
+        profileLoadingOverlay.isHidden = false
+        avatarLoadingIndicator.startAnimating()
+    }
+    
+    func hideAvatarLoading() {
+        profileLoadingOverlay.isHidden = true
+        avatarLoadingIndicator.stopAnimating()
+    }
+    
     // MARK: - Private Methods
     
     private func loadUserProfile() {
-        // Load user profile data
+        // First, try to load from Supabase for both Apple and Nostr users
+        Task {
+            await loadSupabaseProfile()
+        }
+        
+        // Check if this is a Nostr user
+        if UserDefaults.standard.string(forKey: "loginMethod") == "nostr",
+           let nostrCredentials = NostrAuthenticationService.shared.currentNostrCredentials {
+            
+            // Use the hex public key for profile fetching
+            let hexPubkey = nostrCredentials.hexPublicKey
+            print("ProfileHeader: Using hex pubkey for relay queries: \(hexPubkey.prefix(16))...")
+            print("ProfileHeader: Full npub: \(nostrCredentials.npub)")
+            print("ProfileHeader: Hex length: \(hexPubkey.count) (should be 64)")
+            
+            // DEBUG: Check if this is a real Nostr key or generated fake
+            if hexPubkey.count != 64 {
+                print("ProfileHeader: ⚠️ WARNING: Hex pubkey is wrong length (\(hexPubkey.count)), should be 64 chars")
+            }
+            
+            // Try to get cached profile first for immediate display
+            if let cachedProfile = NostrCacheManager.shared.getCachedProfile(pubkey: hexPubkey) {
+                currentUsername = cachedProfile.effectiveDisplayName
+                usernameLabel.text = currentUsername
+                
+                // Load avatar if available
+                if let pictureUrl = cachedProfile.picture {
+                    avatarImageView.loadImage(from: pictureUrl, placeholder: UIImage(systemName: "person.circle.fill"))
+                } else {
+                    setNostrDefaultAvatar()
+                }
+                
+                print("ProfileHeader: Loaded cached Nostr profile - \(currentUsername)")
+            } else {
+                // Show fallback while loading - use a more user-friendly display
+                let npubShort = String(nostrCredentials.npub.prefix(10)) + "..."
+                currentUsername = "Nostr User"  // More friendly than raw npub
+                usernameLabel.text = currentUsername
+                setNostrDefaultAvatar()
+                
+                print("ProfileHeader: Loading Nostr profile from relays for \(hexPubkey.prefix(8))...")
+                print("ProfileHeader: Showing 'Nostr User' fallback for npub: \(npubShort)")
+            }
+            
+            // Fetch real profile from relays in background
+            Task {
+                await fetchNostrProfile(hexPubkey: hexPubkey)
+                
+                // DEBUG: Also test with a known working npub for comparison
+                await testWithKnownProfile()
+            }
+            
+            return
+        }
+        
+        // Fall back to local Apple user profile data if no Supabase profile yet
         if let profileData = AuthenticationService.shared.loadProfileData() {
             currentUsername = profileData.username
             currentAvatar = profileData.profileImage
@@ -222,9 +323,135 @@ class ProfileHeaderView: UIView {
             if let avatar = currentAvatar {
                 avatarImageView.image = avatar
             }
+            
+            print("ProfileHeader: Loaded local Apple user profile - \(currentUsername)")
         }
     }
     
+    private func loadSupabaseProfile() async {
+        guard let session = AuthenticationService.shared.loadSession() else {
+            print("ProfileHeader: No session found for Supabase profile")
+            return
+        }
+        
+        do {
+            let profile = try await AuthDataService.shared.fetchUserProfile(userId: session.id)
+            
+            await MainActor.run {
+                if let profile = profile {
+                    // Update username
+                    if let username = profile.username {
+                        currentUsername = username
+                        usernameLabel.text = username
+                    }
+                    
+                    // Load avatar from URL
+                    if let avatarUrl = profile.avatarUrl {
+                        print("ProfileHeader: Loading avatar from Supabase: \(avatarUrl)")
+                        showAvatarLoading()
+                        
+                        Task {
+                            let image = await ImageCacheService.shared.loadImageWithFallback(
+                                from: avatarUrl, 
+                                fallback: UIImage(systemName: "person.circle.fill")
+                            )
+                            
+                            await MainActor.run {
+                                hideAvatarLoading()
+                                avatarImageView.image = image
+                                if image != UIImage(systemName: "person.circle.fill") {
+                                    avatarImageView.tintColor = nil
+                                }
+                            }
+                        }
+                    } else {
+                        // No avatar URL, use default
+                        avatarImageView.image = UIImage(systemName: "person.circle.fill")
+                        avatarImageView.tintColor = IndustrialDesign.Colors.secondaryText
+                    }
+                    
+                    print("ProfileHeader: Loaded Supabase profile - \(currentUsername)")
+                } else {
+                    print("ProfileHeader: No Supabase profile found")
+                }
+            }
+        } catch {
+            print("ProfileHeader: Failed to load Supabase profile: \(error)")
+        }
+    }
+    
+    // MARK: - Nostr Profile Fetching
+    
+    private func fetchNostrProfile(hexPubkey: String) async {
+        // Fetch from Nostr relays
+        if let profile = await NostrProfileFetcher.shared.fetchProfile(pubkeyHex: hexPubkey) {
+            // Cache the result
+            NostrCacheManager.shared.cacheProfile(pubkey: hexPubkey, profile: profile)
+            
+            // Update UI on main thread
+            await MainActor.run {
+                currentUsername = profile.effectiveDisplayName
+                usernameLabel.text = currentUsername
+                
+                // Load avatar if available
+                if let pictureUrl = profile.picture {
+                    avatarImageView.loadImage(from: pictureUrl, placeholder: UIImage(systemName: "person.circle.fill"))
+                }
+                
+                print("ProfileHeader: Updated with real Nostr profile - \(currentUsername)")
+            }
+        } else {
+            print("ProfileHeader: No published profile found - keeping 'Nostr User' display")
+            print("ProfileHeader: This is normal for new Nostr keys that haven't published profile info yet")
+            
+            // Keep the fallback display - don't change UI since "Nostr User" is already shown
+        }
+    }
+    
+    private func setNostrDefaultAvatar() {
+        avatarImageView.image = UIImage(systemName: "key.fill")
+        avatarImageView.tintColor = UIColor(red: 0.97, green: 0.57, blue: 0.1, alpha: 1.0) // Bitcoin orange
+        avatarImageView.backgroundColor = UIColor(red: 0.15, green: 0.15, blue: 0.15, alpha: 1.0)
+    }
+    
+    
+    // MARK: - Debug Testing
+    
+    private func testWithKnownProfile() async {
+        // Test with Will's well-known Nostr profile (has published profile data)
+        let willsHex = "04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9"
+        print("ProfileHeader: 🧪 Testing with Will's profile hex: \(willsHex.prefix(16))...")
+        
+        if let profile = await NostrProfileFetcher.shared.fetchProfile(pubkeyHex: willsHex) {
+            print("ProfileHeader: 🧪 ✅ Will's profile test SUCCESS: \(profile.effectiveDisplayName)")
+            print("ProfileHeader: 🧪 Display name: '\(profile.displayName ?? "none")'")
+            print("ProfileHeader: 🧪 About: '\(profile.about ?? "none")'")
+            print("ProfileHeader: 🧪 Picture: '\(profile.picture ?? "none")'")
+            
+            // TEST: Try using Will's profile data temporarily for debugging
+            await MainActor.run {
+                // Temporarily show Will's profile to prove the UI update works
+                currentUsername = profile.effectiveDisplayName
+                usernameLabel.text = "🧪 TEST: " + currentUsername
+                
+                if let pictureUrl = profile.picture {
+                    avatarImageView.loadImage(from: pictureUrl, placeholder: UIImage(systemName: "person.circle.fill"))
+                }
+                
+                print("ProfileHeader: 🧪 Temporarily updated UI with Will's profile for testing")
+            }
+            
+            // Also test if your current user can load this successfully 
+            await MainActor.run {
+                if let currentCredentials = NostrAuthenticationService.shared.currentNostrCredentials {
+                    print("ProfileHeader: 🧪 Your current hex: \(currentCredentials.hexPublicKey.prefix(16))...")
+                    print("ProfileHeader: 🧪 Your current npub: \(currentCredentials.npub.prefix(16))...")
+                }
+            }
+        } else {
+            print("ProfileHeader: 🧪 ❌ Will's profile test FAILED - relay connection issue")
+        }
+    }
     
     // MARK: - Actions
     
@@ -243,6 +470,7 @@ class ProfileHeaderView: UIView {
             responder = responder?.next
         }
     }
+    
 }
 
 // MARK: - EditProfileViewControllerDelegate

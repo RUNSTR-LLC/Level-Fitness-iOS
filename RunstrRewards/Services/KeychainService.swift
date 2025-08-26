@@ -20,6 +20,10 @@ class KeychainService {
         case coinOSToken = "coinos_token"
         case coinOSUsername = "coinos_username"
         case coinOSPassword = "coinos_password"
+        // Nostr keys
+        case nostrPrivateKey = "nostr_private_key"
+        case nostrPublicKey = "nostr_public_key"
+        case nostrRelays = "nostr_relays"
     }
     
     // MARK: - Save
@@ -153,6 +157,100 @@ class KeychainService {
             
             let status = SecItemCopyMatching(query as CFDictionary, nil)
             return status == errSecSuccess
+        }
+    }
+    
+    // MARK: - Custom Key Methods (for team-specific storage)
+    
+    @discardableResult
+    func saveCustom(_ value: String, for customKey: String) -> Bool {
+        guard let data = value.data(using: .utf8) else { return false }
+        
+        // Use barrier flag for write operations to ensure thread safety
+        return keychainQueue.sync(flags: .barrier) {
+            // First, try to update existing item
+            let searchQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: serviceName,
+                kSecAttrAccount as String: customKey
+            ]
+            
+            let updateQuery: [String: Any] = [
+                kSecValueData as String: data,
+                kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            ]
+            
+            var status = SecItemUpdate(searchQuery as CFDictionary, updateQuery as CFDictionary)
+            
+            if status == errSecItemNotFound {
+                // Item doesn't exist, create new one
+                let addQuery: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: serviceName,
+                    kSecAttrAccount as String: customKey,
+                    kSecValueData as String: data,
+                    kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+                ]
+                
+                status = SecItemAdd(addQuery as CFDictionary, nil)
+            }
+            
+            if status == errSecSuccess {
+                print("KeychainService: ✅ Saved custom key '\(customKey)' successfully")
+                return true
+            } else {
+                print("KeychainService: ❌ Failed to save custom key '\(customKey)' - Status: \(status)")
+                return false
+            }
+        }
+    }
+    
+    func loadCustom(for customKey: String) -> String? {
+        // Use concurrent read for better performance
+        return keychainQueue.sync {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: serviceName,
+                kSecAttrAccount as String: customKey,
+                kSecReturnData as String: true,
+                kSecMatchLimit as String: kSecMatchLimitOne
+            ]
+            
+            var result: AnyObject?
+            let status = SecItemCopyMatching(query as CFDictionary, &result)
+            
+            guard status == errSecSuccess,
+                  let data = result as? Data,
+                  let string = String(data: data, encoding: .utf8) else {
+                if status != errSecItemNotFound {
+                    print("KeychainService: ❌ Failed to load custom key '\(customKey)' - Status: \(status)")
+                }
+                return nil
+            }
+            
+            print("KeychainService: ✅ Loaded custom key '\(customKey)' successfully")
+            return string
+        }
+    }
+    
+    @discardableResult
+    func deleteCustom(for customKey: String) -> Bool {
+        return keychainQueue.sync(flags: .barrier) {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: serviceName,
+                kSecAttrAccount as String: customKey
+            ]
+            
+            let status = SecItemDelete(query as CFDictionary)
+            
+            if status == errSecSuccess || status == errSecItemNotFound {
+                print("KeychainService: ✅ Deleted custom key '\(customKey)' successfully")
+                return true
+            } else {
+                print("KeychainService: ❌ Failed to delete custom key '\(customKey)' - Status: \(status)")
+                return false
+            }
         }
     }
 }

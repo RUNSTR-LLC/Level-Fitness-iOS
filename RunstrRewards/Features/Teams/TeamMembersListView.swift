@@ -432,31 +432,47 @@ private class TeamMemberView: UIView {
     }
     
     private func getDisplayName(from profile: UserProfile) -> String {
-        // Try username first
-        if let username = profile.username, !username.isEmpty {
+        print("🏗️ TeamMembersListView: Getting display name for profile - ID: \(profile.id), Username: \(profile.username ?? "nil"), FullName: \(profile.fullName ?? "nil"), Email: \(profile.email ?? "nil")")
+        
+        // Try username first - this should be the updated username from profile editing
+        if let username = profile.username, !username.isEmpty, username != profile.email {
+            print("🏗️ TeamMembersListView: Using username: \(username)")
             return username
         }
         
         // Try full name
         if let fullName = profile.fullName, !fullName.isEmpty {
+            print("🏗️ TeamMembersListView: Using fullName: \(fullName)")
             return fullName
         }
         
         // Try email as fallback (extract username part before @)
         if let email = profile.email, !email.isEmpty {
             let emailUsername = email.components(separatedBy: "@").first ?? email
-            return emailUsername
+            // Make it more user-friendly by capitalizing first letter
+            let displayName = emailUsername.prefix(1).uppercased() + emailUsername.dropFirst()
+            print("🏗️ TeamMembersListView: Using email-based name: \(displayName)")
+            return displayName
         }
         
-        // Last resort: use first 8 characters of user ID
+        // Final fallback: create a friendly name from user ID
         let shortId = String(profile.id.prefix(8))
-        return "User \(shortId)"
+        let fallbackName = "Member\(shortId)"
+        print("🏗️ TeamMembersListView: Using fallback name: \(fallbackName)")
+        return fallbackName
     }
     
     private func getInitials(from name: String) -> String {
-        // Handle user ID format (User xxxxxxxx)
-        if name.hasPrefix("User ") {
-            return "U" + String(name.dropFirst(5).prefix(1))
+        // Handle member ID format (MemberXXXXXXXX)
+        if name.hasPrefix("Member") {
+            return "M" + String(name.dropFirst(6).prefix(1))
+        }
+        
+        // Handle email-based usernames (e.g., "John.doe" from "john.doe@email.com")
+        if name.contains(".") {
+            let parts = name.components(separatedBy: ".")
+            let initials = parts.compactMap { $0.first }.map { String($0).uppercased() }
+            return String(initials.prefix(2).joined())
         }
         
         let words = name.components(separatedBy: .whitespacesAndNewlines)

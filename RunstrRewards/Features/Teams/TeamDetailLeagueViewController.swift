@@ -18,6 +18,7 @@ class TeamDetailLeagueViewController: UIViewController {
     // Creator management section (only visible to team creators)
     private let managementSection = UIView()
     private let managementTitle = UILabel()
+    private let createLeagueButton = UIButton(type: .custom)
     private let editLeaderboardButton = UIButton(type: .custom)
     private let viewAnalyticsButton = UIButton(type: .custom)
     
@@ -123,6 +124,17 @@ class TeamDetailLeagueViewController: UIViewController {
         managementTitle.textColor = UIColor(red: 0.27, green: 0.47, blue: 0.87, alpha: 1.0) // Blue text
         managementTitle.translatesAutoresizingMaskIntoConstraints = false
         
+        // Create league button (prominent bitcoin orange)
+        createLeagueButton.setTitle("Create Monthly League", for: .normal)
+        createLeagueButton.setTitleColor(.white, for: .normal)
+        createLeagueButton.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        createLeagueButton.backgroundColor = IndustrialDesign.Colors.bitcoin
+        createLeagueButton.layer.cornerRadius = 8
+        createLeagueButton.layer.borderWidth = 1
+        createLeagueButton.layer.borderColor = IndustrialDesign.Colors.bitcoin.cgColor
+        createLeagueButton.translatesAutoresizingMaskIntoConstraints = false
+        createLeagueButton.addTarget(self, action: #selector(createLeagueTapped), for: .touchUpInside)
+        
         // Edit leaderboard button
         editLeaderboardButton.setTitle("Edit Leaderboard", for: .normal)
         editLeaderboardButton.setTitleColor(IndustrialDesign.Colors.primaryText, for: .normal)
@@ -145,7 +157,7 @@ class TeamDetailLeagueViewController: UIViewController {
         viewAnalyticsButton.translatesAutoresizingMaskIntoConstraints = false
         viewAnalyticsButton.addTarget(self, action: #selector(viewAnalyticsTapped), for: .touchUpInside)
         
-        [managementTitle, editLeaderboardButton, viewAnalyticsButton].forEach {
+        [managementTitle, createLeagueButton, editLeaderboardButton, viewAnalyticsButton].forEach {
             managementSection.addSubview($0)
         }
     }
@@ -225,12 +237,19 @@ class TeamDetailLeagueViewController: UIViewController {
             managementTitle.leadingAnchor.constraint(equalTo: managementSection.leadingAnchor, constant: 16),
             managementTitle.trailingAnchor.constraint(equalTo: managementSection.trailingAnchor, constant: -16),
             
-            editLeaderboardButton.topAnchor.constraint(equalTo: managementTitle.bottomAnchor, constant: 12),
+            // Create league button - full width, prominent
+            createLeagueButton.topAnchor.constraint(equalTo: managementTitle.bottomAnchor, constant: 12),
+            createLeagueButton.leadingAnchor.constraint(equalTo: managementSection.leadingAnchor, constant: 16),
+            createLeagueButton.trailingAnchor.constraint(equalTo: managementSection.trailingAnchor, constant: -16),
+            createLeagueButton.heightAnchor.constraint(equalToConstant: 44),
+            
+            // Second row: Edit and Analytics buttons
+            editLeaderboardButton.topAnchor.constraint(equalTo: createLeagueButton.bottomAnchor, constant: 12),
             editLeaderboardButton.leadingAnchor.constraint(equalTo: managementSection.leadingAnchor, constant: 16),
             editLeaderboardButton.trailingAnchor.constraint(equalTo: managementSection.centerXAnchor, constant: -6),
             editLeaderboardButton.heightAnchor.constraint(equalToConstant: 36),
             
-            viewAnalyticsButton.topAnchor.constraint(equalTo: managementTitle.bottomAnchor, constant: 12),
+            viewAnalyticsButton.topAnchor.constraint(equalTo: createLeagueButton.bottomAnchor, constant: 12),
             viewAnalyticsButton.leadingAnchor.constraint(equalTo: managementSection.centerXAnchor, constant: 6),
             viewAnalyticsButton.trailingAnchor.constraint(equalTo: managementSection.trailingAnchor, constant: -16),
             viewAnalyticsButton.heightAnchor.constraint(equalToConstant: 36),
@@ -409,6 +428,38 @@ class TeamDetailLeagueViewController: UIViewController {
         )
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
+    }
+    
+    @objc private func createLeagueTapped() {
+        print("🏆 TeamDetailLeague: Create league tapped")
+        
+        // Get team wallet balance (placeholder - will integrate with actual wallet service)
+        let teamWalletBalance = 500000 // 0.005 BTC = 500,000 sats
+        
+        let leagueWizard = LeagueCreationWizardViewController(teamData: teamData, teamWalletBalance: teamWalletBalance)
+        leagueWizard.onCompletion = { [weak self] (success: Bool, league: TeamLeague?) in
+            leagueWizard.dismiss(animated: true) {
+                if success, let createdLeague = league {
+                    print("🏆 TeamDetailLeague: League created successfully: \(createdLeague.name)")
+                    
+                    // Show success message
+                    let successAlert = UIAlertController(
+                        title: "League Created! 🏆",
+                        message: "Your monthly league '\(createdLeague.name)' is now active and members can start competing for Bitcoin prizes!",
+                        preferredStyle: .alert
+                    )
+                    successAlert.addAction(UIAlertAction(title: "Great!", style: .default))
+                    self?.present(successAlert, animated: true)
+                    
+                    // Refresh the leaderboard to show new league data
+                    self?.loadLeaderboardData()
+                } else {
+                    print("🏆 TeamDetailLeague: League creation cancelled or failed")
+                }
+            }
+        }
+        
+        present(leagueWizard, animated: true)
     }
     
     @objc private func viewAnalyticsTapped() {

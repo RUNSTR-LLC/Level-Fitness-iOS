@@ -1,5 +1,6 @@
 import UIKit
 import Foundation
+import HealthKit
 
 enum WorkoutType {
     case running
@@ -281,6 +282,7 @@ class WorkoutCard: UIView {
     private let distanceMetric = MetricView(label: "KM")
     private let durationMetric = MetricView(label: "DURATION")
     private let paceMetric = MetricView(label: "PACE")
+    private let nostrButton = UIButton(type: .custom)
     private let boltDecoration = UIView()
     
     // MARK: - Initialization
@@ -356,6 +358,25 @@ class WorkoutCard: UIView {
         durationMetric.translatesAutoresizingMaskIntoConstraints = false
         paceMetric.translatesAutoresizingMaskIntoConstraints = false
         
+        // Nostr button
+        nostrButton.translatesAutoresizingMaskIntoConstraints = false
+        nostrButton.setTitle("Post to Nostr", for: .normal)
+        nostrButton.titleLabel?.font = UIFont.systemFont(ofSize: 11, weight: .medium)
+        nostrButton.setTitleColor(UIColor.white, for: .normal)
+        nostrButton.setTitleColor(UIColor.lightGray, for: .disabled)
+        nostrButton.backgroundColor = IndustrialDesign.Colors.bitcoin
+        nostrButton.layer.cornerRadius = 8
+        nostrButton.addTarget(self, action: #selector(nostrButtonTapped), for: .touchUpInside)
+        
+        // Add Nostr icon to button
+        let nostrIcon = UIImageView(image: UIImage(systemName: "key.fill"))
+        nostrIcon.tintColor = UIColor.white
+        nostrIcon.translatesAutoresizingMaskIntoConstraints = false
+        nostrButton.addSubview(nostrIcon)
+        
+        // Update button visibility based on Nostr auth status
+        updateNostrButtonVisibility()
+        
         // Bolt decoration
         boltDecoration.translatesAutoresizingMaskIntoConstraints = false
         boltDecoration.backgroundColor = UIColor(red: 0.27, green: 0.27, blue: 0.27, alpha: 1.0)
@@ -368,6 +389,7 @@ class WorkoutCard: UIView {
         containerView.addSubview(headerContainer)
         containerView.addSubview(sourceContainer)
         containerView.addSubview(metricsContainer)
+        containerView.addSubview(nostrButton)
         containerView.addSubview(boltDecoration)
         
         headerContainer.addSubview(workoutTypeLabel)
@@ -379,6 +401,16 @@ class WorkoutCard: UIView {
         metricsContainer.addSubview(distanceMetric)
         metricsContainer.addSubview(durationMetric)
         metricsContainer.addSubview(paceMetric)
+        
+        // Setup Nostr icon constraints
+        if let nostrIcon = nostrButton.subviews.first {
+            NSLayoutConstraint.activate([
+                nostrIcon.leadingAnchor.constraint(equalTo: nostrButton.leadingAnchor, constant: 8),
+                nostrIcon.centerYAnchor.constraint(equalTo: nostrButton.centerYAnchor),
+                nostrIcon.widthAnchor.constraint(equalToConstant: 12),
+                nostrIcon.heightAnchor.constraint(equalToConstant: 12)
+            ])
+        }
         
         setupHoverEffects()
     }
@@ -460,6 +492,12 @@ class WorkoutCard: UIView {
             paceMetric.centerYAnchor.constraint(equalTo: metricsContainer.centerYAnchor),
             paceMetric.widthAnchor.constraint(equalTo: metricsContainer.widthAnchor, multiplier: 0.33),
             
+            // Nostr button
+            nostrButton.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -16),
+            nostrButton.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -16),
+            nostrButton.heightAnchor.constraint(equalToConstant: 24),
+            nostrButton.widthAnchor.constraint(equalToConstant: 100),
+            
             // Bolt decoration
             boltDecoration.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 12),
             boltDecoration.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -12),
@@ -514,6 +552,154 @@ class WorkoutCard: UIView {
         if !WorkoutCard.hasTestedNaming {
             WorkoutData.testIntelligentNaming()
             WorkoutCard.hasTestedNaming = true
+        }
+    }
+    
+    @objc private func nostrButtonTapped() {
+        print("🔑 NostrButton: Post to Nostr tapped for workout: \(workoutData.intelligentDisplayName)")
+        
+        // Check if user is authenticated with Nostr
+        guard NostrAuthenticationService.shared.isNostrAuthenticated else {
+            showComingSoonAlert(title: "Nostr Authentication Required", message: "Please sign in with your Nostr account to share workouts. You can add Nostr authentication in the login screen.")
+            return
+        }
+        
+        // Disable button during posting
+        nostrButton.isEnabled = false
+        nostrButton.setTitle("Posting...", for: .normal)
+        
+        // Convert WorkoutData to HealthKitWorkout for NostrWorkoutService
+        let healthKitWorkout = convertToHealthKitWorkout(workoutData)
+        
+        // Post workout to Nostr using real service
+        NostrWorkoutService.shared.postWorkoutToNostr(healthKitWorkout) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                
+                // Re-enable button
+                self.nostrButton.isEnabled = true
+                self.nostrButton.setTitle("Post to Nostr", for: .normal)
+                
+                switch result {
+                case .success(let message):
+                    print("🔑 NostrButton: Workout posted successfully - \(message)")
+                    self.showPostSuccessFeedback()
+                    
+                case .failure(let error):
+                    print("🔑 NostrButton: Failed to post workout: \(error)")
+                    self.showPostErrorFeedback(error.localizedDescription)
+                }
+            }
+        }
+    }
+    
+    private func showPostSuccessFeedback() {
+        // Brief success animation
+        UIView.animate(withDuration: 0.2, animations: {
+            self.nostrButton.backgroundColor = UIColor.systemGreen
+        }) { _ in
+            UIView.animate(withDuration: 0.3, delay: 1.0, options: [], animations: {
+                self.nostrButton.backgroundColor = IndustrialDesign.Colors.bitcoin
+            }, completion: nil)
+        }
+    }
+    
+    private func showPostErrorFeedback(_ error: String) {
+        // Brief error animation
+        UIView.animate(withDuration: 0.2, animations: {
+            self.nostrButton.backgroundColor = UIColor.systemRed
+        }) { _ in
+            UIView.animate(withDuration: 0.3, delay: 2.0, options: [], animations: {
+                self.nostrButton.backgroundColor = IndustrialDesign.Colors.bitcoin
+            }, completion: nil)
+        }
+        
+        // Show error alert
+        if let parentVC = findParentViewController() {
+            let alert = UIAlertController(title: "Nostr Post Failed", message: error, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            parentVC.present(alert, animated: true)
+        }
+    }
+    
+    private func showComingSoonAlert() {
+        showComingSoonAlert(title: "Nostr Integration Coming Soon", message: "Post your workouts to Nostr will be available in a future update!")
+    }
+    
+    private func showComingSoonAlert(title: String, message: String) {
+        if let parentVC = findParentViewController() {
+            let alert = UIAlertController(
+                title: title,
+                message: message,
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            parentVC.present(alert, animated: true)
+        }
+    }
+    
+    private func convertToHealthKitWorkout(_ workoutData: WorkoutData) -> HealthKitWorkout {
+        // Convert WorkoutData to HealthKitWorkout format for NostrWorkoutService
+        return HealthKitWorkout(
+            id: workoutData.id,
+            activityType: convertWorkoutTypeToHKActivityType(workoutData.type),
+            startDate: workoutData.date,
+            endDate: workoutData.date.addingTimeInterval(workoutData.duration),
+            duration: workoutData.duration,
+            totalDistance: workoutData.distance * 1000, // Convert km to meters
+            totalEnergyBurned: nil // Not available in WorkoutData
+        )
+    }
+    
+    private func convertWorkoutTypeToHKActivityType(_ workoutType: WorkoutType) -> HKWorkoutActivityType {
+        switch workoutType {
+        case .running: return .running
+        case .walking: return .walking
+        case .cycling: return .cycling
+        case .swimming: return .swimming
+        case .strength: return .functionalStrengthTraining
+        case .yoga: return .yoga
+        case .tennis: return .tennis
+        case .basketball: return .basketball
+        case .soccer: return .soccer
+        case .golf: return .golf
+        case .hiking: return .hiking
+        case .dance: return .dance
+        case .boxing: return .kickboxing
+        case .rowing: return .rowing
+        default: return .other
+        }
+    }
+    
+    private func findParentViewController() -> UIViewController? {
+        var responder: UIResponder? = self
+        while responder != nil {
+            responder = responder?.next
+            if let viewController = responder as? UIViewController {
+                return viewController
+            }
+        }
+        return nil
+    }
+    
+    private func updateNostrButtonVisibility() {
+        // Check real Nostr authentication status
+        let isAuthenticated = NostrAuthenticationService.shared.isNostrAuthenticated
+        nostrButton.isHidden = !isAuthenticated
+        
+        if isAuthenticated {
+            // Check relay connection status
+            let relayStatus = NostrRelayManager.shared.connectionStatus
+            let connectedRelays = relayStatus.values.filter { $0 }.count
+            nostrButton.isEnabled = connectedRelays > 0
+            
+            if connectedRelays == 0 {
+                nostrButton.setTitle("Connecting...", for: .normal)
+                nostrButton.alpha = 0.6
+            } else {
+                nostrButton.setTitle("Post to Nostr", for: .normal)
+                nostrButton.alpha = 1.0
+            }
         }
     }
     

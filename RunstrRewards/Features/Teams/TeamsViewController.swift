@@ -135,9 +135,25 @@ class TeamsViewController: UIViewController {
         titleLabel.font = IndustrialDesign.Typography.navTitleFont
         titleLabel.textAlignment = .center
         
+        // Create team button
+        let createButton = UIButton(type: .custom)
+        createButton.translatesAutoresizingMaskIntoConstraints = false
+        createButton.setImage(UIImage(systemName: "plus.circle.fill"), for: .normal)
+        createButton.tintColor = IndustrialDesign.Colors.bitcoin
+        createButton.addTarget(self, action: #selector(createTeamTapped), for: .touchUpInside)
+        
         headerView.addSubview(backButton)
         headerView.addSubview(titleLabel)
+        headerView.addSubview(createButton)
         contentView.addSubview(headerView)
+        
+        // Add constraints for create button
+        NSLayoutConstraint.activate([
+            createButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
+            createButton.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -20),
+            createButton.widthAnchor.constraint(equalToConstant: 30),
+            createButton.heightAnchor.constraint(equalToConstant: 30)
+        ])
         
         // Add gradient to title
         DispatchQueue.main.async {
@@ -497,10 +513,16 @@ class TeamsViewController: UIViewController {
         print("🏗️ RunstrRewards: Successfully navigated back to main dashboard")
     }
     
-    // Create team functionality removed from header - users can create teams through other means
-    /*
+    // Create team functionality
     @objc private func createTeamTapped() {
         print("🏗️ RUNSTR: Create team tapped")
+        
+        // In development mode, always show team creation wizard
+        if SubscriptionService.DEVELOPMENT_MODE {
+            print("🏗️ RUNSTR: DEVELOPMENT MODE - Launching team creation wizard directly")
+            showTeamCreationWizard()
+            return
+        }
         
         // Check if user has captain subscription before allowing team creation
         Task {
@@ -517,7 +539,6 @@ class TeamsViewController: UIViewController {
             }
         }
     }
-    */
     
     private func showTeamCreationWizard() {
         print("🏗️ RunstrRewards: Launching team creation wizard")

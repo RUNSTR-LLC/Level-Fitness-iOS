@@ -268,6 +268,11 @@ class NotificationIntelligence {
             return profile.preferences.teamActivity
         case "achievement":
             return profile.preferences.achievements
+        // League-specific notification types
+        case "league_started", "league_ending", "league_completed":
+            return profile.preferences.leaderboardChanges // Use leaderboard preference for league updates
+        case "league_prize":
+            return profile.preferences.workoutRewards // Use workout rewards preference for prize notifications
         default:
             return true // Allow unknown types by default
         }
@@ -377,6 +382,81 @@ class NotificationIntelligence {
         )
     }
     
+    func createLeagueStartedNotification(leagueName: String, teamName: String, userId: String) -> NotificationCandidate? {
+        return NotificationCandidate(
+            type: "league_started",
+            title: "🏆 Monthly League Started!",
+            body: "\(leagueName) has begun! Compete with your \(teamName) teammates for Bitcoin prizes.",
+            score: 0.8,
+            context: ["league_name": leagueName, "team_name": teamName],
+            urgency: .normal,
+            category: "LEAGUE_UPDATE"
+        )
+    }
+    
+    func createLeagueEndingNotification(leagueName: String, daysRemaining: Int, currentRank: Int, userId: String) -> NotificationCandidate? {
+        let score = calculateLeagueEndingScore(daysRemaining: daysRemaining, currentRank: currentRank)
+        
+        let urgency: NotificationUrgency = daysRemaining <= 1 ? .immediate : .normal
+        
+        let rankText = currentRank <= 3 ? "You're in the top 3!" : "You're ranked #\(currentRank)"
+        
+        return NotificationCandidate(
+            type: "league_ending",
+            title: "⏰ League Ending Soon!",
+            body: "\(leagueName) ends in \(daysRemaining) day\(daysRemaining == 1 ? "" : "s"). \(rankText)",
+            score: score,
+            context: [
+                "league_name": leagueName,
+                "days_remaining": "\(daysRemaining)",
+                "current_rank": "\(currentRank)"
+            ],
+            urgency: urgency,
+            category: "LEAGUE_REMINDER"
+        )
+    }
+    
+    func createLeaguePrizeNotification(rank: Int, prizeAmount: Int, leagueName: String, userId: String) -> NotificationCandidate? {
+        let btcAmount = Double(prizeAmount) / 100_000_000.0
+        let rankEmoji = getRankEmoji(for: rank)
+        
+        return NotificationCandidate(
+            type: "league_prize",
+            title: "\(rankEmoji) League Prize Won!",
+            body: "You earned ₿\(String(format: "%.6f", btcAmount)) for finishing #\(rank) in \(leagueName)!",
+            score: 0.95, // High priority for prizes
+            context: [
+                "rank": "\(rank)",
+                "prize_amount": "\(prizeAmount)",
+                "league_name": leagueName
+            ],
+            urgency: .immediate,
+            category: "LEAGUE_PRIZE"
+        )
+    }
+    
+    func createLeagueCompletionNotification(leagueName: String, finalRank: Int, totalParticipants: Int, userId: String) -> NotificationCandidate? {
+        let score = finalRank <= 3 ? 0.9 : 0.7
+        
+        let performanceText = finalRank <= 3 ? 
+            "Great job finishing in the top 3!" : 
+            "Thanks for competing this month!"
+        
+        return NotificationCandidate(
+            type: "league_completed",
+            title: "🏁 League Complete!",
+            body: "\(leagueName) has ended. You finished #\(finalRank) of \(totalParticipants). \(performanceText)",
+            score: score,
+            context: [
+                "league_name": leagueName,
+                "final_rank": "\(finalRank)",
+                "total_participants": "\(totalParticipants)"
+            ],
+            urgency: .normal,
+            category: "LEAGUE_RESULTS"
+        )
+    }
+    
     // MARK: - Scoring Algorithms
     
     private func calculateWorkoutRewardScore(amount: Int, workoutType: String) -> Double {
@@ -447,6 +527,37 @@ class NotificationIntelligence {
         }
     }
     
+    private func calculateLeagueEndingScore(daysRemaining: Int, currentRank: Int) -> Double {
+        var baseScore = 0.6
+        
+        // Higher urgency for fewer days remaining
+        if daysRemaining <= 1 {
+            baseScore += 0.3
+        } else if daysRemaining <= 3 {
+            baseScore += 0.2
+        } else if daysRemaining <= 7 {
+            baseScore += 0.1
+        }
+        
+        // Higher score for users in prize positions
+        if currentRank <= 3 {
+            baseScore += 0.2
+        } else if currentRank <= 10 {
+            baseScore += 0.1
+        }
+        
+        return min(baseScore, 1.0)
+    }
+    
+    private func getRankEmoji(for rank: Int) -> String {
+        switch rank {
+        case 1: return "🥇"
+        case 2: return "🥈"
+        case 3: return "🥉"
+        default: return "🏆"
+        }
+    }
+    
     // MARK: - Helper Methods
     
     private func generateLeaderboardMessage(position: Int, previousPosition: Int?, leaderboardName: String) -> (title: String, body: String) {
@@ -456,12 +567,12 @@ class NotificationIntelligence {
                 let emoji = position <= 3 ? "🏆" : position <= 10 ? "🔥" : "📈"
                 return (
                     title: "\(emoji) You moved up \(change) spots!",
-                    body: "Now ranked #\(position) on the \(leaderboardName) leaderboard"
+                    body: "Now ranked #\(position) on the \(leaderboardName) league"
                 )
             } else if change < 0 {
                 return (
-                    title: "📉 Leaderboard Update",
-                    body: "You're now #\(position) on the \(leaderboardName) leaderboard"
+                    title: "📉 League Update", 
+                    body: "You're now #\(position) on the \(leaderboardName) league"
                 )
             } else {
                 return (
@@ -471,8 +582,8 @@ class NotificationIntelligence {
             }
         } else {
             return (
-                title: "🎯 You're on the leaderboard!",
-                body: "You're ranked #\(position) on the \(leaderboardName) leaderboard!"
+                title: "🎯 You're on the league!",
+                body: "You're ranked #\(position) on the \(leaderboardName) league!"
             )
         }
     }

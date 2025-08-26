@@ -25,6 +25,12 @@ class EditProfileViewController: UIViewController {
     private let usernameTextField = UITextField()
     private let saveButton = UIButton(type: .custom)
     
+    // Loading states
+    private let uploadProgressView = UIView()
+    private let uploadProgressLabel = UILabel()
+    private let uploadProgressIndicator = UIProgressView()
+    private let uploadSpinner = UIActivityIndicatorView(style: .medium)
+    
     // MARK: - Lifecycle
     
     override func viewDidLoad() {
@@ -140,6 +146,28 @@ class EditProfileViewController: UIViewController {
         saveButton.layer.cornerRadius = 12
         saveButton.addTarget(self, action: #selector(saveButtonTapped), for: .touchUpInside)
         
+        // Upload progress view (initially hidden)
+        uploadProgressView.translatesAutoresizingMaskIntoConstraints = false
+        uploadProgressView.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 0.95)
+        uploadProgressView.layer.cornerRadius = 12
+        uploadProgressView.layer.borderWidth = 1
+        uploadProgressView.layer.borderColor = IndustrialDesign.Colors.cardBorder.cgColor
+        uploadProgressView.isHidden = true
+        
+        uploadProgressLabel.translatesAutoresizingMaskIntoConstraints = false
+        uploadProgressLabel.text = "Uploading profile image..."
+        uploadProgressLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        uploadProgressLabel.textColor = IndustrialDesign.Colors.primaryText
+        uploadProgressLabel.textAlignment = .center
+        
+        uploadProgressIndicator.translatesAutoresizingMaskIntoConstraints = false
+        uploadProgressIndicator.progressTintColor = UIColor(red: 0.97, green: 0.57, blue: 0.1, alpha: 1.0) // Bitcoin orange
+        uploadProgressIndicator.trackTintColor = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1.0)
+        
+        uploadSpinner.translatesAutoresizingMaskIntoConstraints = false
+        uploadSpinner.color = UIColor(red: 0.97, green: 0.57, blue: 0.1, alpha: 1.0) // Bitcoin orange
+        uploadSpinner.hidesWhenStopped = true
+        
         // Add subviews
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
@@ -153,6 +181,10 @@ class EditProfileViewController: UIViewController {
         usernameSection.addSubview(usernameLabel)
         usernameSection.addSubview(usernameTextField)
         contentView.addSubview(saveButton)
+        contentView.addSubview(uploadProgressView)
+        uploadProgressView.addSubview(uploadProgressLabel)
+        uploadProgressView.addSubview(uploadProgressIndicator)
+        uploadProgressView.addSubview(uploadSpinner)
     }
     
     private func setupConstraints() {
@@ -217,7 +249,25 @@ class EditProfileViewController: UIViewController {
             saveButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
             saveButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
             saveButton.heightAnchor.constraint(equalToConstant: 48),
-            saveButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -32)
+            saveButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -32),
+            
+            // Upload progress view
+            uploadProgressView.topAnchor.constraint(equalTo: saveButton.bottomAnchor, constant: 16),
+            uploadProgressView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
+            uploadProgressView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
+            uploadProgressView.heightAnchor.constraint(equalToConstant: 80),
+            
+            uploadProgressLabel.topAnchor.constraint(equalTo: uploadProgressView.topAnchor, constant: 16),
+            uploadProgressLabel.leadingAnchor.constraint(equalTo: uploadProgressView.leadingAnchor, constant: 20),
+            uploadProgressLabel.trailingAnchor.constraint(equalTo: uploadProgressView.trailingAnchor, constant: -20),
+            
+            uploadProgressIndicator.topAnchor.constraint(equalTo: uploadProgressLabel.bottomAnchor, constant: 8),
+            uploadProgressIndicator.leadingAnchor.constraint(equalTo: uploadProgressView.leadingAnchor, constant: 20),
+            uploadProgressIndicator.trailingAnchor.constraint(equalTo: uploadProgressView.trailingAnchor, constant: -60),
+            uploadProgressIndicator.heightAnchor.constraint(equalToConstant: 4),
+            
+            uploadSpinner.centerYAnchor.constraint(equalTo: uploadProgressIndicator.centerYAnchor),
+            uploadSpinner.trailingAnchor.constraint(equalTo: uploadProgressView.trailingAnchor, constant: -20)
         ])
     }
     
@@ -236,6 +286,31 @@ class EditProfileViewController: UIViewController {
             currentUsername = userSession.email ?? "User"
             usernameTextField.text = currentUsername
         }
+    }
+    
+    // MARK: - Upload Progress Methods
+    
+    private func showUploadProgress(message: String) {
+        uploadProgressLabel.text = message
+        uploadProgressView.isHidden = false
+        uploadSpinner.startAnimating()
+        uploadProgressIndicator.progress = 0.0
+        
+        saveButton.isEnabled = false
+        saveButton.alpha = 0.6
+    }
+    
+    private func updateUploadProgress(_ progress: Float, message: String) {
+        uploadProgressLabel.text = message
+        uploadProgressIndicator.setProgress(progress, animated: true)
+    }
+    
+    private func hideUploadProgress() {
+        uploadProgressView.isHidden = true
+        uploadSpinner.stopAnimating()
+        
+        saveButton.isEnabled = true
+        saveButton.alpha = 1.0
     }
     
     // MARK: - Actions
@@ -272,24 +347,98 @@ class EditProfileViewController: UIViewController {
             return
         }
         
-        // Save to AuthenticationService
+        // Start the upload process
+        Task {
+            await saveProfileWithProgress(username: username)
+        }
+    }
+    
+    private func saveProfileWithProgress(username: String) async {
+        await MainActor.run {
+            showUploadProgress(message: "Preparing profile data...")
+        }
+        
         // Load existing profile data to preserve fitness goals and workout types
         let existingProfile = AuthenticationService.shared.loadProfileData()
-        let profileData = UserProfileData(
-            username: username,
-            profileImage: currentAvatar,
-            fitnessGoals: existingProfile?.fitnessGoals ?? [],
-            preferredWorkoutTypes: existingProfile?.preferredWorkoutTypes ?? []
-        )
         
-        AuthenticationService.shared.saveProfileData(profileData)
-        
-        // Notify delegate
-        delegate?.didUpdateProfile(username: username, avatar: currentAvatar)
-        
-        // Show success and go back
-        showAlert(title: "Success", message: "Profile updated successfully") { [weak self] in
-            self?.navigationController?.popViewController(animated: true)
+        do {
+            await MainActor.run {
+                updateUploadProgress(0.2, message: "Validating profile data...")
+            }
+            
+            // Get current session
+            guard let session = AuthenticationService.shared.loadSession() else {
+                await MainActor.run {
+                    hideUploadProgress()
+                    showAlert(title: "Error", message: "No user session found")
+                }
+                return
+            }
+            
+            await MainActor.run {
+                updateUploadProgress(0.4, message: "Preparing image upload...")
+            }
+            
+            // Upload profile with image if available
+            var imageData: Data?
+            if let currentAvatar = currentAvatar {
+                imageData = currentAvatar.jpegData(compressionQuality: 0.8)
+            }
+            
+            await MainActor.run {
+                updateUploadProgress(0.6, message: "Uploading to server...")
+            }
+            
+            // Upload to Supabase
+            let avatarUrl = try await AuthDataService.shared.updateProfileWithImage(
+                userId: session.id,
+                username: username,
+                fullName: username,
+                imageData: imageData
+            )
+            
+            await MainActor.run {
+                updateUploadProgress(0.9, message: "Finishing up...")
+            }
+            
+            // Save locally as well for backward compatibility
+            let profileData = UserProfileData(
+                username: username,
+                profileImage: currentAvatar,
+                fitnessGoals: existingProfile?.fitnessGoals ?? [],
+                preferredWorkoutTypes: existingProfile?.preferredWorkoutTypes ?? []
+            )
+            
+            AuthenticationService.shared.saveProfileData(profileData)
+            
+            await MainActor.run {
+                updateUploadProgress(1.0, message: "Upload complete!")
+                
+                // Brief delay to show completion
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.hideUploadProgress()
+                    
+                    // Notify delegate
+                    self?.delegate?.didUpdateProfile(username: username, avatar: self?.currentAvatar)
+                    
+                    // Show success and go back
+                    self?.showAlert(title: "Success", message: "Profile updated successfully") { [weak self] in
+                        self?.navigationController?.popViewController(animated: true)
+                    }
+                }
+            }
+            
+        } catch {
+            await MainActor.run {
+                hideUploadProgress()
+                
+                // Check if it's an image-related error for better user feedback
+                if let imageError = error as? ProfileImageError {
+                    showAlert(title: "Image Upload Error", message: imageError.localizedDescription)
+                } else {
+                    showAlert(title: "Upload Error", message: "Failed to update profile: \(error.localizedDescription)")
+                }
+            }
         }
     }
     

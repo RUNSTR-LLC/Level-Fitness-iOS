@@ -243,13 +243,13 @@ class NavigationCard: UIView {
     private func setupBadge() {
         if badgeView.superview == nil {
             badgeView.translatesAutoresizingMaskIntoConstraints = false
-            badgeView.backgroundColor = IndustrialDesign.Colors.primaryText
+            badgeView.backgroundColor = UIColor(red: 0.97, green: 0.57, blue: 0.1, alpha: 1.0) // Bitcoin orange
             badgeView.layer.cornerRadius = 6
             containerView.addSubview(badgeView)
             
             badgeLabel.text = "Active"
             badgeLabel.font = UIFont.systemFont(ofSize: 10, weight: .bold)
-            badgeLabel.textColor = .white
+            badgeLabel.textColor = UIColor.black // Black text on orange background for contrast
             badgeLabel.translatesAutoresizingMaskIntoConstraints = false
             badgeView.addSubview(badgeLabel)
             

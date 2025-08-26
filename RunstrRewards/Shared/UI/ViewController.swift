@@ -9,7 +9,10 @@ class ViewController: UIViewController {
     // Header components
     private let headerView = UIView()
     
-    // Wallet balance section (replaces logo)
+    // Profile section (top position)
+    private let profileSectionView = ProfileSectionView()
+    
+    // Wallet balance section
     private let walletSectionView = WalletSectionView()
     
     // Navigation grid
@@ -35,6 +38,7 @@ class ViewController: UIViewController {
         setupIndustrialBackground()
         setupScrollView()
         setupHeader()
+        setupProfileSection()
         setupWalletSection()
         setupNavigationGrid()
         setupNotificationToggles()
@@ -64,6 +68,10 @@ class ViewController: UIViewController {
         
         // Refresh stats when returning to dashboard (but skip wallet balance to prevent duplicates)
         print("🏭 RUNSTR Rewards: Refreshing user stats on dashboard return")
+        
+        // Refresh profile section to show any profile updates
+        profileSectionView.refreshProfile()
+        
         Task {
             await loadUserTeam() // Only reload team data, not wallet balance
         }
@@ -95,6 +103,17 @@ class ViewController: UIViewController {
         contentView.addSubview(headerView)
     }
     
+    private func setupProfileSection() {
+        // Check if profile section is already added to prevent duplicates
+        if profileSectionView.superview != nil {
+            profileSectionView.removeFromSuperview()
+        }
+        
+        profileSectionView.translatesAutoresizingMaskIntoConstraints = false
+        profileSectionView.delegate = self
+        contentView.addSubview(profileSectionView)
+    }
+    
     private func setupWalletSection() {
         // Check if wallet section is already added to prevent duplicates
         if walletSectionView.superview != nil {
@@ -116,16 +135,7 @@ class ViewController: UIViewController {
     private func setupNavigationGrid() {
         navigationGrid.translatesAutoresizingMaskIntoConstraints = false
         
-        // Create navigation cards - 3 cards (Profile, Teams, RUNSTR REWARDS)
-        let profileCard = NavigationCard(
-            title: "Profile",
-            subtitle: "your stats",
-            iconName: "person.fill",
-            action: { [weak self] in
-                self?.navigateToProfile()
-            }
-        )
-        
+        // Create navigation cards - 1 card (Teams only, Profile moved to top section)
         let teamsCard = NavigationCard(
             title: "Teams",
             subtitle: "Join & Create",
@@ -136,18 +146,7 @@ class ViewController: UIViewController {
         )
         self.teamsCard = teamsCard  // Store reference to update later
         
-        // Lottery card - new feature
-        let lotteryCard = NavigationCard(
-            title: "RUNSTR REWARDS",
-            subtitle: "Lottery",
-            iconName: "ticket.fill",
-            action: { [weak self] in
-                print("🎰 RunstrRewards: Lottery card tapped")
-                self?.navigateToLottery()
-            }
-        )
-        
-        navigationCards = [profileCard, teamsCard, lotteryCard]
+        navigationCards = [teamsCard]
         
         for card in navigationCards {
             card.translatesAutoresizingMaskIntoConstraints = false
@@ -185,8 +184,14 @@ class ViewController: UIViewController {
             headerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -IndustrialDesign.Spacing.xLarge),
             headerView.heightAnchor.constraint(equalToConstant: IndustrialDesign.Sizing.avatarSize),
             
-            // Wallet section
-            walletSectionView.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: IndustrialDesign.Spacing.large),
+            // Profile section (top position)
+            profileSectionView.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: IndustrialDesign.Spacing.large),
+            profileSectionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            profileSectionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            profileSectionView.heightAnchor.constraint(equalToConstant: 90),
+            
+            // Wallet section (moved below profile)
+            walletSectionView.topAnchor.constraint(equalTo: profileSectionView.bottomAnchor, constant: 20),
             walletSectionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             walletSectionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             walletSectionView.heightAnchor.constraint(equalToConstant: 100),
@@ -195,29 +200,19 @@ class ViewController: UIViewController {
             navigationGrid.topAnchor.constraint(equalTo: walletSectionView.bottomAnchor, constant: 20),
             navigationGrid.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: IndustrialDesign.Spacing.xLarge),
             navigationGrid.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -IndustrialDesign.Spacing.xLarge),
-            navigationGrid.heightAnchor.constraint(equalToConstant: 280), // Further reduced
+            navigationGrid.heightAnchor.constraint(equalToConstant: 80), // Single card height
             
-            // Navigation cards - 3 cards layout: Profile, Teams, RUNSTR REWARDS (all full width, slimmer)
+            // Navigation cards - 1 card layout: Teams only
             navigationCards[0].topAnchor.constraint(equalTo: navigationGrid.topAnchor),
             navigationCards[0].leadingAnchor.constraint(equalTo: navigationGrid.leadingAnchor),
             navigationCards[0].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
-            navigationCards[0].heightAnchor.constraint(equalToConstant: 100), // Reduced from 140
-            
-            navigationCards[1].topAnchor.constraint(equalTo: navigationCards[0].bottomAnchor, constant: IndustrialDesign.Spacing.medium),
-            navigationCards[1].leadingAnchor.constraint(equalTo: navigationGrid.leadingAnchor),
-            navigationCards[1].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
-            navigationCards[1].heightAnchor.constraint(equalToConstant: 80), // Further reduced
-            
-            navigationCards[2].topAnchor.constraint(equalTo: navigationCards[1].bottomAnchor, constant: IndustrialDesign.Spacing.medium),
-            navigationCards[2].leadingAnchor.constraint(equalTo: navigationGrid.leadingAnchor),
-            navigationCards[2].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
-            navigationCards[2].heightAnchor.constraint(equalToConstant: 80), // Further reduced
+            navigationCards[0].heightAnchor.constraint(equalToConstant: 80), // Teams card
             
             // Notification toggles section
             notificationTogglesView.topAnchor.constraint(equalTo: navigationGrid.bottomAnchor, constant: 20),
             notificationTogglesView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             notificationTogglesView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            notificationTogglesView.heightAnchor.constraint(equalToConstant: 240),
+            notificationTogglesView.heightAnchor.constraint(equalToConstant: 300),
             
             // Notification toggles is now the bottom element
             notificationTogglesView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -IndustrialDesign.Spacing.large)
@@ -1030,6 +1025,15 @@ extension ViewController: WalletSectionViewDelegate {
     }
 }
 
+// MARK: - ProfileSectionViewDelegate
+
+extension ViewController: ProfileSectionViewDelegate {
+    func didTapProfileSection() {
+        print("👤 Main: Profile section tapped")
+        navigateToProfile()
+    }
+}
+
 // MARK: - ProfileViewControllerDelegate
 
 extension ViewController: ProfileViewControllerDelegate {
@@ -1041,6 +1045,7 @@ extension ViewController: ProfileViewControllerDelegate {
         
         // Reset UI to signed-out state
         walletSectionView.updateBalance("0 sats")
+        profileSectionView.refreshProfile()
         
         // Show sign-in flow or handle sign-out completion
         // This will depend on your authentication flow

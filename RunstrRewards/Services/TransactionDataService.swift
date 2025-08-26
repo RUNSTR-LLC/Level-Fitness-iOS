@@ -633,4 +633,9 @@ class TransactionDataService {
         let data = response.data
         return try SupabaseService.shared.customJSONDecoder().decode([DatabaseTeamSubscription].self, from: data)
     }
+    
+    func getTeamTransactions(teamId: String, limit: Int = 50) async throws -> [TeamTransaction] {
+        // For now, return empty array until proper implementation
+        return []
+    }
 }

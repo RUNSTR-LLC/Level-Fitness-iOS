@@ -305,8 +305,32 @@ extension ProfileViewController: ProfileAccountTabViewDelegate {
             Task {
                 await AuthenticationService.shared.signOut()
                 await MainActor.run {
-                    self?.delegate?.didRequestSignOut()
-                    self?.navigationController?.popToRootViewController(animated: true)
+                    // Navigate to login screen by replacing the root view controller
+                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                       let window = windowScene.windows.first {
+                        let loginVC = LoginViewController()
+                        let navigationController = UINavigationController(rootViewController: loginVC)
+                        
+                        // Configure navigation bar appearance
+                        let appearance = UINavigationBarAppearance()
+                        appearance.configureWithOpaqueBackground()
+                        appearance.backgroundColor = IndustrialDesign.Colors.background
+                        appearance.titleTextAttributes = [
+                            .foregroundColor: IndustrialDesign.Colors.primaryText,
+                            .font: IndustrialDesign.Typography.navTitleFont
+                        ]
+                        appearance.shadowColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0)
+                        
+                        navigationController.navigationBar.standardAppearance = appearance
+                        navigationController.navigationBar.scrollEdgeAppearance = appearance
+                        navigationController.navigationBar.compactAppearance = appearance
+                        navigationController.navigationBar.tintColor = IndustrialDesign.Colors.primaryText
+                        
+                        // Animate the transition
+                        UIView.transition(with: window, duration: 0.3, options: .transitionCrossDissolve, animations: {
+                            window.rootViewController = navigationController
+                        }, completion: nil)
+                    }
                 }
             }
         })

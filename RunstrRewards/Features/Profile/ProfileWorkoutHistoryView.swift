@@ -192,7 +192,6 @@ class WorkoutHistoryCell: UITableViewCell {
     private let statsStack = UIStackView()
     private let distanceLabel = UILabel()
     private let durationLabel = UILabel()
-    private let satsLabel = UILabel()
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -245,15 +244,9 @@ class WorkoutHistoryCell: UITableViewCell {
         durationLabel.font = UIFont.systemFont(ofSize: 12, weight: .medium)
         durationLabel.textColor = IndustrialDesign.Colors.primaryText
         
-        // Sats label
-        satsLabel.translatesAutoresizingMaskIntoConstraints = false
-        satsLabel.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
-        satsLabel.textColor = UIColor(red: 0.97, green: 0.57, blue: 0.1, alpha: 1.0) // Bitcoin orange
-        
         // Add to stack
         statsStack.addArrangedSubview(distanceLabel)
         statsStack.addArrangedSubview(durationLabel)
-        statsStack.addArrangedSubview(satsLabel)
         
         // Add subviews
         contentView.addSubview(containerView)
@@ -310,6 +303,5 @@ class WorkoutHistoryCell: UITableViewCell {
         dateLabel.text = workout.formattedDate
         distanceLabel.text = workout.formattedDistance
         durationLabel.text = workout.formattedDuration
-        satsLabel.text = workout.formattedSats
     }
 }

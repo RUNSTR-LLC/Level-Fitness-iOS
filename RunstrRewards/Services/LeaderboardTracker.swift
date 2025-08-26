@@ -377,29 +377,67 @@ class LeaderboardTracker {
     
     private func generateNotification(for event: PositionChangeEvent) async {
         let position = event.leaderboardPosition
-        let leaderboardName = getLeaderboardDisplayName(position)
         
-        // Create intelligent notification candidate
-        if let candidate = notificationIntelligence.createLeaderboardChangeNotification(
-            position: position.position,
-            previousPosition: position.previousPosition,
-            leaderboardName: leaderboardName,
-            userId: position.userId
-        ) {
-            // Check if notification should be sent
-            if notificationIntelligence.shouldSendNotification(candidate, userId: position.userId) {
-                await MainActor.run {
-                    // Schedule notification using public NotificationService method
-                    let identifier = "leaderboard_\(position.leaderboardType.rawValue)_\(UUID().uuidString)"
-                    notificationService.schedulePositionChangeNotification(
-                        title: candidate.title,
-                        message: candidate.body,
-                        identifier: identifier
-                    )
-                    print("LeaderboardTracker: 📣 Sent intelligent notification: \(candidate.title)")
+        // Get team name for team-branded notifications
+        do {
+            let teamName = try await getTeamNameForLeaderboard(position: position)
+            let (title, message) = await generateTeamBrandedNotificationContent(event: event, teamName: teamName)
+            
+            // Create intelligent notification candidate with team branding
+            if let candidate = notificationIntelligence.createLeaderboardChangeNotification(
+                position: position.position,
+                previousPosition: position.previousPosition,
+                leaderboardName: teamName,
+                userId: position.userId
+            ) {
+                // Override with team-branded content
+                let teamBrandedCandidate = NotificationCandidate(
+                    type: candidate.type,
+                    title: title,
+                    body: message,
+                    score: candidate.score,
+                    context: candidate.context,
+                    urgency: candidate.urgency,
+                    category: candidate.category
+                )
+                
+                // Check if notification should be sent
+                if notificationIntelligence.shouldSendNotification(teamBrandedCandidate, userId: position.userId) {
+                    await MainActor.run {
+                        // Schedule notification using public NotificationService method
+                        let identifier = "leaderboard_\(position.leaderboardType.rawValue)_\(UUID().uuidString)"
+                        notificationService.schedulePositionChangeNotification(
+                            title: title,
+                            message: message,
+                            identifier: identifier
+                        )
+                        print("LeaderboardTracker: 📣 Sent team-branded notification: \(title)")
+                    }
+                } else {
+                    print("LeaderboardTracker: 🤖 Intelligent notification system blocked leaderboard notification")
                 }
-            } else {
-                print("LeaderboardTracker: 🤖 Intelligent notification system blocked leaderboard notification")
+            }
+        } catch {
+            print("LeaderboardTracker: Failed to get team name for notification: \(error)")
+            // Fallback to original notification system
+            let leaderboardName = getLeaderboardDisplayName(position)
+            if let candidate = notificationIntelligence.createLeaderboardChangeNotification(
+                position: position.position,
+                previousPosition: position.previousPosition,
+                leaderboardName: leaderboardName,
+                userId: position.userId
+            ) {
+                if notificationIntelligence.shouldSendNotification(candidate, userId: position.userId) {
+                    await MainActor.run {
+                        let identifier = "leaderboard_\(position.leaderboardType.rawValue)_\(UUID().uuidString)"
+                        notificationService.schedulePositionChangeNotification(
+                            title: candidate.title,
+                            message: candidate.body,
+                            identifier: identifier
+                        )
+                        print("LeaderboardTracker: 📣 Sent fallback notification: \(candidate.title)")
+                    }
+                }
             }
         }
     }
@@ -410,34 +448,34 @@ class LeaderboardTracker {
         switch event.changeType {
         case .firstEntry:
             return (
-                title: "🎯 You're on the leaderboard!",
-                message: "You're ranked #\(position.position) on the \(leaderboardName) leaderboard!"
+                title: "🎯 You're on the league!",
+                message: "You're ranked #\(position.position) on the \(leaderboardName) league!"
             )
             
         case .movedUp(let positions):
             let emoji = position.position <= 3 ? "🏆" : position.position <= 10 ? "🔥" : "📈"
             return (
                 title: "\(emoji) You moved up \(positions) spots!",
-                message: "Now ranked #\(position.position) on the \(leaderboardName) leaderboard"
+                message: "Now ranked #\(position.position) on the \(leaderboardName) league"
             )
             
         case .movedDown(_):
             return (
                 title: "📉 Position update",
-                message: "You're now #\(position.position) on the \(leaderboardName) leaderboard"
+                message: "You're now #\(position.position) on the \(leaderboardName) league"
             )
             
         case .newHighScore:
             return (
                 title: "🎉 New personal best!",
-                message: "You set a new high score on the \(leaderboardName) leaderboard!"
+                message: "You set a new high score on the \(leaderboardName) league!"
             )
             
         case .milestone(let milestonePosition):
             let emoji = milestonePosition <= 10 ? "🏆" : "🎯"
             return (
                 title: "\(emoji) Milestone reached!",
-                message: "You've reached #\(milestonePosition) on the \(leaderboardName) leaderboard!"
+                message: "You've reached #\(milestonePosition) on the \(leaderboardName) league!"
             )
             
         case .noChange:
@@ -457,6 +495,72 @@ class LeaderboardTracker {
         }
         
         return "\(typeName) Global"
+    }
+    
+    // MARK: - Team-Branded Notification Helpers
+    
+    private func getTeamNameForLeaderboard(position: LeaderboardPosition) async throws -> String {
+        // Check if team name is already in context
+        if let context = position.context, let teamName = context["team_name"] {
+            return teamName
+        }
+        
+        // For team leaderboards, get team name from leaderboardId
+        if position.leaderboardType == .team, let teamId = position.leaderboardId {
+            let teams = try await SupabaseService.shared.fetchUserTeams(userId: position.userId)
+            if let team = teams.first(where: { $0.id == teamId }) {
+                return team.name
+            }
+        }
+        
+        // For user-based leaderboards, get user's primary team
+        let userTeams = try await SupabaseService.shared.fetchUserTeams(userId: position.userId)
+        if let primaryTeam = userTeams.first {
+            return primaryTeam.name
+        }
+        
+        return "RunstrRewards" // Fallback if no team found
+    }
+    
+    private func generateTeamBrandedNotificationContent(event: PositionChangeEvent, teamName: String) async -> (title: String, message: String) {
+        let position = event.leaderboardPosition
+        
+        switch event.changeType {
+        case .firstEntry:
+            return (
+                title: "\(teamName): You're on the leaderboard! 🎯",
+                message: "You're ranked #\(position.position) in the team!"
+            )
+            
+        case .movedUp(let positions):
+            let emoji = position.position <= 3 ? "🏆" : position.position <= 10 ? "🔥" : "📈"
+            return (
+                title: "\(teamName): You moved up \(positions) spots! \(emoji)",
+                message: "Now ranked #\(position.position) on the leaderboard"
+            )
+            
+        case .movedDown(_):
+            return (
+                title: "\(teamName): Position update 📉",
+                message: "You're now #\(position.position) on the leaderboard"
+            )
+            
+        case .newHighScore:
+            return (
+                title: "\(teamName): New personal best! 🎉",
+                message: "You set a new high score on the team leaderboard!"
+            )
+            
+        case .milestone(let milestonePosition):
+            let emoji = milestonePosition <= 10 ? "🏆" : "🎯"
+            return (
+                title: "\(teamName): Milestone reached! \(emoji)",
+                message: "You've reached #\(milestonePosition) on the leaderboard!"
+            )
+            
+        case .noChange:
+            return (title: "", message: "")
+        }
     }
     
     // MARK: - Public Interface

@@ -322,7 +322,7 @@ class WorkoutStatsView: UIView {
     private func updateStatsForCurrentPeriod() {
         // Convert HealthKitWorkouts to WorkoutData format with intelligent naming
         let workoutData = allWorkouts.map { healthKitWorkout in
-            let distance = healthKitWorkout.totalDistance / 1000.0 // Convert meters to km
+            let distance = (healthKitWorkout.totalDistance ?? 0.0) / 1000.0 // Convert meters to km
             let pace = distance > 0 ? healthKitWorkout.duration / distance : 0
             let workoutType = mapWorkoutType(healthKitWorkout.workoutType)
             let intensity = WorkoutData.determineIntensity(for: workoutType, pace: pace, duration: healthKitWorkout.duration, distance: distance)
@@ -345,7 +345,7 @@ class WorkoutStatsView: UIView {
         // Calculate real stats
         let totalDistance = filteredWorkouts.reduce(0) { $0 + $1.distance }
         let totalTime = filteredWorkouts.reduce(0) { $0 + $1.duration }
-        let averagePace = totalDistance > 0 ? totalTime / totalDistance : 0
+        let averagePace = totalDistance > 0 ? TimeInterval(totalTime) / totalDistance : 0
         
         statsData = WorkoutStats(
             period: currentPeriod,

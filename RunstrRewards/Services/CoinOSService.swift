@@ -32,6 +32,10 @@ class CoinOSService {
         return authToken
     }
     
+    func getCurrentAuthToken() -> String? {
+        return authToken
+    }
+    
     func clearAuthToken() {
         authToken = nil
         KeychainService.shared.delete(for: .coinOSToken)
@@ -532,6 +536,46 @@ class CoinOSService {
         print("CoinOSService: Retrieved \(transactions.count) team wallet transactions")
         return transactions
     }
+    
+    // MARK: - Lightning Address Support
+    
+    func getLightningAddress(for userId: String) async throws -> String {
+        // Get the CoinOS username for this user
+        // First check if we have stored credentials for current user context
+        if let storedUsername = KeychainService.shared.load(for: .coinOSUsername) {
+            print("CoinOSService: Retrieved Lightning address for current user: \(storedUsername)@coinos.io")
+            return "\(storedUsername)@coinos.io"
+        }
+        
+        // If no stored credentials, we need to authenticate first
+        throw CoinOSError.notAuthenticated
+    }
+    
+    func getUserPaymentCoordinationInfo(for userId: String) async throws -> PaymentCoordinationInfo {
+        print("CoinOSService: Getting payment coordination info for user \(userId)")
+        
+        // Ensure user context is active
+        guard let username = KeychainService.shared.load(for: .coinOSUsername) else {
+            throw CoinOSError.notAuthenticated
+        }
+        
+        // Get current balance
+        let balance = try await getBalance()
+        
+        // Get Lightning address
+        let lightningAddress = "\(username)@coinos.io"
+        
+        let coordinationInfo = PaymentCoordinationInfo(
+            userId: userId,
+            lightningAddress: lightningAddress,
+            currentBalance: balance.total,
+            coinOSUsername: username,
+            lastUpdated: Date()
+        )
+        
+        print("CoinOSService: Payment coordination info retrieved - Address: \(lightningAddress), Balance: \(balance.total) sats")
+        return coordinationInfo
+    }
 }
 
 // MARK: - Data Models
@@ -649,6 +693,16 @@ struct TeamWalletCredentials {
     let username: String
     let password: String
     let token: String
+}
+
+// MARK: - Payment Coordination Models
+
+struct PaymentCoordinationInfo: Codable {
+    let userId: String
+    let lightningAddress: String
+    let currentBalance: Int
+    let coinOSUsername: String
+    let lastUpdated: Date
 }
 
 private struct CoinOSPaymentData: Codable {

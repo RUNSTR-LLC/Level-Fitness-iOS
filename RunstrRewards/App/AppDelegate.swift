@@ -171,8 +171,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     HealthKitService.shared.observeWorkouts { [weak self] newWorkouts in
                         if !newWorkouts.isEmpty {
                             print("AppDelegate: Detected \(newWorkouts.count) new workouts, triggering immediate sync")
-                            // Trigger immediate background sync for new workouts
-                            BackgroundTaskManager.shared.triggerWorkoutSync()
+                            
+                            // Process workouts immediately for real-time sync
+                            Task {
+                                await self?.processNewWorkoutsImmediately(newWorkouts)
+                            }
                             
                             // Send workout completion notifications
                             for workout in newWorkouts {
@@ -181,6 +184,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                         }
                     }
                     print("AppDelegate: HealthKit workout observer started")
+                    
+                    // Initialize EventCriteriaEngine to load active events
+                    Task {
+                        await EventCriteriaEngine.shared.initialize()
+                    }
+                    
                 } else {
                     print("AppDelegate: HealthKit not authorized, skipping background delivery setup")
                 }
@@ -195,37 +204,105 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let workoutNotificationsEnabled = UserDefaults.standard.bool(forKey: "notifications.workout_completed")
         guard workoutNotificationsEnabled else { return }
         
+        // Get user's teams for team-branded notifications
+        Task {
+            await sendTeamBrandedWorkoutNotification(for: workout)
+        }
+    }
+    
+    private func sendTeamBrandedWorkoutNotification(for workout: HealthKitWorkout) async {
+        guard let userId = AuthenticationService.shared.currentUserId else { return }
+        
         // Calculate estimated reward
         let estimatedPoints = calculateWorkoutPoints(workout)
         let estimatedSats = estimatedPoints * 10
         
-        // Send notification
-        let content = UNMutableNotificationContent()
-        content.title = "Workout Detected! 💪"
-        content.body = "Nice \(workout.workoutType)! You've earned approximately \(estimatedSats) sats ⚡"
-        content.sound = .default
-        content.badge = 1
-        content.categoryIdentifier = "WORKOUT_COMPLETION"
-        content.userInfo = [
-            "type": "workout_completed",
-            "workout_type": workout.workoutType,
-            "estimated_sats": estimatedSats,
-            "duration": workout.duration
-        ]
-        
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        let request = UNNotificationRequest(
-            identifier: "workout_completed_\(workout.id)",
-            content: content,
-            trigger: trigger
-        )
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("AppDelegate: Failed to schedule workout completion notification: \(error)")
-            } else {
-                print("AppDelegate: Workout completion notification scheduled for \(workout.workoutType)")
+        do {
+            // Fetch user's teams to include in notification
+            let userTeams = try await SupabaseService.shared.fetchUserTeams(userId: userId)
+            
+            // Send notification for each team the user is part of
+            for team in userTeams {
+                let content = UNMutableNotificationContent()
+                content.title = "\(team.name): Workout Synced! 💪"
+                content.body = "Your \(workout.workoutType) has been synced! +\(estimatedSats) sats earned ⚡"
+                content.sound = .default
+                content.badge = 1
+                content.categoryIdentifier = "WORKOUT_COMPLETION"
+                content.userInfo = [
+                    "type": "workout_completed",
+                    "team_id": team.id,
+                    "team_name": team.name,
+                    "workout_type": workout.workoutType,
+                    "estimated_sats": estimatedSats,
+                    "duration": workout.duration
+                ]
+                
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+                let request = UNNotificationRequest(
+                    identifier: "workout_completed_\(team.id)_\(workout.id)",
+                    content: content,
+                    trigger: trigger
+                )
+                
+                UNUserNotificationCenter.current().add(request) { error in
+                    if let error = error {
+                        print("AppDelegate: Failed to schedule team-branded workout notification for \(team.name): \(error)")
+                    } else {
+                        print("AppDelegate: Team-branded workout notification scheduled for \(team.name)")
+                    }
+                }
             }
+            
+            // If user has no teams, send generic notification
+            if userTeams.isEmpty {
+                let content = UNMutableNotificationContent()
+                content.title = "Workout Detected! 💪"
+                content.body = "Nice \(workout.workoutType)! You've earned approximately \(estimatedSats) sats ⚡"
+                content.sound = .default
+                content.badge = 1
+                content.categoryIdentifier = "WORKOUT_COMPLETION"
+                content.userInfo = [
+                    "type": "workout_completed",
+                    "workout_type": workout.workoutType,
+                    "estimated_sats": estimatedSats,
+                    "duration": workout.duration
+                ]
+                
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+                let request = UNNotificationRequest(
+                    identifier: "workout_completed_\(workout.id)",
+                    content: content,
+                    trigger: trigger
+                )
+                
+                UNUserNotificationCenter.current().add(request) { error in
+                    if let error = error {
+                        print("AppDelegate: Failed to schedule workout completion notification: \(error)")
+                    } else {
+                        print("AppDelegate: Workout completion notification scheduled for \(workout.workoutType)")
+                    }
+                }
+            }
+            
+        } catch {
+            print("AppDelegate: Failed to fetch user teams for workout notification: \(error)")
+            // Fallback to generic notification
+            let content = UNMutableNotificationContent()
+            content.title = "Workout Detected! 💪"
+            content.body = "Nice \(workout.workoutType)! You've earned approximately \(estimatedSats) sats ⚡"
+            content.sound = .default
+            content.badge = 1
+            content.categoryIdentifier = "WORKOUT_COMPLETION"
+            
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+            let request = UNNotificationRequest(
+                identifier: "workout_completed_\(workout.id)",
+                content: content,
+                trigger: trigger
+            )
+            
+            UNUserNotificationCenter.current().add(request) { _ in }
         }
     }
     
@@ -238,15 +315,73 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         // Distance bonus for cardio workouts
         if workout.workoutType == "running" || workout.workoutType == "cycling" {
-            let kilometers = workout.totalDistance / 1000
+            let kilometers = (workout.totalDistance ?? 0.0) / 1000
             points += Int(kilometers)
         }
         
         // Calorie bonus (1 point per 50 calories)
-        let calories = Int(workout.totalEnergyBurned)
+        let calories = Int(workout.totalEnergyBurned ?? 0.0)
         points += calories / 50
         
         return min(points, 100) // Cap at 100 points
+    }
+    
+    // MARK: - Immediate Workout Processing
+    
+    private func processNewWorkoutsImmediately(_ healthKitWorkouts: [HealthKitWorkout]) async {
+        guard let userId = AuthenticationService.shared.currentUserId else {
+            print("AppDelegate: No user logged in for immediate sync")
+            return
+        }
+        
+        print("🚀 AppDelegate: Processing \(healthKitWorkouts.count) new workouts immediately")
+        
+        for workout in healthKitWorkouts {
+            do {
+                // Convert to Supabase workout format
+                let supabaseWorkout = HealthKitService.shared.convertToSupabaseWorkout(workout, userId: userId)
+                
+                // Process immediately with rewards and team updates
+                try await WorkoutDataService.shared.processWorkoutForRewards(supabaseWorkout)
+                
+                // Process workout for events and challenges immediately  
+                await processWorkoutForEventsImmediately(workout, userId: userId)
+                
+                // Update team leaderboards immediately
+                await updateTeamLeaderboardsForWorkout(userId: userId, workout: supabaseWorkout)
+                
+                print("🎯 AppDelegate: ✅ Immediately synced workout \(workout.id) with team updates")
+                
+            } catch {
+                print("AppDelegate: ❌ Failed to immediately sync workout \(workout.id): \(error)")
+                
+                // Fallback to background sync if immediate sync fails
+                BackgroundTaskManager.shared.triggerWorkoutSync()
+            }
+        }
+    }
+    
+    private func updateTeamLeaderboardsForWorkout(userId: String, workout: Workout) async {
+        print("🏆 AppDelegate: Tracking user positions after immediate workout sync")
+        
+        // Track all leaderboard positions for user after workout
+        let positionChanges = await LeaderboardTracker.shared.trackUserPositions(userId: userId)
+        
+        print("🏆 AppDelegate: Found \(positionChanges.count) leaderboard position changes")
+        
+        // Process any position change notifications
+        if !positionChanges.isEmpty {
+            await LeaderboardTracker.shared.processPositionChanges(positionChanges)
+        }
+    }
+    
+    private func processWorkoutForEventsImmediately(_ workout: HealthKitWorkout, userId: String) async {
+        print("🎯 AppDelegate: Processing workout for events immediately")
+        
+        // Use EventCriteriaEngine to check workout against all active events
+        await EventCriteriaEngine.shared.processWorkoutForEvents(workout, userId: userId)
+        
+        print("🎯 AppDelegate: Immediate event processing completed for workout \(workout.id)")
     }
     
     private func setupNetworkNotifications() {
@@ -277,6 +412,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         BackgroundTaskManager.shared.scheduleRewardCheck()
         BackgroundTaskManager.shared.scheduleNotificationUpdate()
         print("AppDelegate: Background tasks rescheduled")
+    }
+    
+    func applicationWillEnterForeground(_ application: UIApplication) {
+        // Process any pending sync tasks when app comes to foreground
+        Task {
+            await BackgroundTaskManager.shared.processPendingTasksInForeground()
+        }
+        print("AppDelegate: Processing pending tasks in foreground")
     }
     
     // MARK: - Remote Notifications

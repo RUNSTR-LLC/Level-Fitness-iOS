@@ -26,7 +26,7 @@ class EventCreationWizardViewController: UIViewController {
     
     // MARK: - Wizard State
     private var currentStep = 0
-    private let totalSteps = 4
+    private let totalSteps = 2
     
     // Event data being collected
     private var eventData = EventCreationData()
@@ -285,10 +285,8 @@ class EventCreationWizardViewController: UIViewController {
     
     private func setupStepViewControllers() {
         stepViewControllers = [
-            EventBasicInfoStepViewController(eventData: eventData, teamData: teamData),
-            EventMetricsStepViewController(eventData: eventData),
-            EventScheduleStepViewController(eventData: eventData),
-            EventReviewStepViewController(eventData: eventData, teamData: teamData)
+            EventPresetSelectionViewController(eventData: eventData, teamData: teamData),
+            EventBasicDetailsViewController(eventData: eventData, teamData: teamData)
         ]
     }
     
@@ -324,6 +322,13 @@ class EventCreationWizardViewController: UIViewController {
         updateUIForStep(step)
         
         print("📅 EventCreationWizard: Showing step \(step + 1)")
+    }
+    
+    // Method called by EventPresetSelectionViewController when preset is selected
+    func presetSelectionCompleted() {
+        if currentStep == 0 && validateCurrentStep() {
+            showStep(currentStep + 1)
+        }
     }
     
     private func updateUIForStep(_ step: Int) {
@@ -394,14 +399,18 @@ class EventCreationWizardViewController: UIViewController {
     private func validateCurrentStep() -> Bool {
         // Validation logic for each step
         switch currentStep {
-        case 0: // Basic info
-            return !eventData.eventName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case 1: // Metrics
-            return !eventData.selectedMetrics.isEmpty
-        case 2: // Schedule
-            return eventData.startDate != nil && eventData.endDate != nil
-        case 3: // Review
-            return true
+        case 0: // Preset selection
+            return !eventData.selectedMetrics.isEmpty && eventData.targetValue != nil
+        case 1: // Basic details
+            if let basicDetailsVC = currentStepViewController as? EventBasicDetailsViewController {
+                return basicDetailsVC.isValid()
+            }
+            // Additional validation for dates
+            let nameValid = !eventData.eventName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let datesValid = eventData.startDate != nil && eventData.endDate != nil
+            let dateOrderValid = (eventData.startDate ?? Date()) < (eventData.endDate ?? Date())
+            
+            return nameValid && datesValid && dateOrderValid
         default:
             return false
         }
@@ -423,7 +432,7 @@ class EventCreationWizardViewController: UIViewController {
                     entryFee: Int(eventData.entryFee * 100), // Convert to satoshis
                     prizePool: Int(eventData.prizePool * 100), // Convert to satoshis
                     startDate: eventData.startDate ?? Date(),
-                    endDate: eventData.endDate ?? Date().addingTimeInterval(86400 * 7), // 1 week default
+                    endDate: eventData.endDate ?? Calendar.current.date(byAdding: .weekOfYear, value: 1, to: eventData.startDate ?? Date()) ?? Date().addingTimeInterval(86400 * 7),
                     maxParticipants: eventData.maxParticipants,
                     participantCount: 0,
                     status: "active",
@@ -537,6 +546,47 @@ class EventCreationData: ObservableObject {
     @Published var targetValue: Double?
     @Published var targetUnit: String = ""
     @Published var requiresRegistration: Bool = true
+    
+    // Running preset
+    @Published var selectedPreset: RunningPreset?
+}
+
+// MARK: - Running Presets
+
+enum RunningPreset: String, CaseIterable {
+    case fiveK = "5k"
+    case tenK = "10k"
+    case halfMarathon = "half_marathon"
+    
+    var displayName: String {
+        switch self {
+        case .fiveK:
+            return "5K Challenge"
+        case .tenK:
+            return "10K Challenge"
+        case .halfMarathon:
+            return "Half Marathon"
+        }
+    }
+    
+    var distance: Double {
+        switch self {
+        case .fiveK:
+            return 5.0
+        case .tenK:
+            return 10.0
+        case .halfMarathon:
+            return 21.1
+        }
+    }
+    
+    var unit: String {
+        return "km"
+    }
+    
+    var metrics: [String] {
+        return ["distance"]
+    }
 }
 
 // MARK: - Event Types

@@ -134,18 +134,39 @@ class EventNotificationService {
         
         let eventName = getEventName(eventId: eventId)
         
+        // Get team name for team-branded notifications asynchronously
+        Task {
+            let teamName = await getTeamNameForUser(userId: userId) ?? "RunstrRewards"
+            await createAndSendQualificationNotification(
+                eventId: eventId,
+                userId: userId,
+                eventName: eventName,
+                teamName: teamName,
+                qualifyingWorkouts: qualifyingWorkouts
+            )
+        }
+    }
+    
+    private func createAndSendQualificationNotification(
+        eventId: String,
+        userId: String,
+        eventName: String,
+        teamName: String,
+        qualifyingWorkouts: [String]
+    ) async {
         // Create qualification notification
         let qualificationNotification = EventNotification(
             id: UUID().uuidString,
             eventId: eventId,
             userId: userId,
             type: .qualified,
-            title: "🏆 You're Qualified!",
+            title: "\(teamName): You're Qualified! 🏆",
             body: "Your recent workouts qualify you for \(eventName). You've been automatically entered!",
             data: [
                 "eventId": eventId,
                 "qualifyingWorkouts": qualifyingWorkouts,
-                "autoEntered": true
+                "autoEntered": true,
+                "team_name": teamName
             ],
             timestamp: Date(),
             priority: .high,
@@ -161,12 +182,13 @@ class EventNotificationService {
             eventId: eventId,
             userId: userId,
             type: .autoEntered,
-            title: "⚡ Auto-Entered",
+            title: "\(teamName): Auto-Entered ⚡",
             body: "You're now competing in \(eventName)! Start earning points with your workouts.",
             data: [
                 "eventId": eventId,
                 "actionable": true,
-                "deepLink": "runstrrewards://event/\(eventId)"
+                "deepLink": "runstrrewards://event/\(eventId)",
+                "team_name": teamName
             ],
             timestamp: Date().addingTimeInterval(5), // 5 seconds later
             priority: .normal,
@@ -636,6 +658,18 @@ class EventNotificationService {
         }
         
         return (delivered, unread, byType)
+    }
+    
+    // MARK: - Team Branding Helper
+    
+    private func getTeamNameForUser(userId: String) async -> String? {
+        do {
+            let userTeams = try await SupabaseService.shared.fetchUserTeams(userId: userId)
+            return userTeams.first?.name
+        } catch {
+            print("EventNotificationService: Failed to get team name for user \(userId): \(error)")
+            return nil
+        }
     }
     
     deinit {

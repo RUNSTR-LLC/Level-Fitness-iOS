@@ -66,26 +66,51 @@ class TeamWalletManager {
     func verifyTeamCaptainAccess(teamId: String, userId: String) async throws -> Bool {
         // Verify that the user is the captain of the specified team
         guard let userSession = AuthenticationService.shared.loadSession() else {
+            print("TeamWalletManager: ❌ No user session found")
             throw TeamWalletError.authenticationRequired
         }
         
+        print("TeamWalletManager: 🔍 Verifying captain access for user \(userId) on team \(teamId)")
+        print("TeamWalletManager: 🔍 Session user ID: \(userSession.id)")
+        
         if userSession.id != userId {
+            print("TeamWalletManager: ❌ Session user ID doesn't match requested user ID")
             throw TeamWalletError.notAuthorized
         }
         
         // Check if user is captain of the team via Supabase
         do {
             let team = try await supabaseService.getTeam(teamId)
-            guard let team = team, team.captainId == userId else {
-                print("TeamWalletManager: User \(userId) is not captain of team \(teamId)")
-                return false
+            print("TeamWalletManager: 🔍 Team data retrieved: \(String(describing: team))")
+            
+            if let team = team {
+                print("TeamWalletManager: 🔍 Team captain_id: \(String(describing: team.captainId))")
+                print("TeamWalletManager: 🔍 Comparing with user_id: \(userId)")
+                
+                if team.captainId == userId {
+                    print("TeamWalletManager: ✅ Verified captain access for user \(userId) on team \(teamId)")
+                    return true
+                } else {
+                    print("TeamWalletManager: ❌ Captain ID mismatch - team.captainId: \(String(describing: team.captainId)), userId: \(userId)")
+                }
+            } else {
+                print("TeamWalletManager: ❌ Team not found: \(teamId)")
             }
             
-            print("TeamWalletManager: Verified captain access for user \(userId) on team \(teamId)")
-            return true
+            // Fallback: Check team_members table for captain role
+            print("TeamWalletManager: 🔍 Checking team_members table as fallback...")
+            let isCaptainInMembers = try await isUserTeamCaptainInMembers(teamId: teamId, userId: userId)
+            
+            if isCaptainInMembers {
+                print("TeamWalletManager: ✅ User is captain in team_members table")
+                return true
+            }
+            
+            print("TeamWalletManager: ❌ User \(userId) is not captain of team \(teamId) in either table")
+            return false
             
         } catch {
-            print("TeamWalletManager: Error verifying captain access: \(error)")
+            print("TeamWalletManager: ❌ Error verifying captain access: \(error)")
             throw TeamWalletError.notAuthorized
         }
     }
@@ -336,20 +361,47 @@ class TeamWalletManager {
     }
     
     private func createUserInvoice(userId: String, amount: Int, memo: String) async throws -> LightningInvoice {
-        // Switch to user's individual wallet context to create invoice
-        // This requires temporarily switching CoinOS authentication
+        print("TeamWalletManager: Creating invoice for user \(userId), amount: \(amount) sats")
         
-        // TODO: Implement user wallet invoice creation
-        // For now, return a placeholder invoice
-        return LightningInvoice(
-            id: UUID().uuidString,
-            paymentRequest: "placeholder_invoice_\(userId)",
-            amount: amount,
-            memo: memo,
-            status: "pending",
-            createdAt: Date(),
-            expiresAt: Date().addingTimeInterval(3600)
-        )
+        // Get user's wallet credentials
+        guard let userCredentials = await getUserWalletCredentials(userId: userId) else {
+            print("TeamWalletManager: ❌ No wallet credentials found for user \(userId)")
+            throw TeamWalletError.userWalletNotFound
+        }
+        
+        // Store current CoinOS auth state to restore later
+        let currentAuthToken = coinOSService.getCurrentAuthToken()
+        
+        do {
+            // Temporarily authenticate with user's wallet
+            print("TeamWalletManager: 🔄 Switching to user wallet authentication...")
+            let userAuthResponse = try await coinOSService.loginUser(
+                username: userCredentials.username, 
+                password: userCredentials.password
+            )
+            coinOSService.setAuthToken(userAuthResponse.token)
+            
+            // Create invoice in user's wallet
+            let invoice = try await coinOSService.addInvoice(amount: amount, memo: memo)
+            print("TeamWalletManager: ✅ Created invoice in user \(userId) wallet: \(amount) sats")
+            
+            // Restore previous auth state
+            if let previousToken = currentAuthToken {
+                coinOSService.setAuthToken(previousToken)
+                print("TeamWalletManager: 🔄 Restored previous CoinOS authentication")
+            }
+            
+            return invoice
+            
+        } catch {
+            // Restore previous auth state even if creation failed
+            if let previousToken = currentAuthToken {
+                coinOSService.setAuthToken(previousToken)
+            }
+            
+            print("TeamWalletManager: ❌ Failed to create user invoice: \(error)")
+            throw TeamWalletError.userInvoiceCreationFailed
+        }
     }
     
     private func isTeamMember(teamId: String, userId: String) async throws -> Bool {
@@ -365,29 +417,79 @@ class TeamWalletManager {
         }
     }
     
-    private func storeTeamWalletCredentials(teamId: String, username: String, password: String, token: String) throws {
-        // For MVP: Store team wallet credentials using existing CoinOS keys
-        // TODO: Implement team-specific credential storage
-        print("TeamWalletManager: Storing team wallet credentials for team \(teamId)")
-        
-        let _ = KeychainService.shared.save(username, for: .coinOSUsername)
-        let _ = KeychainService.shared.save(password, for: .coinOSPassword) 
-        let _ = KeychainService.shared.save(token, for: .coinOSToken)
-        
-        print("TeamWalletManager: Team wallet credentials stored successfully")
+    private func isUserTeamCaptainInMembers(teamId: String, userId: String) async throws -> Bool {
+        // Check if user has captain role in team_members table
+        do {
+            let members = try await supabaseService.fetchTeamMembers(teamId: teamId)
+            let captainMember = members.first { $0.profile.id == userId && $0.role == "captain" }
+            let isCaptain = captainMember != nil
+            
+            print("TeamWalletManager: User \(userId) captain role in team_members for team \(teamId): \(isCaptain)")
+            if let member = captainMember {
+                print("TeamWalletManager: Found captain member: \(member.profile.id) with role: \(member.role)")
+            }
+            
+            return isCaptain
+            
+        } catch {
+            print("TeamWalletManager: Error checking captain role in team_members: \(error)")
+            return false // Don't throw, just return false as fallback
+        }
     }
     
-    private func loadTeamWalletCredentials(teamId: String) -> TeamWalletCredentials? {
-        // For MVP: Load team wallet credentials from existing CoinOS keys
-        // TODO: Implement team-specific credential loading
-        guard let username = KeychainService.shared.load(for: .coinOSUsername),
-              let password = KeychainService.shared.load(for: .coinOSPassword),
-              let token = KeychainService.shared.load(for: .coinOSToken) else {
-            print("TeamWalletManager: Could not load team wallet credentials for team \(teamId)")
+    private func storeTeamWalletCredentials(teamId: String, username: String, password: String, token: String) throws {
+        print("TeamWalletManager: Storing team-specific wallet credentials for team \(teamId)")
+        
+        // Use team-specific keychain keys to prevent collision between teams
+        let usernameKey = "coinOS_team_\(teamId)_username"
+        let passwordKey = "coinOS_team_\(teamId)_password"
+        let tokenKey = "coinOS_team_\(teamId)_token"
+        
+        // Create custom keychain items for team-specific credentials
+        let usernameResult = KeychainService.shared.saveCustom(username, for: usernameKey)
+        let passwordResult = KeychainService.shared.saveCustom(password, for: passwordKey)
+        let tokenResult = KeychainService.shared.saveCustom(token, for: tokenKey)
+        
+        if usernameResult && passwordResult && tokenResult {
+            print("TeamWalletManager: ✅ Team wallet credentials stored successfully for team \(teamId)")
+        } else {
+            print("TeamWalletManager: ❌ Failed to store some team wallet credentials")
+            throw TeamWalletError.teamWalletCreationFailed
+        }
+    }
+    
+    func loadTeamWalletCredentials(teamId: String) -> TeamWalletCredentials? {
+        print("TeamWalletManager: Loading team-specific wallet credentials for team \(teamId)")
+        
+        // Load team-specific credentials
+        let usernameKey = "coinOS_team_\(teamId)_username"
+        let passwordKey = "coinOS_team_\(teamId)_password"
+        let tokenKey = "coinOS_team_\(teamId)_token"
+        
+        guard let username = KeychainService.shared.loadCustom(for: usernameKey),
+              let password = KeychainService.shared.loadCustom(for: passwordKey),
+              let token = KeychainService.shared.loadCustom(for: tokenKey) else {
+            print("TeamWalletManager: ❌ Could not load team wallet credentials for team \(teamId)")
             return nil
         }
         
+        print("TeamWalletManager: ✅ Team wallet credentials loaded successfully for team \(teamId)")
         return TeamWalletCredentials(username: username, password: password, token: token)
+    }
+    
+    private func getUserWalletCredentials(userId: String) async -> UserWalletCredentials? {
+        // For now, use global CoinOS credentials for users
+        // TODO: Implement per-user credential storage similar to teams
+        print("TeamWalletManager: Loading user wallet credentials for user \(userId)")
+        
+        guard let username = KeychainService.shared.load(for: .coinOSUsername),
+              let password = KeychainService.shared.load(for: .coinOSPassword) else {
+            print("TeamWalletManager: ❌ No user wallet credentials found")
+            return nil
+        }
+        
+        print("TeamWalletManager: ✅ Found user wallet credentials")
+        return UserWalletCredentials(username: username, password: password)
     }
     
     private func storeTeamWallet(_ teamWallet: TeamWallet) async throws {
@@ -455,6 +557,11 @@ struct TeamWallet: Codable {
     let createdAt: Date
 }
 
+struct UserWalletCredentials {
+    let username: String
+    let password: String
+}
+
 
 enum TeamWalletAccessType {
     case view    // Can see balance and transactions
@@ -475,6 +582,8 @@ enum TeamWalletError: LocalizedError {
     case notAuthorized
     case insufficientBalance
     case rewardDistributionFailed
+    case userWalletNotFound
+    case userInvoiceCreationFailed
     
     var errorDescription: String? {
         switch self {
@@ -490,6 +599,10 @@ enum TeamWalletError: LocalizedError {
             return "Insufficient team wallet balance"
         case .rewardDistributionFailed:
             return "Failed to distribute team rewards"
+        case .userWalletNotFound:
+            return "User wallet not found or not set up"
+        case .userInvoiceCreationFailed:
+            return "Failed to create invoice in user wallet"
         }
     }
 }

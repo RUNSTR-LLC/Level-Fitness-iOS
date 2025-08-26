@@ -13,6 +13,22 @@ class AuthenticationService: NSObject {
         return KeychainService.shared.load(for: .userId)
     }
     
+    var authenticationMethod: AuthMethod {
+        let hasAppleAuth = UserDefaults.standard.bool(forKey: "isAuthenticated") && 
+                          KeychainService.shared.exists(for: .accessToken)
+        let hasNostrAuth = NostrAuthenticationService.shared.isNostrAuthenticated
+        
+        if hasAppleAuth && hasNostrAuth {
+            return .both
+        } else if hasNostrAuth {
+            return .nostr
+        } else if hasAppleAuth {
+            return .apple
+        } else {
+            return .none
+        }
+    }
+    
     private override init() {
         super.init()
         
@@ -111,14 +127,40 @@ class AuthenticationService: NSObject {
         }
         
         UserDefaults.standard.set(true, forKey: "isAuthenticated")
-        print("AuthenticationService: Session saved with user ID: \(finalUserId)")
+        UserDefaults.standard.set("apple", forKey: "loginMethod")
+        print("AuthenticationService: Apple session saved with user ID: \(finalUserId)")
     }
     
     func loadSession() -> UserSession? {
-        guard UserDefaults.standard.bool(forKey: "isAuthenticated"),
-              let accessToken = KeychainService.shared.load(for: .accessToken),
+        guard UserDefaults.standard.bool(forKey: "isAuthenticated") else {
+            return nil
+        }
+        
+        // Check login method to determine session type
+        let loginMethod = UserDefaults.standard.string(forKey: "loginMethod") ?? "apple"
+        
+        if loginMethod == "nostr" {
+            // Load Nostr session
+            if NostrAuthenticationService.shared.isNostrAuthenticated,
+               let nostrCredentials = NostrAuthenticationService.shared.currentNostrCredentials {
+                print("AuthenticationService: Loading Nostr session for user: \(nostrCredentials.npub.prefix(10))...")
+                return UserSession(
+                    id: "nostr_" + nostrCredentials.hexPublicKey, // Prefix to ensure uniqueness
+                    email: "nostr@\(nostrCredentials.npub.prefix(10)).user",
+                    accessToken: "nostr_session",
+                    refreshToken: "nostr_refresh"
+                )
+            } else {
+                print("AuthenticationService: Nostr authentication claimed but no credentials found")
+                return nil
+            }
+        }
+        
+        // Fall back to Apple authentication
+        guard let accessToken = KeychainService.shared.load(for: .accessToken),
               let refreshToken = KeychainService.shared.load(for: .refreshToken),
               let userId = KeychainService.shared.load(for: .userId) else {
+            print("AuthenticationService: No Apple authentication credentials found")
             return nil
         }
         
@@ -182,13 +224,31 @@ class AuthenticationService: NSObject {
     }
     
     func clearSession() {
+        // Clear Apple authentication
         KeychainService.shared.delete(for: .accessToken)
         KeychainService.shared.delete(for: .refreshToken)
         KeychainService.shared.delete(for: .userId)
         KeychainService.shared.delete(for: .userEmail)
         
+        // Clear wallet credentials (both Apple and Nostr users)
+        KeychainService.shared.delete(for: .coinOSUsername)
+        KeychainService.shared.delete(for: .coinOSPassword)
+        
+        // Clear authentication state
         UserDefaults.standard.set(false, forKey: "isAuthenticated")
+        UserDefaults.standard.removeObject(forKey: "loginMethod")
+        
         print("AuthenticationService: Session cleared")
+    }
+    
+    func clearAllSessions() {
+        // Clear Apple authentication
+        clearSession()
+        
+        // Clear Nostr authentication
+        NostrAuthenticationService.shared.signOutFromNostr()
+        
+        print("AuthenticationService: All authentication sessions cleared")
     }
     
     func clearTemporaryTokenSessions() {
@@ -225,6 +285,12 @@ class AuthenticationService: NSObject {
             print("AuthenticationService: Supabase sign out error: \(error)")
         }
         
+        // Clear Nostr authentication if present
+        if NostrAuthenticationService.shared.isNostrAuthenticated {
+            NostrAuthenticationService.shared.signOutFromNostr()
+            print("AuthenticationService: Cleared Nostr authentication")
+        }
+        
         // Always clear local session
         clearSession()
         
@@ -241,14 +307,14 @@ class AuthenticationService: NSObject {
         UserDefaults.standard.set(profile.fitnessGoals, forKey: "fitnessGoals")
         UserDefaults.standard.set(profile.preferredWorkoutTypes, forKey: "preferredWorkoutTypes")
         
-        // Save profile image to documents directory if provided
+        // Save profile image to documents directory if provided (for backward compatibility)
         if let profileImage = profile.profileImage {
             saveProfileImageToDocuments(profileImage)
         }
         
         print("AuthenticationService: Profile data saved locally for user: \(profile.username)")
         
-        // Sync profile data to Supabase
+        // Sync profile data to Supabase (including image upload)
         Task {
             await syncProfileToSupabase(profile)
         }
@@ -261,17 +327,39 @@ class AuthenticationService: NSObject {
         }
         
         do {
-            // Use profile.username as both username and fullName for now
-            // This ensures team members display properly with the name the user provided
-            try await AuthDataService.shared.syncLocalProfileToSupabase(
+            // Prepare image data if available
+            var imageData: Data?
+            if let profileImage = profile.profileImage {
+                imageData = profileImage.jpegData(compressionQuality: 0.8)
+            }
+            
+            // Upload profile with image
+            let avatarUrl = try await AuthDataService.shared.updateProfileWithImage(
                 userId: currentSession.id,
                 username: profile.username,
-                fullName: profile.username
+                fullName: profile.username,
+                imageData: imageData
             )
-            print("AuthenticationService: Profile synced to Supabase successfully")
+            
+            if avatarUrl != nil {
+                print("AuthenticationService: Profile and image synced to Supabase successfully")
+            } else {
+                print("AuthenticationService: Profile synced to Supabase successfully (no image)")
+            }
         } catch {
             print("AuthenticationService: Error syncing profile to Supabase: \(error)")
             // Don't throw error - local save should still succeed even if remote sync fails
+            // Fallback to sync without image
+            do {
+                try await AuthDataService.shared.syncLocalProfileToSupabase(
+                    userId: currentSession.id,
+                    username: profile.username,
+                    fullName: profile.username
+                )
+                print("AuthenticationService: Profile synced to Supabase successfully (fallback without image)")
+            } catch {
+                print("AuthenticationService: Fallback sync also failed: \(error)")
+            }
         }
     }
     
@@ -292,16 +380,28 @@ class AuthenticationService: NSObject {
         print("AuthenticationService: Starting profile migration for user \(currentSession.id)")
         
         do {
-            // Sync the local profile data to Supabase
-            try await AuthDataService.shared.syncLocalProfileToSupabase(
+            // Prepare existing local image if available
+            var imageData: Data?
+            if let profileImage = profileData.profileImage {
+                imageData = profileImage.jpegData(compressionQuality: 0.8)
+            }
+            
+            // Upload profile with existing image
+            let avatarUrl = try await AuthDataService.shared.updateProfileWithImage(
                 userId: currentSession.id,
                 username: profileData.username,
-                fullName: profileData.username
+                fullName: profileData.username,
+                imageData: imageData
             )
             
             // Mark as migrated
             UserDefaults.standard.set(true, forKey: migrationKey)
-            print("AuthenticationService: Profile migration completed successfully")
+            
+            if avatarUrl != nil {
+                print("AuthenticationService: Profile migration with image completed successfully")
+            } else {
+                print("AuthenticationService: Profile migration completed successfully (no image)")
+            }
         } catch {
             print("AuthenticationService: Profile migration failed: \(error)")
             // Don't mark as migrated if it failed - we'll try again next time
@@ -589,6 +689,24 @@ enum AuthError: LocalizedError {
             return "User not found"
         case .supabaseError(let message):
             return message
+        }
+    }
+}
+
+// MARK: - Authentication Method
+
+enum AuthMethod {
+    case none
+    case apple
+    case nostr
+    case both
+    
+    var description: String {
+        switch self {
+        case .none: return "No authentication"
+        case .apple: return "Apple Sign In"
+        case .nostr: return "Nostr"
+        case .both: return "Apple + Nostr"
         }
     }
 }

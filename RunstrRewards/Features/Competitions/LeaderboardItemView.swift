@@ -8,6 +8,7 @@ class LeaderboardItemView: UIView {
     
     // MARK: - Properties
     private let user: LeaderboardUser
+    private let potentialPrize: Int
     weak var delegate: LeaderboardItemViewDelegate?
     
     // MARK: - UI Components
@@ -24,8 +25,13 @@ class LeaderboardItemView: UIView {
     
     // MARK: - Initialization
     
-    init(user: LeaderboardUser) {
+    convenience init(user: LeaderboardUser) {
+        self.init(user: user, potentialPrize: 0)
+    }
+    
+    init(user: LeaderboardUser, potentialPrize: Int) {
         self.user = user
+        self.potentialPrize = potentialPrize
         super.init(frame: .zero)
         setupView()
         setupConstraints()
@@ -203,7 +209,20 @@ class LeaderboardItemView: UIView {
         rankLabel.text = "\(user.rank)"
         usernameLabel.text = user.username
         statsLabel.text = "\(user.formattedDistance) km • \(user.workouts) workouts"
-        scoreLabel.text = user.formattedPoints
+        
+        // Show potential prize or points based on whether there's a prize
+        if potentialPrize > 0 {
+            let btcAmount = Double(potentialPrize) / 100_000_000.0
+            scoreLabel.text = "₿\(String(format: "%.6f", btcAmount))"
+            scoreLabel.textColor = IndustrialDesign.Colors.bitcoin
+            pointsLabel.text = "POTENTIAL"
+            pointsLabel.textColor = IndustrialDesign.Colors.bitcoin
+        } else {
+            scoreLabel.text = user.formattedPoints
+            scoreLabel.textColor = IndustrialDesign.Colors.primaryText
+            pointsLabel.text = "POINTS"
+            pointsLabel.textColor = IndustrialDesign.Colors.secondaryText
+        }
         
         // Special styling for top 3 positions
         switch user.rank {

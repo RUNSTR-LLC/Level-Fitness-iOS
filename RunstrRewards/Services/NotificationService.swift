@@ -185,35 +185,121 @@ class NotificationService: NSObject {
     // MARK: - Schedule Local Notifications
     
     func scheduleWorkoutRewardNotification(amount: Int, workoutType: String) {
+        // DEPRECATED: Individual workout rewards removed - use schedulePrizeDistributionNotification for actual Bitcoin payouts
+        print("⚠️ DEPRECATED: scheduleWorkoutRewardNotification called - individual workout rewards no longer supported")
+    }
+    
+    func schedulePrizeDistributionNotification(amount: Int, reason: String, teamName: String) {
         let content = UNMutableNotificationContent()
-        content.title = "Workout Reward Earned! 🎉"
-        content.body = "You earned \(amount) sats for completing your \(workoutType) workout!"
+        content.title = "Prize Received! 🎉"
+        content.body = "You received \(amount) sats from Team \(teamName) for \(reason)!"
         content.sound = .default
         content.badge = 1
-        content.categoryIdentifier = "WORKOUT_REWARD"
+        content.categoryIdentifier = "PRIZE_DISTRIBUTION"
         content.userInfo = [
-            "type": "workout_reward",
+            "type": "prize_distribution",
             "amount": amount,
-            "workout_type": workoutType
+            "reason": reason,
+            "team_name": teamName
         ]
         
         // Add attachment for rich notification
         if let imageURL = createRewardImage(amount: amount) {
-            if let attachment = try? UNNotificationAttachment(identifier: "reward", url: imageURL, options: nil) {
+            if let attachment = try? UNNotificationAttachment(identifier: "prize", url: imageURL, options: nil) {
                 content.attachments = [attachment]
             }
         }
         
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         let request = UNNotificationRequest(
-            identifier: "workout_reward_\(UUID().uuidString)",
+            identifier: "prize_distribution_\(UUID().uuidString)",
             content: content,
             trigger: trigger
         )
         
         notificationCenter.add(request) { error in
             if let error = error {
-                print("NotificationService: Failed to schedule workout reward: \(error)")
+                print("NotificationService: Failed to schedule prize distribution: \(error)")
+            }
+        }
+    }
+    
+    func scheduleWorkoutCompletionNotification(workoutType: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "Workout Complete! 🏃‍♂️"
+        content.body = "Great job on completing your \(workoutType) workout! Your progress is contributing to your team's leaderboard position."
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "WORKOUT_COMPLETION"
+        content.userInfo = [
+            "type": "workout_completion",
+            "workout_type": workoutType
+        ]
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "workout_completion_\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("NotificationService: Failed to schedule workout completion: \(error)")
+            }
+        }
+    }
+    
+    func scheduleEventCompletionNotification(eventName: String, achievement: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "Event \(achievement) 🎉"
+        content.body = "Congratulations! You've \(achievement.lowercased()) for \(eventName)! Your team captain can now distribute prizes from the team wallet."
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "EVENT_COMPLETION"
+        content.userInfo = [
+            "type": "event_completion",
+            "event_name": eventName,
+            "achievement": achievement
+        ]
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "event_completion_\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("NotificationService: Failed to schedule event completion: \(error)")
+            }
+        }
+    }
+    
+    func scheduleEventProgressNotification(eventName: String, progress: Int, targetDescription: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "Event Progress Update 📊"
+        content.body = "You're \(progress)% towards \(targetDescription) in \(eventName). Keep going!"
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "EVENT_PROGRESS"
+        content.userInfo = [
+            "type": "event_progress",
+            "event_name": eventName,
+            "progress": progress
+        ]
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "event_progress_\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("NotificationService: Failed to schedule event progress: \(error)")
             }
         }
     }
@@ -356,6 +442,45 @@ class NotificationService: NSObject {
         UIApplication.shared.applicationIconBadgeNumber = 0
     }
     
+    // MARK: - Team-Branded Notification Helper
+    
+    func scheduleTeamBrandedNotification(
+        teamName: String,
+        title: String,
+        message: String,
+        identifier: String,
+        type: String = "team_update",
+        userInfo: [String: Any] = [:],
+        delay: TimeInterval = 1
+    ) {
+        let content = UNMutableNotificationContent()
+        content.title = "\(teamName): \(title)"
+        content.body = message
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = type.uppercased()
+        
+        var fullUserInfo = userInfo
+        fullUserInfo["type"] = type
+        fullUserInfo["team_name"] = teamName
+        content.userInfo = fullUserInfo
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: delay, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("NotificationService: Failed to schedule team-branded notification for \(teamName): \(error)")
+            } else {
+                print("NotificationService: Team-branded notification scheduled for \(teamName): \(title)")
+            }
+        }
+    }
+    
     // MARK: - Helper Methods
     
     private func createRewardImage(amount: Int) -> URL? {
@@ -386,11 +511,11 @@ class NotificationService: NSObject {
     
     func shouldShowNotification(type: String) -> Bool {
         switch type {
-        case "workout_reward":
+        case "workout_reward", "prize_distribution":
             return UserDefaults.standard.bool(forKey: "notifications.workout_rewards")
         case "workout_completed":
             return UserDefaults.standard.bool(forKey: "notifications.workout_completed")
-        case "event_reminder":
+        case "event_reminder", "event_progress", "event_completion":
             return UserDefaults.standard.bool(forKey: "notifications.event_reminders")
         case "challenge_invitation":
             return UserDefaults.standard.bool(forKey: "notifications.challenge_invites")
@@ -398,6 +523,10 @@ class NotificationService: NSObject {
             return UserDefaults.standard.bool(forKey: "notifications.streak_reminders")
         case "weekly_summary":
             return UserDefaults.standard.bool(forKey: "notifications.weekly_summaries")
+        case "leaderboard_change", "position_change":
+            return UserDefaults.standard.bool(forKey: "notifications.leaderboard_changes")
+        case "team_announcement":
+            return UserDefaults.standard.bool(forKey: "notifications.team_announcements")
         default:
             return true
         }

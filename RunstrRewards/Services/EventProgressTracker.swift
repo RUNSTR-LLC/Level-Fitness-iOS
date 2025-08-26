@@ -158,7 +158,7 @@ class EventProgressTracker {
     
     func updateUserProgress(eventId: String, userId: String, newWorkout: HealthKitWorkout) {
         let progressKey = "\(eventId)_\(userId)"
-        guard var progress = eventProgress[progressKey] else {
+        guard let progress = eventProgress[progressKey] else {
             print("📊 Progress: No progress tracking found for user \(userId) in event \(eventId)")
             return
         }
@@ -321,17 +321,74 @@ class EventProgressTracker {
     // MARK: - Background Updates
     
     @objc private func workoutAdded(_ notification: Notification) {
-        guard let workout = notification.userInfo?["workout"] as? HealthKitWorkout,
-              let userId = notification.userInfo?["userId"] as? String else {
+        guard let userId = notification.userInfo?["userId"] as? String else {
             return
         }
         
+        // Check for HealthKitWorkout first (from HealthKit observer)
+        if let healthKitWorkout = notification.userInfo?["workout"] as? HealthKitWorkout {
+            processWorkoutForEvents(healthKitWorkout, userId: userId)
+        }
+        // Check for Workout (from WorkoutSyncQueue)
+        else if let workout = notification.userInfo?["workout"] as? Workout {
+            let healthKitWorkout = convertWorkoutToHealthKitWorkout(workout)
+            processWorkoutForEvents(healthKitWorkout, userId: userId)
+        }
+        else {
+            print("EventProgressTracker: ⚠️ WorkoutAdded notification missing expected workout object")
+            return
+        }
+    }
+    
+    private func processWorkoutForEvents(_ workout: HealthKitWorkout, userId: String) {
         // Update progress for all events this user is participating in
         let userEventKeys = eventProgress.keys.filter { $0.hasSuffix("_\(userId)") }
         
         for key in userEventKeys {
             let eventId = String(key.dropLast("_\(userId)".count))
             updateUserProgress(eventId: eventId, userId: userId, newWorkout: workout)
+        }
+    }
+    
+    private func convertWorkoutToHealthKitWorkout(_ workout: Workout) -> HealthKitWorkout {
+        let activityType = getHKWorkoutActivityType(from: workout.type)
+        let endDate = workout.endedAt ?? workout.startedAt.addingTimeInterval(TimeInterval(workout.duration))
+        
+        return HealthKitWorkout(
+            id: workout.id,
+            activityType: activityType,
+            startDate: workout.startedAt,
+            endDate: endDate,
+            duration: TimeInterval(workout.duration),
+            totalDistance: workout.distance,
+            totalEnergyBurned: workout.calories != nil ? Double(workout.calories!) : nil,
+            syncSource: .healthKit, // Default sync source
+            metadata: nil
+        )
+    }
+    
+    private func getHKWorkoutActivityType(from typeString: String) -> HKWorkoutActivityType {
+        switch typeString.lowercased() {
+        case "running", "run":
+            return .running
+        case "cycling", "bike", "biking":
+            return .cycling
+        case "swimming", "swim":
+            return .swimming
+        case "walking", "walk":
+            return .walking
+        case "yoga":
+            return .yoga
+        case "hiit", "high intensity":
+            return .highIntensityIntervalTraining
+        case "strength", "weights":
+            return .traditionalStrengthTraining
+        case "core":
+            return .coreTraining
+        case "functional":
+            return .functionalStrengthTraining
+        default:
+            return .other
         }
     }
     
@@ -391,7 +448,7 @@ class EventProgressTracker {
         // For calorie-based events, return calories burned
         
         // Default to distance for now
-        return workout.totalDistance
+        return workout.totalDistance ?? 0.0
     }
     
     private func calculatePoints(for workout: HealthKitWorkout, in eventId: String) -> Int {
@@ -399,13 +456,13 @@ class EventProgressTracker {
         var points = 100 // Base points for completing a workout
         
         // Distance bonus (1 point per 100m)
-        points += Int(workout.totalDistance / 100)
+        points += Int((workout.totalDistance ?? 0.0) / 100)
         
         // Duration bonus (1 point per minute)
         points += Int(workout.duration / 60)
         
         // Calories bonus (1 point per 10 calories)
-        points += Int(workout.totalEnergyBurned / 10)
+        points += Int((workout.totalEnergyBurned ?? 0.0) / 10)
         
         return points
     }

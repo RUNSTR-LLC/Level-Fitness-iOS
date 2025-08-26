@@ -1,4 +1,5 @@
 import UIKit
+import HealthKit
 
 protocol WorkoutSyncViewDelegate: AnyObject {
     func didTapSyncSource(_ source: SyncSourceData)
@@ -165,7 +166,13 @@ class WorkoutSyncView: UIView {
         let healthKitAuthorized = HealthKitService.shared.checkAuthorizationStatus()
         print("🏃‍♂️ RunstrRewards: HealthKit authorization status: \(healthKitAuthorized)")
         
-        // Initialize with real sync sources - only HealthKit available
+        // Check real Nostr authentication status
+        let nostrAuthenticated = NostrAuthenticationService.shared.isNostrAuthenticated
+        let nostrLastSync: Date? = nostrAuthenticated ? UserDefaults.standard.object(forKey: "nostr_last_sync") as? Date : nil
+        let nostrWorkoutCount = UserDefaults.standard.integer(forKey: "nostr_workout_count")
+        print("🔑 RunstrRewards: Nostr authentication status: \(nostrAuthenticated)")
+        
+        // Initialize with real sync sources
         syncSources = [
             SyncSourceData(
                 id: "healthkit",
@@ -173,6 +180,14 @@ class WorkoutSyncView: UIView {
                 isConnected: healthKitAuthorized, // ✅ NOW CHECKS ACTUAL STATUS
                 lastSync: healthKitAuthorized ? Date() : nil,
                 workoutCount: 0,
+                isComingSoon: false
+            ),
+            SyncSourceData(
+                id: "nostr",
+                type: .nostr,
+                isConnected: nostrAuthenticated,
+                lastSync: nostrLastSync,
+                workoutCount: nostrWorkoutCount,
                 isComingSoon: false
             )
         ]
@@ -231,14 +246,31 @@ class WorkoutSyncView: UIView {
             return card
         }
         
-        // Layout cards - only HealthKit card
-        if cards.count >= 1 {
+        // Layout cards in a 2x1 grid for HealthKit and Nostr
+        if cards.count == 1 {
+            // Single card - full width (HealthKit only)
             NSLayoutConstraint.activate([
-                // HealthKit card - full width
                 cards[0].topAnchor.constraint(equalTo: sourcesGridContainer.topAnchor),
                 cards[0].leadingAnchor.constraint(equalTo: sourcesGridContainer.leadingAnchor),
                 cards[0].trailingAnchor.constraint(equalTo: sourcesGridContainer.trailingAnchor),
                 cards[0].heightAnchor.constraint(equalToConstant: 70)
+            ])
+        } else if cards.count >= 2 {
+            // Two cards side by side (HealthKit + Nostr)
+            let spacing: CGFloat = 12
+            
+            NSLayoutConstraint.activate([
+                // HealthKit card (left)
+                cards[0].topAnchor.constraint(equalTo: sourcesGridContainer.topAnchor),
+                cards[0].leadingAnchor.constraint(equalTo: sourcesGridContainer.leadingAnchor),
+                cards[0].trailingAnchor.constraint(equalTo: sourcesGridContainer.centerXAnchor, constant: -spacing/2),
+                cards[0].heightAnchor.constraint(equalToConstant: 70),
+                
+                // Nostr card (right)
+                cards[1].topAnchor.constraint(equalTo: sourcesGridContainer.topAnchor),
+                cards[1].leadingAnchor.constraint(equalTo: sourcesGridContainer.centerXAnchor, constant: spacing/2),
+                cards[1].trailingAnchor.constraint(equalTo: sourcesGridContainer.trailingAnchor),
+                cards[1].heightAnchor.constraint(equalToConstant: 70)
             ])
         }
     }
@@ -253,6 +285,120 @@ class WorkoutSyncView: UIView {
         // Restore normal state
         syncSourcesTitle.text = "AUTO-SYNC"
         syncSourcesTitle.alpha = 1.0
+    }
+    
+    // MARK: - Nostr Sync Methods
+    
+    private func startNostrSync() {
+        print("🔑 RunstrRewards: Starting Nostr 1301 workout sync")
+        
+        guard NostrAuthenticationService.shared.isNostrAuthenticated else {
+            showNostrLoginPrompt()
+            return
+        }
+        
+        guard let credentials = NostrAuthenticationService.shared.currentNostrCredentials else {
+            print("🔑 RunstrRewards: No Nostr credentials found")
+            showNostrLoginPrompt()
+            return
+        }
+        
+        // Show loading state
+        if let nostrSource = syncSources.first(where: { $0.type == .nostr }) {
+            // Update UI to show syncing state
+            // You could add a delegate method here to update the sync card UI
+        }
+        
+        // Use Nostr1301Service to sync workouts
+        Nostr1301Service.shared.syncWorkouts(for: credentials, since: nil) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let workouts):
+                    print("🔑 RunstrRewards: Successfully synced \(workouts.count) workouts from Nostr")
+                    
+                    // Update UserDefaults with sync info
+                    UserDefaults.standard.set(Date(), forKey: "nostr_last_sync")
+                    UserDefaults.standard.set(workouts.count, forKey: "nostr_workout_count")
+                    
+                    // Reload sync sources to update UI
+                    self?.loadRealSyncSources()
+                    
+                    // Store workouts if needed
+                    for workout in workouts {
+                        // Add to workout history through appropriate service
+                        print("🔑 Synced Nostr workout: \(workout.activityType.displayName)")
+                    }
+                    
+                case .failure(let error):
+                    print("🔑 RunstrRewards: Nostr sync failed: \(error)")
+                    self?.showNostrSyncError(error.localizedDescription)
+                }
+            }
+        }
+    }
+    
+    private func showNostrLoginPrompt() {
+        guard let parentViewController = findViewController() else { return }
+        
+        let alert = UIAlertController(
+            title: "Nostr Authentication Required",
+            message: "To sync workouts from Nostr, please sign in with your nsec private key in the login screen.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+            // Reset toggle
+            self.buildSyncSourcesGrid()
+        })
+        
+        parentViewController.present(alert, animated: true)
+    }
+    
+    private func showNostrSyncError(_ message: String) {
+        guard let parentViewController = findViewController() else { return }
+        
+        let alert = UIAlertController(
+            title: "Nostr Sync Failed",
+            message: "Failed to sync workouts from Nostr: \(message)",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+            // Reset toggle
+            self.buildSyncSourcesGrid()
+        })
+        
+        parentViewController.present(alert, animated: true)
+    }
+    
+    func updateNostrConnectionStatus(connected: Bool, workoutCount: Int = 0) {
+        // Find Nostr source and update its connection status
+        if let index = syncSources.firstIndex(where: { $0.type == .nostr }) {
+            syncSources[index] = SyncSourceData(
+                id: syncSources[index].id,
+                type: syncSources[index].type,
+                isConnected: connected,
+                lastSync: connected ? Date() : nil,
+                workoutCount: workoutCount,
+                isComingSoon: false
+            )
+            buildSyncSourcesGrid()
+        }
+    }
+    
+    private func updateNostrSyncStatus(status: String) {
+        // Find Nostr source and update its status temporarily
+        if let index = syncSources.firstIndex(where: { $0.type == .nostr }) {
+            syncSources[index] = SyncSourceData(
+                id: syncSources[index].id + "_syncing",
+                type: syncSources[index].type,
+                isConnected: syncSources[index].isConnected,
+                lastSync: syncSources[index].lastSync,
+                workoutCount: syncSources[index].workoutCount,
+                isComingSoon: false
+            )
+            buildSyncSourcesGrid()
+        }
     }
     
     // MARK: - Actions
@@ -302,12 +448,18 @@ extension WorkoutSyncView: WorkoutSyncSourceCardDelegate {
                         }
                     }
                 }
+            } else if source.type == .nostr {
+                // Start real Nostr sync
+                startNostrSync()
             }
         } else {
             // Disable auto-sync for this source
             if source.type == .healthKit {
                 updateHealthKitConnectionStatus(connected: false)
                 print("🏃‍♂️ RunstrRewards: HealthKit auto-sync disabled")
+            } else if source.type == .nostr {
+                updateNostrConnectionStatus(connected: false)
+                print("🏃‍♂️ RunstrRewards: Nostr auto-sync disabled")
             }
         }
     }

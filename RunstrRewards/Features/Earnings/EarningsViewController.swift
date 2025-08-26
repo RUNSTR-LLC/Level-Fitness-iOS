@@ -29,9 +29,24 @@ class EarningsViewController: UIViewController {
         setupWalletBalance()
         setupTransactionHistory()
         setupConstraints()
+        setupNotificationListeners()
         configureWithData()
         
         print("💰 RunstrRewards: Earnings loaded successfully!")
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        print("💰 RunstrRewards: Earnings page appearing - refreshing wallet balance...")
+        
+        // Refresh wallet balance every time user returns to this page
+        // This ensures balance updates after receiving Bitcoin from other sources
+        loadLightningWalletBalance()
+        loadRealEarningsData()
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     // MARK: - Setup Methods
@@ -78,8 +93,27 @@ class EarningsViewController: UIViewController {
         contentView.translatesAutoresizingMaskIntoConstraints = false
         contentView.backgroundColor = UIColor(red: 0.04, green: 0.04, blue: 0.04, alpha: 0.95)
         
+        // Add pull-to-refresh functionality
+        let refreshControl = UIRefreshControl()
+        refreshControl.attributedTitle = NSAttributedString(
+            string: "Pull to refresh wallet balance",
+            attributes: [.foregroundColor: IndustrialDesign.Colors.secondaryText]
+        )
+        refreshControl.addTarget(self, action: #selector(handlePullToRefresh), for: .valueChanged)
+        scrollView.refreshControl = refreshControl
+        
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
+    }
+    
+    private func setupNotificationListeners() {
+        // Listen for transaction notifications to automatically refresh balance
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleTransactionNotification),
+            name: .transactionAdded,
+            object: nil
+        )
     }
     
     private func setupHeader() {
@@ -140,6 +174,102 @@ class EarningsViewController: UIViewController {
         // Don't configure wallet balance with zero data - let loadLightningWalletBalance() handle it
         loadRealEarningsData()
         loadLightningWalletBalance()
+    }
+    
+    // MARK: - Refresh Handlers
+    
+    @objc private func handlePullToRefresh() {
+        print("💰 RunstrRewards: Pull-to-refresh triggered - updating wallet balance...")
+        
+        Task {
+            await refreshWalletData()
+            await MainActor.run {
+                self.scrollView.refreshControl?.endRefreshing()
+                print("💰 RunstrRewards: Pull-to-refresh completed")
+            }
+        }
+    }
+    
+    @objc private func handleTransactionNotification(_ notification: Notification) {
+        print("💰 RunstrRewards: Transaction notification received - refreshing balance...")
+        
+        Task {
+            await refreshWalletData()
+        }
+    }
+    
+    private func refreshWalletData() async {
+        // Refresh both balance and transaction history
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                await self.refreshLightningBalance()
+            }
+            
+            group.addTask {
+                await self.refreshTransactionData()
+            }
+        }
+    }
+    
+    private func refreshLightningBalance() async {
+        do {
+            print("💰 RunstrRewards: Refreshing Lightning wallet balance...")
+            
+            guard let userSession = AuthenticationService.shared.loadSession() else {
+                print("💰 RunstrRewards: No user session for balance refresh")
+                return
+            }
+            
+            let balance = try await lightningWalletManager.getWalletBalance()
+            
+            await MainActor.run {
+                let bitcoinBalance = Double(balance.lightning) / 100_000_000
+                
+                print("💰 RunstrRewards: Refreshed balance - Raw: \(balance.lightning) sats, BTC: \(bitcoinBalance)")
+                
+                walletData = WalletData(
+                    bitcoinBalance: bitcoinBalance,
+                    usdBalance: bitcoinBalance * 43000,
+                    lastUpdated: Date()
+                )
+                
+                walletBalanceView.configure(with: walletData)
+                print("💰 RunstrRewards: Wallet balance view refreshed successfully")
+            }
+        } catch {
+            print("💰 RunstrRewards: Failed to refresh Lightning balance: \(error)")
+        }
+    }
+    
+    private func refreshTransactionData() async {
+        do {
+            print("💰 RunstrRewards: Refreshing transaction data...")
+            
+            let coinOSTransactions = try await CoinOSService.shared.listTransactions(limit: 100)
+            
+            await MainActor.run {
+                let transactionDataArray = coinOSTransactions.map { transaction in
+                    let isEarning = transaction.amount > 0
+                    let displayTitle = getTransactionTitle(transaction)
+                    
+                    return TransactionData(
+                        id: transaction.id,
+                        title: displayTitle,
+                        source: "Lightning Network",
+                        date: transaction.createdAt,
+                        bitcoinAmount: Double(abs(transaction.amount)) / 100_000_000.0,
+                        usdAmount: Double(abs(transaction.amount)) * 0.0005,
+                        type: isEarning ? .earning : .expense,
+                        icon: getTransactionIcon(for: transaction.type)
+                    )
+                }
+                
+                transactionHistoryView.loadRealTransactions(transactionDataArray)
+                print("💰 RunstrRewards: Transaction history refreshed with \(coinOSTransactions.count) transactions")
+            }
+        } catch {
+            print("💰 RunstrRewards: Failed to refresh transaction data: \(error)")
+        }
     }
     
     private func loadRealEarningsData() {
