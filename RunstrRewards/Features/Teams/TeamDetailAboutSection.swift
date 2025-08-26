@@ -1,14 +1,22 @@
 import UIKit
 
+protocol TeamDetailAboutSectionDelegate: AnyObject {
+    func didTapManageWallet()
+}
+
 class TeamDetailAboutSection: UIView {
+    
+    // MARK: - Properties
+    weak var delegate: TeamDetailAboutSectionDelegate?
     
     // MARK: - UI Components
     private let aboutTitleLabel = UILabel()
     private let aboutDescriptionLabel = UILabel()
     private let statsRow = UIView()
-    private let prizePoolStat = StatItem(value: "₿0.00", label: "Prize Pool", isBitcoin: true)
+    private let prizePoolStat = StatItem(value: "0 sats", label: "Prize Pool", isBitcoin: true)
     private let walletStatusIndicator = UIView()
     private let walletStatusLabel = UILabel()
+    private let manageWalletButton = UIButton(type: .custom)
     private let boltDecoration = UIView()
     
     override init(frame: CGRect) {
@@ -25,6 +33,7 @@ class TeamDetailAboutSection: UIView {
     
     private func setupView() {
         backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 0.8)
+        clipsToBounds = false // Allow button to be visible and interactive outside bounds
         
         // Add bottom border
         let borderLayer = CALayer()
@@ -64,6 +73,18 @@ class TeamDetailAboutSection: UIView {
         walletStatusLabel.font = UIFont.systemFont(ofSize: 11, weight: .medium)
         walletStatusLabel.textColor = UIColor.systemOrange
         
+        // Manage wallet button (only visible to captains)
+        manageWalletButton.setTitle("Manage Wallet", for: .normal)
+        manageWalletButton.setTitleColor(IndustrialDesign.Colors.bitcoin, for: .normal)
+        manageWalletButton.titleLabel?.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
+        manageWalletButton.backgroundColor = UIColor(red: 0.08, green: 0.08, blue: 0.08, alpha: 1.0)
+        manageWalletButton.layer.cornerRadius = 6
+        manageWalletButton.layer.borderWidth = 1
+        manageWalletButton.layer.borderColor = IndustrialDesign.Colors.bitcoin.cgColor
+        manageWalletButton.translatesAutoresizingMaskIntoConstraints = false
+        manageWalletButton.addTarget(self, action: #selector(manageWalletTapped), for: .touchUpInside)
+        manageWalletButton.isHidden = true // Hidden by default, shown only for captains
+        
         // Bolt decoration
         boltDecoration.backgroundColor = UIColor(red: 0.27, green: 0.27, blue: 0.27, alpha: 1.0)
         boltDecoration.layer.cornerRadius = IndustrialDesign.Sizing.boltSize / 2
@@ -78,6 +99,7 @@ class TeamDetailAboutSection: UIView {
         statsRow.addSubview(prizePoolStat)
         statsRow.addSubview(walletStatusIndicator)
         statsRow.addSubview(walletStatusLabel)
+        statsRow.addSubview(manageWalletButton)
     }
     
     private func setupConstraints() {
@@ -105,7 +127,13 @@ class TeamDetailAboutSection: UIView {
             walletStatusIndicator.heightAnchor.constraint(equalToConstant: 8),
             
             walletStatusLabel.trailingAnchor.constraint(equalTo: statsRow.trailingAnchor),
-            walletStatusLabel.centerYAnchor.constraint(equalTo: statsRow.centerYAnchor)
+            walletStatusLabel.centerYAnchor.constraint(equalTo: statsRow.centerYAnchor),
+            
+            // Manage wallet button (positioned below prize pool when visible)
+            manageWalletButton.topAnchor.constraint(equalTo: prizePoolStat.bottomAnchor, constant: 8),
+            manageWalletButton.leadingAnchor.constraint(equalTo: statsRow.leadingAnchor),
+            manageWalletButton.widthAnchor.constraint(equalToConstant: 120),
+            manageWalletButton.heightAnchor.constraint(equalToConstant: 28)
         ])
     }
     
@@ -123,7 +151,7 @@ class TeamDetailAboutSection: UIView {
     
     // MARK: - Configuration
     
-    func configure(description: String?, prizePool: String, walletConfigured: Bool = false) {
+    func configure(description: String?, prizePool: String, walletConfigured: Bool = false, isCaptain: Bool = false) {
         let displayDescription = description?.isEmpty == false ? description! : "This team doesn't have a description yet."
         aboutDescriptionLabel.text = displayDescription
         
@@ -141,13 +169,26 @@ class TeamDetailAboutSection: UIView {
             walletStatusLabel.text = "Wallet not configured"
             walletStatusLabel.textColor = UIColor.systemOrange
         }
+        
+        // Show/hide manage wallet button based on captain status
+        manageWalletButton.isHidden = !isCaptain
+        
+        print("🏗️ TeamDetailAboutSection: Configure - isCaptain: \(isCaptain), manageWalletButton.isHidden: \(manageWalletButton.isHidden)")
     }
     
     func showLoading() {
         aboutDescriptionLabel.text = "Loading team information..."
-        prizePoolStat.updateValue("₿0")
+        prizePoolStat.updateValue("0 sats")
         walletStatusLabel.text = "Checking wallet..."
         walletStatusLabel.textColor = IndustrialDesign.Colors.secondaryText
         walletStatusIndicator.backgroundColor = IndustrialDesign.Colors.secondaryText
+        manageWalletButton.isHidden = true // Hide during loading
+    }
+    
+    // MARK: - Actions
+    
+    @objc private func manageWalletTapped() {
+        print("🏗️ TeamDetailAboutSection: Manage wallet button tapped")
+        delegate?.didTapManageWallet()
     }
 }

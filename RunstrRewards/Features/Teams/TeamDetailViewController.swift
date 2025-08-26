@@ -33,6 +33,7 @@ class TeamDetailViewController: UIViewController {
     
     // Captain-only UI elements
     private var eventsCreateButton: UIButton?
+    private var announcementButton: UIButton?
     
     // Event management
     private var createdEvents: [EventCreationData] = []
@@ -41,11 +42,13 @@ class TeamDetailViewController: UIViewController {
     private var teamMembersTopConstraint: NSLayoutConstraint?
     private var teamMembersToSubscriptionConstraint: NSLayoutConstraint?
     private var teamMembersToAboutConstraint: NSLayoutConstraint?
+    private var aboutSectionHeightConstraint: NSLayoutConstraint?
     
     // Singleton for event persistence (temporary solution)
     private static var sharedEvents: [String: [EventCreationData]] = [:] // teamId -> events
     private var eventsContainer: UIView?
     private var eventsEmptyLabel: UILabel?
+    private var eventsTitleLabel: UILabel?
     
     // Removed: tabNavigation and tabContentView (simplified to single scroll layout)
     
@@ -72,10 +75,12 @@ class TeamDetailViewController: UIViewController {
         setupSubscriptionStatusView()
         setupSimpleComponents()
         setupConstraints()
+        setupAboutSectionHeightConstraint()
         setupSimpleConstraints()
         configureWithData()
         loadTeamData()
         loadPersistedEvents()
+        setupNotificationListeners()
         
         print("🏗️ RunstrRewards: Team detail loaded successfully!")
     }
@@ -125,6 +130,7 @@ class TeamDetailViewController: UIViewController {
     
     private func setupAboutSection() {
         aboutSection.translatesAutoresizingMaskIntoConstraints = false
+        aboutSection.delegate = self
         contentView.addSubview(aboutSection)
     }
     
@@ -183,7 +189,6 @@ class TeamDetailViewController: UIViewController {
             aboutSection.topAnchor.constraint(equalTo: headerView.bottomAnchor),
             aboutSection.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             aboutSection.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            aboutSection.heightAnchor.constraint(equalToConstant: 140),
             
             // Subscription status view
             subscriptionStatusView.topAnchor.constraint(equalTo: aboutSection.bottomAnchor, constant: 16),
@@ -277,6 +282,7 @@ class TeamDetailViewController: UIViewController {
         titleLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         titleLabel.textColor = IndustrialDesign.Colors.primaryText
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        self.eventsTitleLabel = titleLabel
         
         // Captain-only plus button for creating events
         let createButton = UIButton(type: .custom)
@@ -286,6 +292,15 @@ class TeamDetailViewController: UIViewController {
         createButton.addTarget(self, action: #selector(createEventTapped), for: .touchUpInside)
         createButton.isHidden = true // Hidden by default, shown for captains
         eventsCreateButton = createButton
+        
+        // Captain-only announcement button
+        let announcementBtn = UIButton(type: .custom)
+        announcementBtn.setImage(UIImage(systemName: "megaphone.fill"), for: .normal)
+        announcementBtn.tintColor = IndustrialDesign.Colors.bitcoin
+        announcementBtn.translatesAutoresizingMaskIntoConstraints = false
+        announcementBtn.addTarget(self, action: #selector(announcementTapped), for: .touchUpInside)
+        announcementBtn.isHidden = true // Hidden by default, shown for captains
+        announcementButton = announcementBtn
         
         let emptyLabel = UILabel()
         emptyLabel.text = "No events yet"
@@ -297,6 +312,7 @@ class TeamDetailViewController: UIViewController {
         
         eventsContainer.addSubview(titleLabel)
         eventsContainer.addSubview(createButton)
+        eventsContainer.addSubview(announcementBtn)
         eventsContainer.addSubview(emptyLabel)
         contentView.addSubview(eventsContainer)
         
@@ -312,10 +328,26 @@ class TeamDetailViewController: UIViewController {
             createButton.widthAnchor.constraint(equalToConstant: 24),
             createButton.heightAnchor.constraint(equalToConstant: 24),
             
+            announcementBtn.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+            announcementBtn.trailingAnchor.constraint(equalTo: createButton.leadingAnchor, constant: -12),
+            announcementBtn.widthAnchor.constraint(equalToConstant: 24),
+            announcementBtn.heightAnchor.constraint(equalToConstant: 24),
+            
             emptyLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
             emptyLabel.centerXAnchor.constraint(equalTo: eventsContainer.centerXAnchor),
             emptyLabel.bottomAnchor.constraint(equalTo: eventsContainer.bottomAnchor, constant: -16)
         ])
+    }
+    
+    private func setupAboutSectionHeightConstraint() {
+        // Create height constraint for aboutSection (dynamic based on captain status)
+        aboutSectionHeightConstraint = aboutSection.heightAnchor.constraint(equalToConstant: 140)
+        aboutSectionHeightConstraint?.isActive = true
+    }
+    
+    private func updateAboutSectionHeight(isCaptain: Bool) {
+        aboutSectionHeightConstraint?.constant = isCaptain ? 180 : 140
+        view.layoutIfNeeded()
     }
     
     private func setupSimpleConstraints() {
@@ -367,7 +399,8 @@ class TeamDetailViewController: UIViewController {
                 aboutSection.configure(
                     description: description,
                     prizePool: prizePool,
-                    walletConfigured: walletConfigured
+                    walletConfigured: walletConfigured,
+                    isCaptain: isCaptain
                 )
             }
         } catch {
@@ -377,7 +410,8 @@ class TeamDetailViewController: UIViewController {
                 aboutSection.configure(
                     description: "This team doesn't have a description yet.",
                     prizePool: teamData.prizePool,
-                    walletConfigured: false
+                    walletConfigured: false,
+                    isCaptain: false
                 )
             }
         }
@@ -458,6 +492,7 @@ class TeamDetailViewController: UIViewController {
             
             await MainActor.run {
                 self.isCaptain = isTeamOwner // Store captain status
+                self.updateAboutSectionHeight(isCaptain: isTeamOwner) // Update height for captain UI
                 
                 if isTeamOwner {
                     // Switch to captain layout constraints
@@ -474,6 +509,7 @@ class TeamDetailViewController: UIViewController {
                     
                     // Show captain-only buttons
                     eventsCreateButton?.isHidden = false
+                    announcementButton?.isHidden = false
                     
                     print("🏗️ TeamDetailMain: User IS team captain - showing captain badge, hiding subscribe button, showing create buttons")
                 } else {
@@ -491,6 +527,7 @@ class TeamDetailViewController: UIViewController {
                     
                     // Hide captain-only buttons
                     eventsCreateButton?.isHidden = true
+                    announcementButton?.isHidden = true
                     
                     print("🏗️ TeamDetailMain: User is NOT team captain - hiding captain badge, showing subscribe button, hiding create buttons")
                 }
@@ -502,6 +539,7 @@ class TeamDetailViewController: UIViewController {
             print("🏗️ TeamDetailMain: Could not verify team ownership - defaulting to member view")
             await MainActor.run {
                 self.isCaptain = false // Default to non-captain for safety
+                self.updateAboutSectionHeight(isCaptain: false) // Update height for member UI
                 
                 // Show subscription UI for non-captains
                 subscriptionStatusView.configure(teamId: teamData.id)
@@ -510,6 +548,7 @@ class TeamDetailViewController: UIViewController {
                 
                 // Hide captain-only buttons
                 eventsCreateButton?.isHidden = true
+                announcementButton?.isHidden = true
                 
                 print("🏗️ TeamDetailMain: Non-captain view applied - subscribe button shown, captain features hidden")
             }
@@ -693,6 +732,27 @@ class TeamDetailViewController: UIViewController {
         present(navigationController, animated: true)
     }
     
+    @objc private func announcementTapped() {
+        print("🏗️ TeamDetail: Announcement button tapped")
+        
+        guard isCaptain else {
+            print("🏗️ TeamDetail: User is not captain, ignoring announcement tap")
+            return
+        }
+        
+        let announcementVC = CaptainAnnouncementViewController(teamData: teamData)
+        announcementVC.modalPresentationStyle = .pageSheet
+        
+        if #available(iOS 15.0, *) {
+            if let sheet = announcementVC.sheetPresentationController {
+                sheet.detents = [.large()]
+                sheet.prefersGrabberVisible = true
+            }
+        }
+        
+        present(announcementVC, animated: true)
+    }
+    
     private func addCreatedEvent(_ eventData: EventCreationData) {
         createdEvents.append(eventData)
         // Store in shared events for persistence
@@ -710,44 +770,67 @@ class TeamDetailViewController: UIViewController {
     
     private func refreshEventsDisplay() {
         guard let eventsContainer = eventsContainer,
-              let eventsEmptyLabel = eventsEmptyLabel else { return }
+              let eventsEmptyLabel = eventsEmptyLabel,
+              let eventsTitleLabel = eventsTitleLabel else { return }
+        
+        // Remove existing height constraints
+        eventsContainer.constraints.filter { $0.firstAttribute == .height }.forEach {
+            eventsContainer.removeConstraint($0)
+        }
         
         if createdEvents.isEmpty {
             eventsEmptyLabel.isHidden = false
+            // Set minimum height for empty state
+            eventsContainer.heightAnchor.constraint(equalToConstant: 100).isActive = true
         } else {
             eventsEmptyLabel.isHidden = true
             
             // Remove existing event cards
             eventsContainer.subviews.forEach { subview in
-                if subview.tag == 999 { // Tag for event cards
+                if subview.tag >= 999 { // Tag for event cards
                     subview.removeFromSuperview()
                 }
             }
             
-            // Add event cards
+            // Add event cards with proper constraints
+            var previousView: UIView?
+            let cardHeight: CGFloat = 60
+            let cardSpacing: CGFloat = 12
+            let titleBottomSpacing: CGFloat = 16 // Space between title and first card
+            let bottomPadding: CGFloat = 16
+            
             for (index, event) in createdEvents.enumerated() {
                 let eventCard = createEventCard(for: event)
-                eventCard.tag = 999 // Tag for easy removal
+                eventCard.tag = 999 + index
                 eventsContainer.addSubview(eventCard)
                 
                 let topConstraint: NSLayoutConstraint
                 if index == 0 {
-                    topConstraint = eventCard.topAnchor.constraint(equalTo: eventsContainer.topAnchor, constant: 50)
-                } else if let previousCard = eventsContainer.subviews.first(where: { $0.tag == 998 + index }) {
-                    topConstraint = eventCard.topAnchor.constraint(equalTo: previousCard.bottomAnchor, constant: 12)
+                    // First card positioned below title label
+                    topConstraint = eventCard.topAnchor.constraint(equalTo: eventsTitleLabel.bottomAnchor, constant: titleBottomSpacing)
+                } else if let prevView = previousView {
+                    // Subsequent cards positioned below previous card
+                    topConstraint = eventCard.topAnchor.constraint(equalTo: prevView.bottomAnchor, constant: cardSpacing)
                 } else {
-                    topConstraint = eventCard.topAnchor.constraint(equalTo: eventsContainer.topAnchor, constant: 50 + CGFloat(index * 72))
+                    // Fallback to title label
+                    topConstraint = eventCard.topAnchor.constraint(equalTo: eventsTitleLabel.bottomAnchor, constant: titleBottomSpacing)
                 }
-                
-                eventCard.tag = 999 + index // Unique tag for each card
                 
                 NSLayoutConstraint.activate([
                     topConstraint,
                     eventCard.leadingAnchor.constraint(equalTo: eventsContainer.leadingAnchor, constant: 16),
                     eventCard.trailingAnchor.constraint(equalTo: eventsContainer.trailingAnchor, constant: -16),
-                    eventCard.heightAnchor.constraint(equalToConstant: 60)
+                    eventCard.heightAnchor.constraint(equalToConstant: cardHeight)
                 ])
+                
+                previousView = eventCard
             }
+            
+            // Calculate and set container height to fit all content
+            // Get the actual title label height by using its constraints
+            let titleHeight = eventsTitleLabel.frame.height > 0 ? eventsTitleLabel.frame.height : 22 // fallback height
+            let totalHeight = titleHeight + titleBottomSpacing + CGFloat(createdEvents.count) * cardHeight + CGFloat(max(0, createdEvents.count - 1)) * cardSpacing + bottomPadding
+            eventsContainer.heightAnchor.constraint(equalToConstant: totalHeight).isActive = true
         }
     }
     
@@ -790,6 +873,22 @@ class TeamDetailViewController: UIViewController {
     
     deinit {
         NotificationCenter.default.removeObserver(self)
+    }
+}
+
+// MARK: - TeamDetailAboutSectionDelegate
+
+extension TeamDetailViewController: TeamDetailAboutSectionDelegate {
+    func didTapManageWallet() {
+        print("🏗️ TeamDetailViewController: Manage wallet tapped - isCaptain: \(isCaptain)")
+        
+        guard isCaptain else {
+            print("🏗️ TeamDetailViewController: User is not captain, ignoring wallet tap")
+            return
+        }
+        
+        let walletViewController = TeamWalletViewController(teamData: teamData)
+        navigationController?.pushViewController(walletViewController, animated: true)
     }
 }
 
@@ -1434,6 +1533,27 @@ extension TeamDetailViewController: TeamMembersListViewDelegate {
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
     }
+    
+    private func setupNotificationListeners() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(announcementSentSuccessfully),
+            name: .announcementSent,
+            object: nil
+        )
+    }
+    
+    @objc private func announcementSentSuccessfully(_ notification: Notification) {
+        guard let title = notification.userInfo?["title"] as? String else { return }
+        
+        let alert = UIAlertController(
+            title: "Announcement Sent! 📢",
+            message: "'\(title)' has been sent to all team members.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Great!", style: .default))
+        present(alert, animated: true)
+    }
 }
 
 // MARK: - TeamActivityFeedViewDelegate
@@ -1466,20 +1586,19 @@ extension TeamDetailViewController: TeamActivityFeedViewDelegate {
     // MARK: - Helper Methods
     
     private func formatBitcoinAmount(_ amount: Double) -> String {
-        if amount == 0 {
-            return "₿0"
-        } else if amount < 1 {
-            // For amounts less than 1, show up to 4 decimal places but remove trailing zeros
-            let formatted = String(format: "%.4f", amount)
-            let trimmed = formatted.replacingOccurrences(of: #"\.?0+$"#, with: "", options: .regularExpression)
-            return "₿\(trimmed)"
+        // Convert Bitcoin amount to sats (1 BTC = 100,000,000 sats)
+        let satsAmount = Int(amount * 100_000_000)
+        
+        if satsAmount == 0 {
+            return "0 sats"
+        } else if satsAmount < 1000 {
+            return "\(satsAmount) sats"
+        } else if satsAmount < 1_000_000 {
+            let kSats = Double(satsAmount) / 1000.0
+            return String(format: "%.1fk sats", kSats)
         } else {
-            // For amounts 1 and above, show as integer or with minimal decimals
-            if amount == floor(amount) {
-                return "₿\(Int(amount))"
-            } else {
-                return "₿\(String(format: "%.2f", amount))"
-            }
+            let mSats = Double(satsAmount) / 1_000_000.0
+            return String(format: "%.1fM sats", mSats)
         }
     }
 }
