@@ -13,7 +13,7 @@ class TeamDetailAboutSection: UIView {
     private let aboutTitleLabel = UILabel()
     private let aboutDescriptionLabel = UILabel()
     private let statsRow = UIView()
-    private let prizePoolStat = StatItem(value: "0 sats", label: "Prize Pool", isBitcoin: true)
+    private let prizePoolStat = StatItem(value: "0", label: "Prize Pool", isBitcoin: true)
     private let walletStatusIndicator = UIView()
     private let walletStatusLabel = UILabel()
     private let manageWalletButton = UIButton(type: .custom)
@@ -94,12 +94,12 @@ class TeamDetailAboutSection: UIView {
         addSubview(aboutTitleLabel)
         addSubview(aboutDescriptionLabel)
         addSubview(statsRow)
+        addSubview(manageWalletButton) // Add directly to main view, not statsRow
         addSubview(boltDecoration)
         
         statsRow.addSubview(prizePoolStat)
         statsRow.addSubview(walletStatusIndicator)
         statsRow.addSubview(walletStatusLabel)
-        statsRow.addSubview(manageWalletButton)
     }
     
     private func setupConstraints() {
@@ -129,9 +129,9 @@ class TeamDetailAboutSection: UIView {
             walletStatusLabel.trailingAnchor.constraint(equalTo: statsRow.trailingAnchor),
             walletStatusLabel.centerYAnchor.constraint(equalTo: statsRow.centerYAnchor),
             
-            // Manage wallet button (positioned below prize pool when visible)
-            manageWalletButton.topAnchor.constraint(equalTo: prizePoolStat.bottomAnchor, constant: 8),
-            manageWalletButton.leadingAnchor.constraint(equalTo: statsRow.leadingAnchor),
+            // Manage wallet button (positioned below statsRow when visible)
+            manageWalletButton.topAnchor.constraint(equalTo: statsRow.bottomAnchor, constant: 8),
+            manageWalletButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: IndustrialDesign.Spacing.large),
             manageWalletButton.widthAnchor.constraint(equalToConstant: 120),
             manageWalletButton.heightAnchor.constraint(equalToConstant: 28)
         ])
@@ -178,7 +178,7 @@ class TeamDetailAboutSection: UIView {
     
     func showLoading() {
         aboutDescriptionLabel.text = "Loading team information..."
-        prizePoolStat.updateValue("0 sats")
+        prizePoolStat.updateValue("0")
         walletStatusLabel.text = "Checking wallet..."
         walletStatusLabel.textColor = IndustrialDesign.Colors.secondaryText
         walletStatusIndicator.backgroundColor = IndustrialDesign.Colors.secondaryText

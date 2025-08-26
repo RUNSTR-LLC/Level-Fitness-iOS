@@ -346,7 +346,8 @@ class TeamDetailViewController: UIViewController {
     }
     
     private func updateAboutSectionHeight(isCaptain: Bool) {
-        aboutSectionHeightConstraint?.constant = isCaptain ? 180 : 140
+        // Need more height when captain to accommodate the manage wallet button positioned below statsRow
+        aboutSectionHeightConstraint?.constant = isCaptain ? 200 : 140
         view.layoutIfNeeded()
     }
     
@@ -827,9 +828,9 @@ class TeamDetailViewController: UIViewController {
             }
             
             // Calculate and set container height to fit all content
-            // Get the actual title label height by using its constraints
-            let titleHeight = eventsTitleLabel.frame.height > 0 ? eventsTitleLabel.frame.height : 22 // fallback height
-            let totalHeight = titleHeight + titleBottomSpacing + CGFloat(createdEvents.count) * cardHeight + CGFloat(max(0, createdEvents.count - 1)) * cardSpacing + bottomPadding
+            // Title takes about 50pt including button space and margins
+            let titleSectionHeight: CGFloat = 50
+            let totalHeight = titleSectionHeight + titleBottomSpacing + CGFloat(createdEvents.count) * cardHeight + CGFloat(max(0, createdEvents.count - 1)) * cardSpacing + bottomPadding
             eventsContainer.heightAnchor.constraint(equalToConstant: totalHeight).isActive = true
         }
     }
@@ -1587,18 +1588,19 @@ extension TeamDetailViewController: TeamActivityFeedViewDelegate {
     
     private func formatBitcoinAmount(_ amount: Double) -> String {
         // Convert Bitcoin amount to sats (1 BTC = 100,000,000 sats)
+        // Note: Return just the number, StatItem will add "sats" suffix
         let satsAmount = Int(amount * 100_000_000)
         
         if satsAmount == 0 {
-            return "0 sats"
+            return "0"
         } else if satsAmount < 1000 {
-            return "\(satsAmount) sats"
+            return "\(satsAmount)"
         } else if satsAmount < 1_000_000 {
             let kSats = Double(satsAmount) / 1000.0
-            return String(format: "%.1fk sats", kSats)
+            return String(format: "%.1fk", kSats)
         } else {
             let mSats = Double(satsAmount) / 1_000_000.0
-            return String(format: "%.1fM sats", mSats)
+            return String(format: "%.1fM", mSats)
         }
     }
 }
