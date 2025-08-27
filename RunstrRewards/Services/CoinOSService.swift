@@ -6,6 +6,8 @@ class CoinOSService {
     private let baseURL = "https://coinos.io/api"
     private var authToken: String?
     private let session = URLSession.shared
+    private let contextLock = NSLock() // Prevent concurrent context switches
+    private var currentWalletContext: WalletContext = .none
     
     private init() {
         // Load existing auth token from keychain if available
@@ -448,12 +450,19 @@ class CoinOSService {
     }
     
     func switchToTeamWalletContext(teamId: String, credentials: TeamWalletCredentials) async throws {
+        contextLock.lock()
+        defer { contextLock.unlock() }
+        
         print("CoinOSService: Switching to team wallet context for team \(teamId)")
         
         try await authenticateWithTeamWallet(username: credentials.username, password: credentials.password)
+        currentWalletContext = .team(teamId)
     }
     
     func switchToUserWalletContext(userId: String) async throws {
+        contextLock.lock()
+        defer { contextLock.unlock() }
+        
         print("CoinOSService: Switching back to user wallet context for user \(userId)")
         
         // Clear current team wallet token
@@ -463,7 +472,9 @@ class CoinOSService {
         if let username = KeychainService.shared.load(for: .coinOSUsername),
            let password = KeychainService.shared.load(for: .coinOSPassword) {
             try await authenticateWithTeamWallet(username: username, password: password)
+            currentWalletContext = .user(userId)
         } else {
+            currentWalletContext = .none
             throw CoinOSError.notAuthenticated
         }
     }
@@ -477,13 +488,37 @@ class CoinOSService {
     ) async throws -> PaymentResult {
         print("CoinOSService: Transferring \(amount) sats from team \(fromTeamId) to user \(toUserId)")
         
-        // Step 1: Switch to user context to create invoice
-        try await switchToUserWalletContext(userId: toUserId)
-        let userInvoice = try await addInvoice(amount: amount, memo: memo)
+        // Validate transfer amount
+        guard amount > 0 else {
+            throw CoinOSError.invalidAmount
+        }
         
-        // Step 2: Switch to team wallet context to pay invoice
-        try await switchToTeamWalletContext(teamId: fromTeamId, credentials: fromCredentials)
-        let paymentResult = try await payInvoice(userInvoice.paymentRequest)
+        var userInvoice: LightningInvoice
+        var paymentResult: PaymentResult
+        
+        do {
+            // Step 1: Switch to user context to create invoice
+            try await switchToUserWalletContext(userId: toUserId)
+            userInvoice = try await addInvoice(amount: amount, memo: memo)
+            
+            // Step 2: Switch to team wallet context to pay invoice
+            try await switchToTeamWalletContext(teamId: fromTeamId, credentials: fromCredentials)
+            
+            // Verify team wallet has sufficient balance
+            let teamBalance = try await getBalance()
+            guard teamBalance.total >= amount else {
+                throw CoinOSError.insufficientBalance
+            }
+            
+            // Execute payment
+            paymentResult = try await payInvoice(userInvoice.paymentRequest)
+            
+        } catch {
+            print("CoinOSService: Transfer failed during execution: \(error)")
+            // Attempt to restore user context on error
+            try? await switchToUserWalletContext(userId: toUserId)
+            throw error
+        }
         
         print("CoinOSService: Transfer \(paymentResult.success ? "successful" : "failed")")
         return paymentResult
@@ -715,6 +750,14 @@ private struct CoinOSPaymentData: Codable {
     let hash: String?
 }
 
+// MARK: - Wallet Context Management
+
+enum WalletContext {
+    case none
+    case user(String) // userId
+    case team(String) // teamId
+}
+
 // MARK: - Errors
 
 enum CoinOSError: LocalizedError {
@@ -724,6 +767,8 @@ enum CoinOSError: LocalizedError {
     case networkError
     case decodingError
     case walletCreationFailed
+    case invalidAmount
+    case insufficientBalance
     
     var errorDescription: String? {
         switch self {
@@ -739,6 +784,10 @@ enum CoinOSError: LocalizedError {
             return "Failed to decode CoinOS response"
         case .walletCreationFailed:
             return "Failed to create CoinOS wallet"
+        case .invalidAmount:
+            return "Invalid transfer amount"
+        case .insufficientBalance:
+            return "Insufficient wallet balance"
         }
     }
 }

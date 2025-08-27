@@ -250,6 +250,95 @@ class NotificationService: NSObject {
         }
     }
     
+    // MARK: - INSTANT Notification Methods
+    
+    func sendInstantWorkoutSyncNotification(
+        workoutType: String,
+        teamName: String? = nil,
+        estimatedSats: Int = 0,
+        duration: TimeInterval = 0
+    ) {
+        print("⚡ NotificationService: Sending INSTANT workout sync notification")
+        
+        let content = UNMutableNotificationContent()
+        
+        if let teamName = teamName {
+            content.title = "⚡ \(teamName): Workout Synced!"
+            content.body = "Your \(workoutType) is live on the leaderboard! +\(estimatedSats) sats ⚡"
+        } else {
+            content.title = "⚡ Workout Synced!"
+            content.body = "Your \(workoutType) is now live! Earned ~\(estimatedSats) sats ⚡"
+        }
+        
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "WORKOUT_COMPLETION"
+        content.userInfo = [
+            "type": "instant_workout_sync",
+            "workout_type": workoutType,
+            "team_name": teamName ?? "",
+            "estimated_sats": estimatedSats,
+            "duration": duration,
+            "sync_timestamp": Date().timeIntervalSince1970
+        ]
+        
+        // Send with MINIMUM delay for instant delivery
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "instant_sync_\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("❌ NotificationService: Failed to send instant workout notification: \(error)")
+            } else {
+                print("✅ NotificationService: INSTANT workout notification sent!")
+            }
+        }
+    }
+    
+    func sendHighPriorityWorkoutNotification(
+        title: String,
+        body: String,
+        userInfo: [String: Any] = [:],
+        playSound: Bool = true
+    ) {
+        print("🔥 NotificationService: Sending HIGH PRIORITY workout notification")
+        
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.badge = 1
+        content.categoryIdentifier = "WORKOUT_COMPLETION"
+        content.userInfo = userInfo
+        
+        if playSound {
+            content.sound = .default
+        }
+        
+        // Immediate delivery with critical alert if available
+        if #available(iOS 12.0, *) {
+            content.interruptionLevel = .timeSensitive
+        }
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "high_priority_\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("❌ NotificationService: Failed to send high priority notification: \(error)")
+            } else {
+                print("✅ NotificationService: HIGH PRIORITY notification sent!")
+            }
+        }
+    }
+    
     func scheduleEventCompletionNotification(eventName: String, achievement: String) {
         let content = UNMutableNotificationContent()
         content.title = "Event \(achievement) 🎉"
@@ -639,37 +728,32 @@ class NotificationService: NSObject {
             }
         }
         
-        do {
-            switch type {
-            case .workoutSync:
-                let backgroundTaskManager = BackgroundTaskManager.shared
-                backgroundTaskManager.triggerWorkoutSync()
-                return .newData
-                
-            case .leaderboardCheck:
-                // TODO: Trigger leaderboard position tracking when service is added
-                // guard let userId = AuthenticationService.shared.currentUserId else {
-                //     return .failed
-                // }
-                // 
-                // let leaderboardTracker = LeaderboardTracker.shared
-                // let changes = await leaderboardTracker.trackUserPositions(userId: userId)
-                // await leaderboardTracker.processPositionChanges(changes)
-                // 
-                // return changes.isEmpty ? .noData : .newData
-                print("NotificationService: Leaderboard check triggered (placeholder)")
-                return .newData
-                
-            case .challengeUpdate, .fullSync:
-                // Trigger comprehensive sync
-                let backgroundTaskManager = BackgroundTaskManager.shared
-                backgroundTaskManager.triggerWorkoutSync()
-                backgroundTaskManager.triggerRewardCheck()
-                return .newData
-            }
-        } catch {
-            print("NotificationService: Silent push sync failed: \(error)")
-            return .failed
+        switch type {
+        case .workoutSync:
+            let backgroundTaskManager = BackgroundTaskManager.shared
+            backgroundTaskManager.triggerWorkoutSync()
+            return .newData
+            
+        case .leaderboardCheck:
+            // TODO: Trigger leaderboard position tracking when service is added
+            // guard let userId = AuthenticationService.shared.currentUserId else {
+            //     return .failed
+            // }
+            // 
+            // let leaderboardTracker = LeaderboardTracker.shared
+            // let changes = await leaderboardTracker.trackUserPositions(userId: userId)
+            // await leaderboardTracker.processPositionChanges(changes)
+            // 
+            // return changes.isEmpty ? .noData : .newData
+            print("NotificationService: Leaderboard check triggered (placeholder)")
+            return .newData
+            
+        case .challengeUpdate, .fullSync:
+            // Trigger comprehensive sync
+            let backgroundTaskManager = BackgroundTaskManager.shared
+            backgroundTaskManager.triggerWorkoutSync()
+            backgroundTaskManager.triggerRewardCheck()
+            return .newData
         }
     }
     
@@ -932,6 +1016,107 @@ extension NotificationService: UNUserNotificationCenterDelegate {
                 break
             }
         }
+    }
+    
+    // MARK: - Notification Inbox Integration
+    
+    /// Store notification in persistent inbox when sending push notification
+    func storeNotificationInInbox(
+        userId: String,
+        type: String,
+        title: String,
+        body: String? = nil,
+        teamId: String? = nil,
+        fromUserId: String? = nil,
+        eventId: String? = nil,
+        actionType: String? = nil,
+        actionData: [String: String]? = nil,
+        expiresAt: Date? = nil
+    ) {
+        // TODO: Enable when NotificationInboxService is added to Xcode project target
+        /*
+        Task {
+            do {
+                try await NotificationInboxService.shared.storeNotification(
+                    userId: userId,
+                    type: type,
+                    title: title,
+                    body: body,
+                    teamId: teamId,
+                    fromUserId: fromUserId,
+                    eventId: eventId,
+                    actionType: actionType,
+                    actionData: actionData,
+                    expiresAt: expiresAt
+                )
+            } catch {
+                print("NotificationService: ❌ Failed to store notification in inbox: \(error)")
+            }
+        }
+        */
+        
+        // Temporary placeholder
+        print("NotificationService: 📥 Notification stored in inbox (placeholder): \(title)")
+    }
+    
+    /// Enhanced schedule method that also stores in inbox
+    func scheduleAndStoreNotification(
+        identifier: String,
+        title: String,
+        body: String,
+        userId: String,
+        type: String,
+        teamId: String? = nil,
+        fromUserId: String? = nil,
+        eventId: String? = nil,
+        actionType: String? = nil,
+        actionData: [String: String]? = nil,
+        userInfo: [String: Any]? = nil,
+        delay: Double = 1.0,
+        category: String? = nil
+    ) {
+        // Create notification content
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        content.badge = 1
+        
+        if let category = category {
+            content.categoryIdentifier = category
+        }
+        
+        // Merge user info
+        var finalUserInfo = userInfo ?? [:]
+        finalUserInfo["type"] = type
+        if let teamId = teamId { finalUserInfo["team_id"] = teamId }
+        if let eventId = eventId { finalUserInfo["event_id"] = eventId }
+        content.userInfo = finalUserInfo
+        
+        // Schedule push notification
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: delay, repeats: false)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("NotificationService: ❌ Failed to schedule notification: \(error)")
+            } else {
+                print("NotificationService: ✅ Scheduled notification: \(type)")
+            }
+        }
+        
+        // Store in inbox
+        storeNotificationInInbox(
+            userId: userId,
+            type: type,
+            title: title,
+            body: body,
+            teamId: teamId,
+            fromUserId: fromUserId,
+            eventId: eventId,
+            actionType: actionType,
+            actionData: actionData
+        )
     }
 }
 

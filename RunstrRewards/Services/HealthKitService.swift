@@ -8,6 +8,13 @@ class HealthKitService: @unchecked Sendable {
     private var isAuthorized = false
     private let syncQueue = DispatchQueue(label: "com.runstrrewards.healthkit", attributes: .concurrent)
     
+    // Enhanced detection system
+    private var observerQuery: HKObserverQuery?
+    private var anchoredQuery: HKAnchoredObjectQuery?
+    private var activityQuery: HKActivitySummaryQuery?
+    private var queryAnchor: HKQueryAnchor?
+    private var lastProcessedWorkoutDate = Date().addingTimeInterval(-3600)
+    
     private init() {}
     
     // MARK: - Authorization
@@ -220,59 +227,239 @@ class HealthKitService: @unchecked Sendable {
     }
     
     func observeWorkouts(handler: @escaping ([HealthKitWorkout]) -> Void) {
+        print("🚀 HealthKitService: Starting enhanced triple detection system")
+        
+        // Layer 1: HKObserverQuery for immediate detection
+        setupObserverQuery(handler: handler)
+        
+        // Layer 2: HKAnchoredObjectQuery for reliable incremental updates
+        setupAnchoredQuery(handler: handler)
+        
+        // Layer 3: HKActivitySummaryQuery for early workout indicators
+        setupActivityQuery(handler: handler)
+    }
+    
+    private func setupObserverQuery(handler: @escaping ([HealthKitWorkout]) -> Void) {
         let workoutType = HKObjectType.workoutType()
         
-        let query = HKObserverQuery(sampleType: workoutType, predicate: nil) { [weak self] query, completionHandler, error in
+        observerQuery = HKObserverQuery(sampleType: workoutType, predicate: nil) { [weak self] query, completionHandler, error in
             if let error = error {
                 print("❌ HealthKitService: Observer query error: \(error)")
                 completionHandler()
                 return
             }
             
-            print("🔍 HealthKitService: New workout detected - fetching recent workouts")
+            print("🔍 HealthKitService: IMMEDIATE workout detection triggered!")
             
             Task {
-                do {
-                    let workouts = try await self?.fetchRecentWorkouts(limit: 10) ?? []
-                    print("📊 HealthKitService: Found \(workouts.count) recent workouts")
-                    
-                    // Filter for truly new workouts (within last hour)
-                    let newWorkouts = workouts.filter { workout in
-                        let oneHourAgo = Date().addingTimeInterval(-3600)
-                        return workout.startDate >= oneHourAgo
-                    }
-                    
-                    print("🆕 HealthKitService: \(newWorkouts.count) workouts are new (within last hour)")
-                    
-                    if !newWorkouts.isEmpty {
-                        await MainActor.run {
-                            handler(newWorkouts)
-                            
-                            // Post notification for each new workout to trigger event/leaderboard updates
-                            for workout in newWorkouts {
-                                NotificationCenter.default.post(
-                                    name: NSNotification.Name("WorkoutAdded"),
-                                    object: nil,
-                                    userInfo: [
-                                        "workout": workout,
-                                        "userId": AuthenticationService.shared.currentUserId ?? ""
-                                    ]
-                                )
-                            }
-                            
-                            print("🔔 HealthKitService: Posted WorkoutAdded notifications for \(newWorkouts.count) workouts")
-                        }
-                    }
-                    
-                    completionHandler()
-                } catch {
-                    print("❌ HealthKitService: Failed to fetch workouts in observer: \(error)")
-                    completionHandler()
-                }
+                await self?.processNewWorkouts(source: "ObserverQuery", handler: handler)
+                completionHandler()
             }
         }
         
-        healthStore.execute(query)
+        healthStore.execute(observerQuery!)
+        print("✅ HealthKitService: Observer query activated")
+    }
+    
+    private func setupAnchoredQuery(handler: @escaping ([HealthKitWorkout]) -> Void) {
+        let workoutType = HKObjectType.workoutType()
+        
+        // Use saved anchor or create new one
+        if queryAnchor == nil {
+            queryAnchor = HKQueryAnchor(fromValue: Int(Date().addingTimeInterval(-86400).timeIntervalSince1970))
+        }
+        
+        anchoredQuery = HKAnchoredObjectQuery(
+            type: workoutType,
+            predicate: nil,
+            anchor: queryAnchor,
+            limit: HKObjectQueryNoLimit
+        ) { [weak self] query, samples, deletedObjects, newAnchor, error in
+            
+            if let error = error {
+                print("❌ HealthKitService: Anchored query error: \(error)")
+                return
+            }
+            
+            guard let workouts = samples as? [HKWorkout], !workouts.isEmpty else {
+                self?.queryAnchor = newAnchor
+                return
+            }
+            
+            print("⚓ HealthKitService: Anchored query found \(workouts.count) new workouts!")
+            self?.queryAnchor = newAnchor
+            
+            Task {
+                await self?.processAnchoredWorkouts(workouts, handler: handler)
+            }
+        }
+        
+        anchoredQuery?.updateHandler = { [weak self] query, samples, deletedObjects, newAnchor, error in
+            guard let workouts = samples as? [HKWorkout], !workouts.isEmpty else {
+                self?.queryAnchor = newAnchor
+                return
+            }
+            
+            print("🔄 HealthKitService: Anchored query UPDATE - \(workouts.count) new workouts!")
+            self?.queryAnchor = newAnchor
+            
+            Task {
+                await self?.processAnchoredWorkouts(workouts, handler: handler)
+            }
+        }
+        
+        healthStore.execute(anchoredQuery!)
+        print("✅ HealthKitService: Anchored query activated")
+    }
+    
+    private func setupActivityQuery(handler: @escaping ([HealthKitWorkout]) -> Void) {
+        let calendar = Calendar.current
+        let now = Date()
+        let _ = calendar.startOfDay(for: now) // For future use
+        
+        let predicate = HKQuery.predicateForActivitySummary(with: DateComponents(calendar: calendar, year: calendar.component(.year, from: now), month: calendar.component(.month, from: now), day: calendar.component(.day, from: now)))
+        
+        activityQuery = HKActivitySummaryQuery(predicate: predicate) { [weak self] query, summaries, error in
+            if let error = error {
+                print("❌ HealthKitService: Activity query error: \(error)")
+                return
+            }
+            
+            guard let summaries = summaries, !summaries.isEmpty else { return }
+            
+            print("🎯 HealthKitService: Activity summary detected - checking for workouts")
+            
+            Task {
+                // Activity changed, immediately check for new workouts
+                await self?.processNewWorkouts(source: "ActivityQuery", handler: handler)
+            }
+        }
+        
+        activityQuery?.updateHandler = { [weak self] query, summaries, error in
+            print("📊 HealthKitService: Activity summary UPDATED - checking for new workouts immediately!")
+            
+            Task {
+                await self?.processNewWorkouts(source: "ActivityUpdate", handler: handler)
+            }
+        }
+        
+        healthStore.execute(activityQuery!)
+        print("✅ HealthKitService: Activity query activated")
+    }
+    
+    private func processNewWorkouts(source: String, handler: @escaping ([HealthKitWorkout]) -> Void) async {
+        do {
+            // Fetch ALL recent workouts, don't filter by time initially
+            let allWorkouts = try await fetchRecentWorkouts(limit: 20)
+            print("📊 HealthKitService [\(source)]: Found \(allWorkouts.count) total workouts")
+            
+            // Only process truly NEW workouts since last processing
+            let newWorkouts = allWorkouts.filter { workout in
+                workout.startDate > lastProcessedWorkoutDate
+            }
+            
+            print("🆕 HealthKitService [\(source)]: \(newWorkouts.count) workouts are NEW since last processing")
+            
+            if !newWorkouts.isEmpty {
+                // Update last processed date to prevent duplicates
+                lastProcessedWorkoutDate = newWorkouts.map { $0.startDate }.max() ?? lastProcessedWorkoutDate
+                
+                await MainActor.run {
+                    handler(newWorkouts)
+                    
+                    // Post notification for each new workout IMMEDIATELY
+                    for workout in newWorkouts {
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("WorkoutAdded"),
+                            object: nil,
+                            userInfo: [
+                                "workout": workout,
+                                "userId": AuthenticationService.shared.currentUserId ?? "",
+                                "detection_source": source,
+                                "detection_time": Date()
+                            ]
+                        )
+                        
+                        print("⚡ HealthKitService [\(source)]: IMMEDIATE notification sent for workout \(workout.id)")
+                    }
+                    
+                    print("🔔 HealthKitService [\(source)]: Posted \(newWorkouts.count) IMMEDIATE workout notifications")
+                }
+            }
+            
+        } catch {
+            print("❌ HealthKitService [\(source)]: Failed to process new workouts: \(error)")
+        }
+    }
+    
+    private func processAnchoredWorkouts(_ hkWorkouts: [HKWorkout], handler: @escaping ([HealthKitWorkout]) -> Void) async {
+        let healthKitWorkouts = hkWorkouts.map { workout in
+            HealthKitWorkout(
+                id: workout.uuid.uuidString,
+                activityType: workout.workoutActivityType,
+                startDate: workout.startDate,
+                endDate: workout.endDate,
+                duration: workout.duration,
+                totalDistance: workout.totalDistance?.doubleValue(for: .meter()),
+                totalEnergyBurned: workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()),
+                syncSource: .healthKit,
+                metadata: workout.metadata
+            )
+        }
+        
+        // Only process truly NEW workouts
+        let newWorkouts = healthKitWorkouts.filter { workout in
+            workout.startDate > lastProcessedWorkoutDate
+        }
+        
+        if !newWorkouts.isEmpty {
+            lastProcessedWorkoutDate = newWorkouts.map { $0.startDate }.max() ?? lastProcessedWorkoutDate
+            
+            await MainActor.run {
+                handler(newWorkouts)
+                
+                for workout in newWorkouts {
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("WorkoutAdded"),
+                        object: nil,
+                        userInfo: [
+                            "workout": workout,
+                            "userId": AuthenticationService.shared.currentUserId ?? "",
+                            "detection_source": "AnchoredQuery",
+                            "detection_time": Date()
+                        ]
+                    )
+                }
+                
+                print("⚓ HealthKitService: Processed \(newWorkouts.count) anchored workouts")
+            }
+        }
+    }
+    
+    // MARK: - Immediate Detection Methods
+    
+    func forceWorkoutCheck(handler: @escaping ([HealthKitWorkout]) -> Void) async {
+        print("🔥 HealthKitService: FORCE workout check initiated")
+        await processNewWorkouts(source: "ForceCheck", handler: handler)
+    }
+    
+    func stopAllQueries() {
+        if let observerQuery = observerQuery {
+            healthStore.stop(observerQuery)
+            self.observerQuery = nil
+        }
+        
+        if let anchoredQuery = anchoredQuery {
+            healthStore.stop(anchoredQuery)
+            self.anchoredQuery = nil
+        }
+        
+        if let activityQuery = activityQuery {
+            healthStore.stop(activityQuery)
+            self.activityQuery = nil
+        }
+        
+        print("🛑 HealthKitService: All queries stopped")
     }
     
     // MARK: - Helper Methods

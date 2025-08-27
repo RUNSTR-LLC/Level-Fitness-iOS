@@ -72,6 +72,9 @@ class ViewController: UIViewController {
         // Refresh profile section to show any profile updates
         profileSectionView.refreshProfile()
         
+        // Update notification badge count
+        updateNotificationBadge()
+        
         Task {
             await loadUserTeam() // Only reload team data, not wallet balance
         }
@@ -135,7 +138,7 @@ class ViewController: UIViewController {
     private func setupNavigationGrid() {
         navigationGrid.translatesAutoresizingMaskIntoConstraints = false
         
-        // Create navigation cards - 1 card (Teams only, Profile moved to top section)
+        // Create navigation cards - Teams and Notifications
         let teamsCard = NavigationCard(
             title: "Teams",
             subtitle: "Join & Create",
@@ -146,7 +149,16 @@ class ViewController: UIViewController {
         )
         self.teamsCard = teamsCard  // Store reference to update later
         
-        navigationCards = [teamsCard]
+        let notificationsCard = NavigationCard(
+            title: "Notifications",
+            subtitle: "Messages & Alerts",
+            iconName: "bell.fill",
+            action: { [weak self] in
+                self?.navigateToNotifications()
+            }
+        )
+        
+        navigationCards = [teamsCard, notificationsCard]
         
         for card in navigationCards {
             card.translatesAutoresizingMaskIntoConstraints = false
@@ -154,6 +166,9 @@ class ViewController: UIViewController {
         }
         
         contentView.addSubview(navigationGrid)
+        
+        // Load notification badge count
+        updateNotificationBadge()
     }
     
     private func setupNotificationToggles() {
@@ -200,13 +215,18 @@ class ViewController: UIViewController {
             navigationGrid.topAnchor.constraint(equalTo: walletSectionView.bottomAnchor, constant: 20),
             navigationGrid.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: IndustrialDesign.Spacing.xLarge),
             navigationGrid.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -IndustrialDesign.Spacing.xLarge),
-            navigationGrid.heightAnchor.constraint(equalToConstant: 80), // Single card height
+            navigationGrid.heightAnchor.constraint(equalToConstant: 170), // Two cards height with spacing
             
-            // Navigation cards - 1 card layout: Teams only
+            // Navigation cards - 2 card layout: Teams and Notifications
             navigationCards[0].topAnchor.constraint(equalTo: navigationGrid.topAnchor),
             navigationCards[0].leadingAnchor.constraint(equalTo: navigationGrid.leadingAnchor),
             navigationCards[0].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
             navigationCards[0].heightAnchor.constraint(equalToConstant: 80), // Teams card
+            
+            navigationCards[1].topAnchor.constraint(equalTo: navigationCards[0].bottomAnchor, constant: 10),
+            navigationCards[1].leadingAnchor.constraint(equalTo: navigationGrid.leadingAnchor),
+            navigationCards[1].trailingAnchor.constraint(equalTo: navigationGrid.trailingAnchor),
+            navigationCards[1].heightAnchor.constraint(equalToConstant: 80), // Notifications card
             
             // Notification toggles section
             notificationTogglesView.topAnchor.constraint(equalTo: navigationGrid.bottomAnchor, constant: 20),
@@ -328,7 +348,46 @@ class ViewController: UIViewController {
         navigateToProfile() // Redirect to profile method
     }
     
+    private func navigateToNotifications() {
+        print("📥 RunstrRewards: Notifications navigation requested")
+        
+        guard let navigationController = navigationController else {
+            print("❌ RunstrRewards: NavigationController is nil - cannot navigate to Notifications")
+            return
+        }
+        
+        let notificationInboxViewController = NotificationInboxViewController()
+        navigationController.pushViewController(notificationInboxViewController, animated: true)
+        
+        print("📥 RunstrRewards: Successfully navigated to Notifications page")
+    }
     
+    private func updateNotificationBadge() {
+        guard let userId = AuthenticationService.shared.currentUserId else { return }
+        
+        Task {
+            do {
+                let unreadCount = try await NotificationInboxService.shared.getUnreadCount(for: userId)
+                
+                await MainActor.run {
+                    if unreadCount > 0 {
+                        // Show badge on notifications card
+                        if navigationCards.count > 1 {
+                            navigationCards[1].updateBadgeText("\(unreadCount)")
+                            navigationCards[1].showBadge(true)
+                        }
+                    } else {
+                        // Hide badge
+                        if navigationCards.count > 1 {
+                            navigationCards[1].showBadge(false)
+                        }
+                    }
+                }
+            } catch {
+                print("📥 ViewController: Failed to update notification badge: \(error)")
+            }
+        }
+    }
     
     // Level League removed - competitions now handled by individual teams
     

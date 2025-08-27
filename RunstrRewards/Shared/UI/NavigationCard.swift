@@ -240,6 +240,11 @@ class NavigationCard: UIView {
         }
     }
     
+    func updateBadgeText(_ text: String) {
+        setupBadge()
+        badgeLabel.text = text
+    }
+    
     private func setupBadge() {
         if badgeView.superview == nil {
             badgeView.translatesAutoresizingMaskIntoConstraints = false

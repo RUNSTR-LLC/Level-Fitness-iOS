@@ -28,7 +28,7 @@ struct PrizeRecipient {
     let transactionId: String?
 }
 
-struct PerformanceMetrics {
+struct PerformanceMetrics: Codable {
     let totalDistance: Double
     let totalWorkouts: Int
     let points: Int
@@ -97,6 +97,8 @@ class TeamPrizeDistributionService {
     private var teamWallets: [String: TeamWalletBalance] = [:]
     private let lightningWalletManager = LightningWalletManager.shared
     private let eventNotificationService = EventNotificationService.shared
+    private let maxRetryAttempts = 3
+    private let retryDelay: TimeInterval = 2.0
     
     private init() {
         initializeTeamWallets()
@@ -135,7 +137,7 @@ class TeamPrizeDistributionService {
         totalPrize: Double,
         captainUserId: String,
         notes: String? = nil
-    ) -> Result<PrizeDistribution, DistributionError> {
+    ) async -> Result<PrizeDistribution, DistributionError> {
         
         // Validate team wallet has sufficient balance
         guard let wallet = teamWallets[teamId] else {
@@ -179,6 +181,13 @@ class TeamPrizeDistributionService {
         )
         
         distributions[distribution.distributionId] = distribution
+        
+        // Store in database
+        do {
+            try await TransactionDataService.shared.createPrizeDistribution(distribution: distribution)
+        } catch {
+            print("💰 Distribution: Failed to store distribution in database: \(error)")
+        }
         
         // Update team wallet to reserve funds
         reserveFunds(teamId: teamId, amount: totalPrize)
@@ -309,7 +318,7 @@ class TeamPrizeDistributionService {
     
     // MARK: - Distribution Execution
     
-    func executeDistribution(distributionId: String) -> Result<Void, DistributionError> {
+    func executeDistribution(distributionId: String) async -> Result<Void, DistributionError> {
         guard var distribution = distributions[distributionId] else {
             return .failure(.distributionNotFound)
         }
@@ -340,7 +349,7 @@ class TeamPrizeDistributionService {
         var executionSuccess = true
         
         for recipient in distribution.recipients {
-            let payoutResult = executePayoutToMember(
+            let payoutResult = await executePayoutToMember(
                 recipient: recipient,
                 teamId: distribution.teamId
             )
@@ -349,7 +358,17 @@ class TeamPrizeDistributionService {
             case .success(let updatedRecipient):
                 updatedRecipients.append(updatedRecipient)
                 
-                // Send prize notification
+                // Send prize notification with proper team name
+                if let teamName = getTeamName(teamId: distribution.teamId) {
+                    sendPrizeNotification(
+                        to: recipient.userId,
+                        amount: recipient.allocation,
+                        teamName: teamName,
+                        reason: recipient.reason
+                    )
+                }
+                
+                // Also send via event notification service
                 eventNotificationService.createPrizeNotification(
                     eventId: distribution.eventId,
                     userId: recipient.userId,
@@ -397,6 +416,28 @@ class TeamPrizeDistributionService {
         
         distributions[distributionId] = finalDistribution
         
+        // Update distribution status in database
+        do {
+            try await TransactionDataService.shared.updateDistributionStatus(
+                distributionId: distributionId,
+                status: finalStatus,
+                executedAt: Date()
+            )
+            
+            // Update individual recipient statuses
+            for recipient in updatedRecipients {
+                try await TransactionDataService.shared.updateRecipientPayout(
+                    distributionId: distributionId,
+                    userId: recipient.userId,
+                    status: recipient.payoutStatus,
+                    transactionId: recipient.transactionId,
+                    payoutDate: recipient.payoutDate
+                )
+            }
+        } catch {
+            print("💰 Distribution: Failed to update database status: \(error)")
+        }
+        
         // Update team wallet
         updateTeamWalletAfterDistribution(
             teamId: distribution.teamId,
@@ -413,60 +454,102 @@ class TeamPrizeDistributionService {
     private func executePayoutToMember(
         recipient: PrizeRecipient,
         teamId: String
-    ) -> Result<PrizeRecipient, DistributionError> {
+    ) async -> Result<PrizeRecipient, DistributionError> {
         
-        // In a real implementation, this would use the Lightning Network
-        // For now, simulate the payout process
+        print("💰 Distribution: Executing real Lightning payout of \(Int(recipient.allocation)) sats to user \(recipient.userId)")
         
-        let success = simulatePayoutTransaction(
-            userId: recipient.userId,
-            amount: recipient.allocation
-        )
-        
-        if success {
-            let transactionId = UUID().uuidString
+        // Retry logic for Lightning payments
+        for attempt in 1...maxRetryAttempts {
+            do {
+                print("💰 Distribution: Payment attempt \(attempt)/\(maxRetryAttempts) for user \(recipient.userId)")
+            // Get team wallet credentials
+            guard let teamWalletCredentials = TeamWalletManager.shared.loadTeamWalletCredentials(teamId: teamId) else {
+                print("💰 Distribution: No team wallet credentials found for team \(teamId)")
+                return .failure(.teamWalletNotFound)
+            }
             
-            let updatedRecipient = PrizeRecipient(
-                userId: recipient.userId,
-                username: recipient.username,
-                allocation: recipient.allocation,
-                percentage: recipient.percentage,
-                reason: recipient.reason,
-                performance: recipient.performance,
-                payoutStatus: .completed,
-                payoutDate: Date(),
-                transactionId: transactionId
+            // Get user's payment coordination info
+            guard let userInfo = try await getUserPaymentInfo(userId: recipient.userId) else {
+                print("💰 Distribution: No payment info found for user \(recipient.userId)")
+                return .failure(.payoutExecutionFailed)
+            }
+            
+            // Execute real Lightning transfer from team wallet to user wallet
+            let paymentResult = try await CoinOSService.shared.transferFromTeamToUser(
+                fromTeamId: teamId,
+                fromCredentials: teamWalletCredentials,
+                toUserId: recipient.userId,
+                amount: Int(recipient.allocation),
+                memo: "Prize distribution: \(recipient.reason)"
             )
             
-            return .success(updatedRecipient)
-        } else {
-            return .failure(.payoutExecutionFailed)
-        }
-    }
-    
-    private func simulatePayoutTransaction(userId: String, amount: Double) -> Bool {
-        // Simulate Lightning Network transaction with 95% success rate
-        let success = Int.random(in: 1...100) <= 95
-        
-        if success {
-            print("💰 Payout: Successfully sent ₿\(Int(amount)) to user \(userId)")
-            
-            // Send prize distribution notification to the user
-            Task {
-                await MainActor.run {
-                    NotificationService.shared.schedulePrizeDistributionNotification(
-                        amount: Int(amount),
-                        reason: "league performance",  // This should be passed from context
-                        teamName: "Your Team"          // This should be passed from context
+                if paymentResult.success {
+                    // Record transaction in database
+                    try await TransactionDataService.shared.recordTeamTransaction(
+                        teamId: teamId,
+                        userId: recipient.userId,
+                        amount: -Int(recipient.allocation),
+                        type: "prize_distribution",
+                        description: "Prize payout to \(recipient.username): \(recipient.reason)"
                     )
+                    
+                    let updatedRecipient = PrizeRecipient(
+                        userId: recipient.userId,
+                        username: recipient.username,
+                        allocation: recipient.allocation,
+                        percentage: recipient.percentage,
+                        reason: recipient.reason,
+                        performance: recipient.performance,
+                        payoutStatus: .completed,
+                        payoutDate: Date(),
+                        transactionId: paymentResult.paymentHash
+                    )
+                    
+                    print("💰 Distribution: Successfully paid \(Int(recipient.allocation)) sats to user \(recipient.userId)")
+                    return .success(updatedRecipient)
+                    
+                } else {
+                    print("💰 Distribution: Lightning payment failed on attempt \(attempt), will retry")
+                    if attempt == maxRetryAttempts {
+                        print("💰 Distribution: All retry attempts exhausted for user \(recipient.userId)")
+                        return .failure(.payoutExecutionFailed)
+                    }
+                }
+                
+            } catch {
+                print("💰 Distribution: Payout execution failed on attempt \(attempt): \(error)")
+                if attempt == maxRetryAttempts {
+                    print("💰 Distribution: All retry attempts exhausted for user \(recipient.userId)")
+                    return .failure(.payoutExecutionFailed)
                 }
             }
             
-        } else {
-            print("💰 Payout: Failed to send ₿\(Int(amount)) to user \(userId)")
+            // Wait before retry (except on final attempt)
+            if attempt < maxRetryAttempts {
+                print("💰 Distribution: Waiting \(retryDelay)s before retry...")
+                try await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
+            }
         }
         
-        return success
+        // This should never be reached due to explicit returns above
+        return .failure(.payoutExecutionFailed)
+    }
+    
+    private func getUserPaymentInfo(userId: String) async throws -> PaymentCoordinationInfo? {
+        // Get user's CoinOS payment coordination info
+        return try await CoinOSService.shared.getUserPaymentCoordinationInfo(for: userId)
+    }
+    
+    private func sendPrizeNotification(to userId: String, amount: Double, teamName: String, reason: String) {
+        Task {
+            await MainActor.run {
+                NotificationService.shared.schedulePrizeDistributionNotification(
+                    amount: Int(amount),
+                    reason: reason,
+                    teamName: teamName
+                )
+            }
+        }
     }
     
     // MARK: - Team Wallet Management
@@ -704,6 +787,12 @@ class TeamPrizeDistributionService {
     private func getUserDisplayName(userId: String) -> String {
         // In a real implementation, this would fetch from user service
         return "User \(userId.prefix(8))"
+    }
+    
+    private func getTeamName(teamId: String) -> String? {
+        // In a real implementation, this would fetch from team service
+        // For now, use a placeholder - this should be replaced with actual team lookup
+        return "Team \(teamId.prefix(8))"
     }
     
     func getPendingDistributions(teamId: String) async throws -> [PrizeDistribution] {

@@ -48,6 +48,10 @@
 		E7EF5ADCEF21404E9BE60F135E80F95A /* UserProfileSetupViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50469A2F5A704CAD92C1B6F2EB3E02AB /* UserProfileSetupViewController.swift */; };
 		0CDFE0BA1D77489EBA21253C379223F8 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 277701975FC24F4E87A21FBB62920F67 /* SettingsViewController.swift */; };
 		0FC34FA12F8C426ABCDB08BC43A4101A /* PaymentSheetViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8091CBE0E3E94A93838B1AC46AAD63F9 /* PaymentSheetViewController.swift */; };
+		44A6D7E8B1F149CA8F2B7E94D7E1A53C /* P2PChallengeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3F576D47F4249D19AC37A67 /* P2PChallengeService.swift */; };
+		NIBX1234567890ABCDEF01234567890AB /* NotificationInboxViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = NIBX9876543210FEDCBA09876543210BA /* NotificationInboxViewController.swift */; };
+		NIBS1234567890ABCDEF01234567890AB /* NotificationInboxService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NIBS9876543210FEDCBA09876543210BA /* NotificationInboxService.swift */; };
+		55B7E8F9C2G250DB9G3C8FA5E8F2B64D /* PaymentInstructionsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3883156F201F4DD8A0442ECA /* PaymentInstructionsViewController.swift */; };
 		D8A3F2B34E8946C191FD2AC47BB32F8A /* QRCodeDisplayViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1C82BE49A6D4F2B9C7E3DA58FB14E09 /* QRCodeDisplayViewController.swift */; };
 		380F099FF1C945ED869B55607DEB22A9 /* TeamSubscriptionStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE73978B5D414279BCEB2A1430FF657B /* TeamSubscriptionStatusView.swift */; };
 		CA98EED183AC48C8A1CA751E1EC677C9 /* NotificationPermissionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBD32F90C3A049B1919D788C181C1EF5 /* NotificationPermissionViewController.swift */; };
@@ -98,6 +102,11 @@
 		332404E503B442D6AB8B77067842ADCB /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99B4C1E5CC95463981F84EF706BAC273 /* KeychainService.swift */; };
 		HEALTH123456789ABCDEF1234567890AB /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = HEALTHABCDEF1234567890ABCDEF123456 /* HealthKitService.swift */; };
 		ERROR123456789ABCDEF01234567890AB /* ErrorHandlingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ERRORABCDEF123456789ABCDEF123456 /* ErrorHandlingService.swift */; };
+		6DEB08D173D447CC802277FAEF92491F /* ChallengeCreationModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0B904FC1FFC461FB226E357A39B498E /* ChallengeCreationModal.swift */; };
+		90FC86FF805B4E0AA728B6E5FF32A6E5 /* ChallengeOpponentSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A7AFE0A6AA4D9DB22EDBA0490B1217 /* ChallengeOpponentSelector.swift */; };
+		534F827B501E4DE2AF69777F7462E709 /* ChallengeTypeSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 448C9957955647C2BF540BBEA9FEFD97 /* ChallengeTypeSelector.swift */; };
+		5D8E91ABED71406EAA7CD859AE214FA5 /* StakesConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DBB468ECBE54721BC0CD7DC52EBD2DB /* StakesConfigurationView.swift */; };
+		DC832980D6BD468C93DE36CB547CDBD6 /* ChallengeReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6162201FCAC24264A3950809062D4141 /* ChallengeReviewView.swift */; };
 		NETWORK123456789ABCDEF0123456789AB /* NetworkMonitorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NETWORKABCDEF123456789ABCDEF12345 /* NetworkMonitorService.swift */; };
 		OFFLINE123456789ABCDEF0123456789AB /* OfflineDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = OFFLINEABCDEF123456789ABCDEF12345 /* OfflineDataService.swift */; };
 		E87FF620924C4D69A271F8ED9EDC6202 /* TeamDetailEventsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCB683446B2F4C6397E096106C4813E9 /* TeamDetailEventsViewController.swift */; };
@@ -167,6 +176,10 @@
 		8DB43D2320CB4006AA2F82F9 /* NostrRelayManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/NostrRelayManager.swift; sourceTree = "<group>"; };
 		1B15B55AFB0B451682E35E9E /* NostrSDKBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/NostrSDKBridge.swift; sourceTree = "<group>"; };
 		AEF239F26E0F46DEBE318FE2 /* NostrWorkoutService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/NostrWorkoutService.swift; sourceTree = "<group>"; };
+		C3F576D47F4249D19AC37A67 /* P2PChallengeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/P2PChallengeService.swift"; sourceTree = "<group>"; };
+		NIBX9876543210FEDCBA09876543210BA /* NotificationInboxViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Features/Notifications/NotificationInboxViewController.swift"; sourceTree = "<group>"; };
+		NIBS9876543210FEDCBA09876543210BA /* NotificationInboxService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/NotificationInboxService.swift"; sourceTree = "<group>"; };
+		3883156F201F4DD8A0442ECA /* PaymentInstructionsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Features/Challenges/PaymentInstructionsViewController.swift"; sourceTree = "<group>"; };
 		5A85FEEE9B2C4FA7BFEA7F9B /* WorkoutDeduplicationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/WorkoutDeduplicationService.swift; sourceTree = "<group>"; };
 		0011FFEEDDCCBBAA998877665544332 /* WalletBalanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Earnings/WalletBalanceView.swift; sourceTree = "<group>"; };
 		00659AAD7E444446B1DB9B539DE9216A /* TeamDetailViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Teams/TeamDetailViewController.swift; sourceTree = "<group>"; };
@@ -252,6 +265,11 @@
 		99B4C1E5CC95463981F84EF706BAC273 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/KeychainService.swift"; sourceTree = "<group>"; };
 		HEALTHABCDEF1234567890ABCDEF123456 /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/HealthKitService.swift"; sourceTree = "<group>"; };
 		ERRORABCDEF123456789ABCDEF123456 /* ErrorHandlingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/ErrorHandlingService.swift"; sourceTree = "<group>"; };
+		D0B904FC1FFC461FB226E357A39B498E /* ChallengeCreationModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Challenges/ChallengeCreationModal.swift; sourceTree = "<group>"; };
+		58A7AFE0A6AA4D9DB22EDBA0490B1217 /* ChallengeOpponentSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Challenges/ChallengeOpponentSelector.swift; sourceTree = "<group>"; };
+		448C9957955647C2BF540BBEA9FEFD97 /* ChallengeTypeSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Challenges/ChallengeTypeSelector.swift; sourceTree = "<group>"; };
+		5DBB468ECBE54721BC0CD7DC52EBD2DB /* StakesConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Challenges/StakesConfigurationView.swift; sourceTree = "<group>"; };
+		6162201FCAC24264A3950809062D4141 /* ChallengeReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Challenges/ChallengeReviewView.swift; sourceTree = "<group>"; };
 		NETWORKABCDEF123456789ABCDEF12345 /* NetworkMonitorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/NetworkMonitorService.swift"; sourceTree = "<group>"; };
 		OFFLINEABCDEF123456789ABCDEF12345 /* OfflineDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/OfflineDataService.swift"; sourceTree = "<group>"; };
 		WIZARD987654321FEDCBA987654321012 /* TeamCreationWizardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Teams/TeamCreationWizardViewController.swift; sourceTree = "<group>"; };
@@ -356,6 +374,12 @@
 				BCB683446B2F4C6397E096106C4813E9 /* TeamDetailEventsViewController.swift */,
 				EVENT8899001122334455667788990011 /* EventDetailViewController.swift */,
 				CHAL9900112233445566778899001122 /* ChallengeDetailViewController.swift */,
+				D0B904FC1FFC461FB226E357A39B498E /* ChallengeCreationModal.swift */,
+				58A7AFE0A6AA4D9DB22EDBA0490B1217 /* ChallengeOpponentSelector.swift */,
+				448C9957955647C2BF540BBEA9FEFD97 /* ChallengeTypeSelector.swift */,
+				3883156F201F4DD8A0442ECA /* PaymentInstructionsViewController.swift */,
+				5DBB468ECBE54721BC0CD7DC52EBD2DB /* StakesConfigurationView.swift */,
+				6162201FCAC24264A3950809062D4141 /* ChallengeReviewView.swift */,
 				5CD455CE98D440A6BEFF739E6453EF03 /* TeamDetailHeaderView.swift */,
 				8579AB0D8AC14317BA37877636217187 /* TeamDetailAboutSection.swift */,
 				DDEEFF00112233445566778899AABBCC /* TeamDetailTabNavigation.swift */,
@@ -392,6 +416,9 @@
 				A56E5477F5A54399A8C741E91A3D9EE7 /* NotificationService.swift */,
 				HEALTHABCDEF1234567890ABCDEF123456 /* HealthKitService.swift */,
 				ERRORABCDEF123456789ABCDEF123456 /* ErrorHandlingService.swift */,
+				C3F576D47F4249D19AC37A67 /* P2PChallengeService.swift */,
+				NIBS9876543210FEDCBA09876543210BA /* NotificationInboxService.swift */,
+				NIBX9876543210FEDCBA09876543210BA /* NotificationInboxViewController.swift */,
 				NETWORKABCDEF123456789ABCDEF12345 /* NetworkMonitorService.swift */,
 				OFFLINEABCDEF123456789ABCDEF12345 /* OfflineDataService.swift */,
 				SUBSCR987654321FEDCBA987654321012 /* SubscriptionService.swift */,
@@ -576,6 +603,11 @@
 				E87FF620924C4D69A271F8ED9EDC6202 /* TeamDetailEventsViewController.swift in Sources */,
 				EVENT4455667788990011223344556677 /* EventDetailViewController.swift in Sources */,
 				CHAL5566778899001122334455667788 /* ChallengeDetailViewController.swift in Sources */,
+				6DEB08D173D447CC802277FAEF92491F /* ChallengeCreationModal.swift in Sources */,
+				90FC86FF805B4E0AA728B6E5FF32A6E5 /* ChallengeOpponentSelector.swift in Sources */,
+				534F827B501E4DE2AF69777F7462E709 /* ChallengeTypeSelector.swift in Sources */,
+				5D8E91ABED71406EAA7CD859AE214FA5 /* StakesConfigurationView.swift in Sources */,
+				DC832980D6BD468C93DE36CB547CDBD6 /* ChallengeReviewView.swift in Sources */,
 				30721DCD95874D4C90D52A769E787456 /* TeamDetailHeaderView.swift in Sources */,
 				CFF490A67D8A4DDEA14E79F24C6BBBD6 /* TeamDetailAboutSection.swift in Sources */,
 				AABB11223344556677889900AABBCCDD /* TeamDetailTabNavigation.swift in Sources */,
@@ -688,6 +720,10 @@
 				037B1A7AA126425B9E14040C /* LeagueSchedulerService.swift in Sources */,
 				6CBFC352CB4944B99A63E751 /* EventBasicDetailsViewController.swift in Sources */,
 				57DDC31ED8464B088F997D5E /* EventPresetSelectionViewController.swift in Sources */,
+				44A6D7E8B1F149CA8F2B7E94D7E1A53C /* P2PChallengeService.swift in Sources */,
+				NIBX1234567890ABCDEF01234567890AB /* NotificationInboxViewController.swift in Sources */,
+				NIBS1234567890ABCDEF01234567890AB /* NotificationInboxService.swift in Sources */,
+				55B7E8F9C2G250DB9G3C8FA5E8F2B64D /* PaymentInstructionsViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

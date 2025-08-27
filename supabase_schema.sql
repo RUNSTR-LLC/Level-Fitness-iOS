@@ -198,6 +198,35 @@ CREATE TABLE IF NOT EXISTS transactions (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Prize distributions table (for team reward distributions)
+CREATE TABLE IF NOT EXISTS prize_distributions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    team_id UUID REFERENCES teams(id) ON DELETE CASCADE NOT NULL,
+    event_id UUID REFERENCES events(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL, -- Captain who created the distribution
+    total_prize INTEGER NOT NULL, -- Total amount in satoshis
+    distribution_method TEXT NOT NULL, -- 'equal', 'performance', 'custom', 'hybrid', 'top_performers'
+    status TEXT DEFAULT 'draft', -- 'draft', 'pending', 'approved', 'executing', 'completed', 'failed', 'cancelled'
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    executed_at TIMESTAMPTZ
+);
+
+-- Prize distribution recipients (individual allocations)
+CREATE TABLE IF NOT EXISTS prize_recipients (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    distribution_id UUID REFERENCES prize_distributions(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+    allocation INTEGER NOT NULL, -- Amount in satoshis
+    percentage DECIMAL NOT NULL, -- Percentage of total prize
+    reason TEXT, -- Reason for this allocation amount
+    performance_data JSONB, -- Performance metrics that justified the allocation
+    payout_status TEXT DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed'
+    payout_date TIMESTAMPTZ,
+    transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ========================================
 -- SOCIAL & MESSAGING
 -- ========================================
@@ -258,8 +287,17 @@ CREATE INDEX IF NOT EXISTS idx_events_start_date ON events(start_date);
 CREATE INDEX IF NOT EXISTS idx_events_end_date ON events(end_date);
 
 CREATE INDEX IF NOT EXISTS idx_lightning_wallets_user_id ON lightning_wallets(user_id);
+CREATE INDEX IF NOT EXISTS idx_lightning_wallets_team_id ON lightning_wallets(team_id);
 CREATE INDEX IF NOT EXISTS idx_team_messages_team_id ON team_messages(team_id);
 CREATE INDEX IF NOT EXISTS idx_team_messages_created_at ON team_messages(created_at);
+
+-- Prize distribution indexes
+CREATE INDEX IF NOT EXISTS idx_prize_distributions_team_id ON prize_distributions(team_id);
+CREATE INDEX IF NOT EXISTS idx_prize_distributions_status ON prize_distributions(status);
+CREATE INDEX IF NOT EXISTS idx_prize_distributions_created_at ON prize_distributions(created_at);
+CREATE INDEX IF NOT EXISTS idx_prize_recipients_distribution_id ON prize_recipients(distribution_id);
+CREATE INDEX IF NOT EXISTS idx_prize_recipients_user_id ON prize_recipients(user_id);
+CREATE INDEX IF NOT EXISTS idx_prize_recipients_payout_status ON prize_recipients(payout_status);
 
 -- ========================================
 -- VIEWS FOR COMPLEX QUERIES
@@ -838,6 +876,26 @@ CREATE TABLE IF NOT EXISTS notification_tokens (
     UNIQUE(user_id, device_token)
 );
 
+-- Notification inbox for persistent notification storage
+CREATE TABLE IF NOT EXISTS notification_inbox (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+    team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL, -- 'challenge_request', 'event_invite', 'result_announcement', etc.
+    title TEXT NOT NULL,
+    body TEXT,
+    action_type VARCHAR(50), -- 'accept_challenge', 'join_event', 'view_details'
+    action_data JSONB, -- Flexible data for different action types
+    from_user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+    read BOOLEAN DEFAULT false,
+    acted_on BOOLEAN DEFAULT false, -- Did user take action (accept/decline/join)
+    action_taken VARCHAR(50), -- 'accepted', 'declined', 'joined', etc.
+    expires_at TIMESTAMPTZ, -- For time-sensitive notifications
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    acted_at TIMESTAMPTZ
+);
+
 -- Workout sync queue (for offline support)
 CREATE TABLE IF NOT EXISTS workout_sync_queue (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -898,6 +956,34 @@ CREATE INDEX IF NOT EXISTS idx_event_tickets_ticket_number ON event_tickets(tick
 
 -- Notification token indexes
 CREATE INDEX IF NOT EXISTS idx_notification_tokens_user_id ON notification_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_notification_tokens_device_token ON notification_tokens(device_token);
+
+-- Notification inbox indexes
+CREATE INDEX IF NOT EXISTS idx_notification_inbox_user_unread ON notification_inbox(user_id, read, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notification_inbox_user_recent ON notification_inbox(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notification_inbox_team ON notification_inbox(team_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notification_inbox_type ON notification_inbox(type);
+
+-- Row Level Security for notification_inbox
+ALTER TABLE notification_inbox ENABLE ROW LEVEL SECURITY;
+
+-- Users can only see their own notifications
+CREATE POLICY "Users can view their own notifications" ON notification_inbox
+    FOR SELECT USING (auth.uid()::text = user_id::text);
+
+-- Users can insert their own notifications (for system-generated notifications)
+CREATE POLICY "Users can create their own notifications" ON notification_inbox
+    FOR INSERT WITH CHECK (auth.uid()::text = user_id::text);
+
+-- Users can update their own notifications (mark as read, acted on)
+CREATE POLICY "Users can update their own notifications" ON notification_inbox
+    FOR UPDATE USING (auth.uid()::text = user_id::text);
+
+-- Users can delete their own notifications
+CREATE POLICY "Users can delete their own notifications" ON notification_inbox
+    FOR DELETE USING (auth.uid()::text = user_id::text);
+
+-- More notification token indexes
 CREATE INDEX IF NOT EXISTS idx_notification_tokens_platform ON notification_tokens(platform);
 CREATE INDEX IF NOT EXISTS idx_notification_tokens_active ON notification_tokens(is_active);
 
@@ -1430,3 +1516,32 @@ CREATE POLICY "Service role can manage team wallet transactions" ON transactions
 -- ✅ Views for complex queries
 
 -- Ready for production deployment!
+
+-- ========================================
+-- CHALLENGE SYSTEM MIGRATION (Day 2)
+-- ========================================
+
+-- Add challenge-specific fields to events table
+ALTER TABLE events ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES teams(id);
+ALTER TABLE events ADD COLUMN IF NOT EXISTS event_subtype VARCHAR(20) DEFAULT 'standard';
+ALTER TABLE events ADD COLUMN IF NOT EXISTS is_challenge BOOLEAN DEFAULT false;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS challenger_id UUID REFERENCES profiles(id);
+ALTER TABLE events ADD COLUMN IF NOT EXISTS challenged_user_ids UUID[];
+ALTER TABLE events ADD COLUMN IF NOT EXISTS challenge_status VARCHAR(20) DEFAULT 'pending';
+ALTER TABLE events ADD COLUMN IF NOT EXISTS team_arbitration_fee INTEGER DEFAULT 10;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS challenge_message TEXT;
+
+-- Add indexes for challenge queries
+CREATE INDEX IF NOT EXISTS idx_events_team_id ON events(team_id) WHERE team_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_events_is_challenge ON events(is_challenge) WHERE is_challenge = true;
+CREATE INDEX IF NOT EXISTS idx_events_challenger ON events(challenger_id) WHERE challenger_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_events_challenge_status ON events(challenge_status) WHERE is_challenge = true;
+
+-- Add RLS policy for challenge events
+CREATE POLICY IF NOT EXISTS "Users can view challenges they're involved in" ON events
+    FOR SELECT USING (
+        NOT is_challenge OR 
+        auth.uid() = challenger_id OR 
+        auth.uid() = ANY(challenged_user_ids) OR
+        EXISTS (SELECT 1 FROM team_members WHERE team_id = events.team_id AND user_id = auth.uid())
+    );

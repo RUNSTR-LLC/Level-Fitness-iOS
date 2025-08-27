@@ -15,6 +15,9 @@ class TeamWalletManager {
     func createTeamWallet(for teamId: String, captainId: String) async throws -> TeamWallet {
         print("TeamWalletManager: Creating team wallet for team \(teamId)")
         
+        // Security validations
+        try await validateTeamWalletCreationRequest(teamId: teamId, captainId: captainId)
+        
         do {
             // Generate unique CoinOS credentials for team wallet
             let timestamp = String(Int(Date().timeIntervalSince1970)).suffix(8)
@@ -563,6 +566,104 @@ class TeamWalletManager {
         } catch {
             print("TeamWalletManager: ❌ Failed to record team transaction: \(error)")
             // Don't fail the operation for database issues - transaction already completed
+        }
+    }
+    
+    // MARK: - Security Validations
+    
+    private func validateTeamWalletCreationRequest(teamId: String, captainId: String) async throws {
+        print("TeamWalletManager: 🔐 Validating team wallet creation request for team \(teamId)")
+        
+        // Validate team exists and captain has permission
+        guard let team = try await supabaseService.getTeam(teamId) else {
+            print("TeamWalletManager: ❌ Team \(teamId) not found")
+            throw TeamWalletError.teamWalletNotFound
+        }
+        
+        // Ensure the requesting user is actually the team captain
+        guard team.captainId.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == 
+              captainId.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) else {
+            print("TeamWalletManager: ❌ User \(captainId) is not the captain of team \(teamId)")
+            throw TeamWalletError.notAuthorized
+        }
+        
+        // Check if team already has a wallet (prevent duplicate creation)
+        if let existingWallet = await getExistingTeamWallet(teamId: teamId) {
+            print("TeamWalletManager: ❌ Team \(teamId) already has a wallet: \(existingWallet.id)")
+            throw TeamWalletError.teamWalletCreationFailed
+        }
+        
+        // Rate limiting: Check if too many wallets created recently by this user
+        try await validateRateLimit(captainId: captainId)
+        
+        print("TeamWalletManager: ✅ Team wallet creation request validated")
+    }
+    
+    private func getExistingTeamWallet(teamId: String) async -> TeamWallet? {
+        do {
+            return try await supabaseService.getTeamWallet(teamId: teamId)
+        } catch {
+            print("TeamWalletManager: No existing wallet found for team \(teamId)")
+            return nil
+        }
+    }
+    
+    private func validateRateLimit(captainId: String) async throws {
+        // Simple rate limiting: check if captain created wallet in last 24 hours
+        let oneDayAgo = Date().addingTimeInterval(-86400) // 24 hours ago
+        
+        do {
+            let recentWallets = try await supabaseService.getTeamWalletsCreatedBy(captainId: captainId, since: oneDayAgo)
+            
+            if recentWallets.count >= 3 { // Max 3 team wallets per day per captain
+                print("TeamWalletManager: ❌ Rate limit exceeded for captain \(captainId)")
+                throw TeamWalletError.notAuthorized
+            }
+            
+            print("TeamWalletManager: ✅ Rate limit check passed (\(recentWallets.count)/3 wallets created today)")
+            
+        } catch {
+            print("TeamWalletManager: ⚠️ Could not validate rate limit: \(error)")
+            // Don't fail wallet creation if we can't check rate limit
+        }
+    }
+    
+    private func validateTransactionAmount(amount: Int, maxAmount: Int = 1_000_000) throws {
+        // Validate transaction amounts to prevent abuse
+        guard amount > 0 else {
+            throw TeamWalletError.insufficientBalance
+        }
+        
+        guard amount <= maxAmount else {
+            print("TeamWalletManager: ❌ Transaction amount \(amount) exceeds maximum \(maxAmount)")
+            throw TeamWalletError.notAuthorized
+        }
+        
+        print("TeamWalletManager: ✅ Transaction amount validated: \(amount) sats")
+    }
+    
+    private func logSecurityEvent(
+        teamId: String,
+        userId: String,
+        operation: String,
+        result: String,
+        metadata: [String: Any] = [:]
+    ) {
+        print("🔐 SECURITY LOG: Team[\(teamId)] User[\(userId)] Operation[\(operation)] Result[\(result)] Meta[\(metadata)]")
+        
+        // In production, this would send to a security monitoring system
+        Task {
+            do {
+                try await supabaseService.logSecurityEvent(
+                    teamId: teamId,
+                    userId: userId,
+                    operation: operation,
+                    result: result,
+                    metadata: metadata
+                )
+            } catch {
+                print("TeamWalletManager: ⚠️ Failed to log security event: \(error)")
+            }
         }
     }
 }

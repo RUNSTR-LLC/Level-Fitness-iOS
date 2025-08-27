@@ -627,22 +627,43 @@ class TeamWalletViewController: UIViewController {
     private func processBitcoinPayment(invoice: String, amount: Int) async {
         guard let userSession = AuthenticationService.shared.loadSession() else {
             await MainActor.run {
-                self.showErrorAlert("Authentication required")
+                self.showDetailedErrorAlert(
+                    title: "Authentication Required",
+                    message: "Please log in to send Bitcoin payments.",
+                    actionTitle: "OK"
+                )
             }
             return
+        }
+        
+        // Show progress alert
+        let progressAlert = await MainActor.run {
+            let alert = self.showProgressAlert(
+                title: "Sending Bitcoin",
+                message: "Processing Lightning Network payment..."
+            )
+            self.present(alert, animated: true)
+            return alert
         }
         
         do {
             // Load team wallet credentials
             guard let credentials = teamWalletManager.loadTeamWalletCredentials(teamId: teamData.id) else {
                 await MainActor.run {
-                    self.showErrorAlert("Team wallet not available")
+                    progressAlert.dismiss(animated: true) {
+                        self.showDetailedErrorAlert(
+                            title: "Wallet Not Available",
+                            message: "Team wallet credentials not found. Please contact team captain to set up the wallet.",
+                            actionTitle: "OK"
+                        )
+                    }
                 }
                 return
             }
             
+            // Update progress
             await MainActor.run {
-                self.loadingIndicator.startAnimating()
+                progressAlert.message = "Authenticating with wallet..."
             }
             
             // Authenticate with team wallet
@@ -652,10 +673,20 @@ class TeamWalletViewController: UIViewController {
             )
             CoinOSService.shared.setAuthToken(authResponse.token)
             
+            // Update progress
+            await MainActor.run {
+                progressAlert.message = "Executing Lightning payment..."
+            }
+            
             // Process payment
             let paymentResult = try await CoinOSService.shared.payInvoice(invoice)
             
             if paymentResult.success {
+                // Update progress
+                await MainActor.run {
+                    progressAlert.message = "Recording transaction..."
+                }
+                
                 // Record transaction
                 try await TransactionDataService.shared.recordTeamTransaction(
                     teamId: teamData.id,
@@ -666,24 +697,52 @@ class TeamWalletViewController: UIViewController {
                 )
                 
                 await MainActor.run {
-                    self.loadingIndicator.stopAnimating()
-                    self.showSuccessAlert("Bitcoin sent successfully! ⚡")
-                    // Reload wallet data to show updated balance
-                    Task {
-                        await self.loadWalletData()
+                    progressAlert.dismiss(animated: true) {
+                        self.showSuccessAlert("Bitcoin sent successfully! ⚡️\n\nTransaction ID: \(paymentResult.paymentHash.prefix(10))...")
+                        // Reload wallet data to show updated balance
+                        Task {
+                            await self.loadWalletData()
+                        }
                     }
                 }
             } else {
                 await MainActor.run {
-                    self.loadingIndicator.stopAnimating()
-                    self.showErrorAlert("Payment failed: Unable to process Lightning payment")
+                    progressAlert.dismiss(animated: true) {
+                        self.showDetailedErrorAlert(
+                            title: "Payment Failed",
+                            message: "The Lightning Network payment could not be completed. This might be due to routing issues or invalid invoice. Please try again or contact support.",
+                            actionTitle: "Retry"
+                        ) {
+                            Task {
+                                await self.processBitcoinPayment(invoice: invoice, amount: amount)
+                            }
+                        }
+                    }
                 }
             }
             
         } catch {
             await MainActor.run {
-                self.loadingIndicator.stopAnimating()
-                self.showErrorAlert("Failed to send Bitcoin: \(error.localizedDescription)")
+                progressAlert.dismiss(animated: true) {
+                    let errorMessage: String
+                    if error.localizedDescription.contains("CoinOS") {
+                        errorMessage = "Wallet service error: \(error.localizedDescription)"
+                    } else if error.localizedDescription.contains("network") || error.localizedDescription.contains("internet") {
+                        errorMessage = "Network connection error. Please check your internet connection and try again."
+                    } else {
+                        errorMessage = "Payment processing failed: \(error.localizedDescription)"
+                    }
+                    
+                    self.showDetailedErrorAlert(
+                        title: "Payment Error",
+                        message: errorMessage,
+                        actionTitle: "Retry"
+                    ) {
+                        Task {
+                            await self.processBitcoinPayment(invoice: invoice, amount: amount)
+                        }
+                    }
+                }
             }
         }
     }
@@ -821,12 +880,26 @@ class TeamWalletViewController: UIViewController {
         print("🏗️ TeamWalletViewController: Distribute rewards tapped")
         
         guard let wallet = teamWallet else {
-            showErrorAlert("Wallet data not loaded")
+            showDetailedErrorAlert(
+                title: "Wallet Not Available",
+                message: "Wallet data is not loaded. Please wait for the wallet to load or try refreshing the page.",
+                actionTitle: "Refresh"
+            ) {
+                Task {
+                    await self.loadWalletData()
+                }
+            }
             return
         }
         
         if wallet.totalBalance <= 0 {
-            showErrorAlert("Insufficient balance to distribute rewards")
+            showDetailedErrorAlert(
+                title: "Insufficient Balance",
+                message: "The team wallet doesn't have enough Bitcoin to distribute rewards. Please fund the wallet first using the 'Receive Bitcoin' option.",
+                actionTitle: "Fund Wallet"
+            ) {
+                self.receiveBitcoinTapped()
+            }
             return
         }
         
@@ -876,6 +949,30 @@ class TeamWalletViewController: UIViewController {
         present(alert, animated: true)
     }
     
+    private func showDetailedErrorAlert(
+        title: String,
+        message: String,
+        actionTitle: String? = nil,
+        action: (() -> Void)? = nil
+    ) {
+        let alert = UIAlertController(
+            title: title,
+            message: message,
+            preferredStyle: .alert
+        )
+        
+        if let actionTitle = actionTitle, let action = action {
+            alert.addAction(UIAlertAction(title: actionTitle, style: .default) { _ in
+                action()
+            })
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        } else {
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+        }
+        
+        present(alert, animated: true)
+    }
+    
     private func showSuccessAlert(_ message: String) {
         let alert = UIAlertController(
             title: "Success",
@@ -884,6 +981,23 @@ class TeamWalletViewController: UIViewController {
         )
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
+    }
+    
+    private func showProgressAlert(title: String, message: String) -> UIAlertController {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        
+        let loadingIndicator = UIActivityIndicatorView(style: .medium)
+        loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
+        loadingIndicator.startAnimating()
+        
+        alert.view.addSubview(loadingIndicator)
+        
+        NSLayoutConstraint.activate([
+            loadingIndicator.centerXAnchor.constraint(equalTo: alert.view.centerXAnchor),
+            loadingIndicator.bottomAnchor.constraint(equalTo: alert.view.bottomAnchor, constant: -20)
+        ])
+        
+        return alert
     }
 }
 

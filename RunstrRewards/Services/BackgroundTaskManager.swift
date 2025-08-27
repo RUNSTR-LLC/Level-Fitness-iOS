@@ -102,12 +102,12 @@ class BackgroundTaskManager {
         request.requiresNetworkConnectivity = true
         request.requiresExternalPower = false
         
-        // Schedule to run every 2 hours
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 2 * 3600)
+        // Schedule MORE aggressively - every 15 minutes (iOS minimum for BGProcessingTask)
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60) // 15 minutes
         
         do {
             try BGTaskScheduler.shared.submit(request)
-            print("BackgroundTaskManager: Workout sync scheduled")
+            print("🚀 BackgroundTaskManager: AGGRESSIVE workout sync scheduled (15min)")
         } catch {
             print("BackgroundTaskManager: Failed to schedule workout sync: \(error)")
         }
@@ -115,11 +115,11 @@ class BackgroundTaskManager {
     
     func scheduleRewardCheck() {
         let request = BGAppRefreshTaskRequest(identifier: rewardCheckTaskId)
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 3600) // 1 hour
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60) // 15 minutes (more aggressive)
         
         do {
             try BGTaskScheduler.shared.submit(request)
-            print("BackgroundTaskManager: Reward check scheduled")
+            print("🚀 BackgroundTaskManager: AGGRESSIVE reward check scheduled (15min)")
         } catch {
             print("BackgroundTaskManager: Failed to schedule reward check: \(error)")
         }
@@ -280,7 +280,7 @@ class BackgroundTaskManager {
     
     @MainActor
     private func performQueueBasedWorkoutSync() async -> Bool {
-        print("⚡ BackgroundTaskManager: Starting queue-based workout sync")
+        print("⚡ BackgroundTaskManager: Starting AGGRESSIVE queue-based workout sync")
         
         do {
             // Check HealthKit authorization
@@ -296,8 +296,8 @@ class BackgroundTaskManager {
                 return true
             }
             
-            // Fetch workouts since last sync (reduced limit for background)
-            let limit = shouldContinueOperation() ? 10 : 5 // Smaller batches in background for reliability
+            // Fetch MORE workouts since last sync for better coverage
+            let limit = shouldContinueOperation() ? 25 : 15 // Increased limits for better coverage
             let rawWorkouts = try await healthKitService.fetchWorkoutsSince(lastSyncDate, limit: limit)
             print("BackgroundTaskManager: Found \(rawWorkouts.count) raw workouts (limit: \(limit))")
             
@@ -550,13 +550,23 @@ class BackgroundTaskManager {
     // MARK: - Helper Methods
     // Removed calculateWorkoutPoints - now using WorkoutRewardCalculator.shared.calculateReward()
     
-    // MARK: - Manual Triggers (for testing)
+    // MARK: - Manual Triggers (for testing and immediate sync)
     
     func triggerWorkoutSync() {
         Task {
             let success = await performWorkoutSyncWithTimeManagement()
             print("BackgroundTaskManager: Manual workout sync completed: \(success)")
         }
+    }
+    
+    func triggerImmediateWorkoutSync() async -> Bool {
+        print("🚀 BackgroundTaskManager: IMMEDIATE workout sync triggered")
+        
+        // Reset task timing for aggressive sync
+        taskStartTime = Date()
+        isTaskExpiring = false
+        
+        return await performWorkoutSyncWithTimeManagement()
     }
     
     func triggerRewardCheck() {

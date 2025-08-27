@@ -167,19 +167,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                         print("AppDelegate: Enabled workout completion notifications by default")
                     }
                     
-                    // Set up observer to detect new workouts immediately
+                    // Set up enhanced observer to detect new workouts with ZERO delay
                     HealthKitService.shared.observeWorkouts { [weak self] newWorkouts in
                         if !newWorkouts.isEmpty {
-                            print("AppDelegate: Detected \(newWorkouts.count) new workouts, triggering immediate sync")
+                            print("🚀 AppDelegate: IMMEDIATE detection of \(newWorkouts.count) new workouts!")
                             
-                            // Process workouts immediately for real-time sync
+                            // Process workouts with ZERO delay - don't wait for anything
                             Task {
-                                await self?.processNewWorkoutsImmediately(newWorkouts)
+                                await self?.processNewWorkoutsInstantly(newWorkouts)
                             }
                             
-                            // Send workout completion notifications
+                            // Send workout completion notifications INSTANTLY
                             for workout in newWorkouts {
-                                self?.sendWorkoutCompletionNotification(for: workout)
+                                self?.sendInstantWorkoutNotification(for: workout)
                             }
                         }
                     }
@@ -326,36 +326,43 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return min(points, 100) // Cap at 100 points
     }
     
-    // MARK: - Immediate Workout Processing
+    // MARK: - INSTANT Workout Processing (Zero Delay)
     
-    private func processNewWorkoutsImmediately(_ healthKitWorkouts: [HealthKitWorkout]) async {
+    private func processNewWorkoutsInstantly(_ healthKitWorkouts: [HealthKitWorkout]) async {
         guard let userId = AuthenticationService.shared.currentUserId else {
             print("AppDelegate: No user logged in for immediate sync")
             return
         }
         
-        print("🚀 AppDelegate: Processing \(healthKitWorkouts.count) new workouts immediately")
+        print("⚡ AppDelegate: INSTANT processing of \(healthKitWorkouts.count) workouts - NO DELAYS")
         
         for workout in healthKitWorkouts {
             do {
+                let startTime = Date()
+                
                 // Convert to Supabase workout format
                 let supabaseWorkout = HealthKitService.shared.convertToSupabaseWorkout(workout, userId: userId)
                 
-                // Process immediately with rewards and team updates
-                try await WorkoutDataService.shared.processWorkoutForRewards(supabaseWorkout)
+                // Process ALL operations in parallel for maximum speed
+                async let rewardsTask = WorkoutDataService.shared.processWorkoutForRewards(supabaseWorkout)
+                async let eventsTask = processWorkoutForEventsInstantly(workout, userId: userId)
+                async let leaderboardTask = updateTeamLeaderboardsForWorkout(userId: userId, workout: supabaseWorkout)
                 
-                // Process workout for events and challenges immediately  
-                await processWorkoutForEventsImmediately(workout, userId: userId)
+                // Wait for all operations to complete
+                try await rewardsTask
+                await eventsTask
+                await leaderboardTask
                 
-                // Update team leaderboards immediately
-                await updateTeamLeaderboardsForWorkout(userId: userId, workout: supabaseWorkout)
-                
-                print("🎯 AppDelegate: ✅ Immediately synced workout \(workout.id) with team updates")
+                let processingTime = Date().timeIntervalSince(startTime)
+                print("⚡ AppDelegate: ✅ INSTANT sync completed for workout \(workout.id) in \(String(format: "%.2f", processingTime))s")
                 
             } catch {
-                print("AppDelegate: ❌ Failed to immediately sync workout \(workout.id): \(error)")
+                print("AppDelegate: ❌ Failed instant sync for workout \(workout.id): \(error)")
                 
-                // Fallback to background sync if immediate sync fails
+                // Still try to send notification even if sync fails
+                sendInstantWorkoutNotification(for: workout)
+                
+                // Queue for background retry
                 BackgroundTaskManager.shared.triggerWorkoutSync()
             }
         }
@@ -375,13 +382,135 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
     
-    private func processWorkoutForEventsImmediately(_ workout: HealthKitWorkout, userId: String) async {
-        print("🎯 AppDelegate: Processing workout for events immediately")
+    private func processWorkoutForEventsInstantly(_ workout: HealthKitWorkout, userId: String) async {
+        print("⚡ AppDelegate: INSTANT event processing for workout \(workout.id)")
         
         // Use EventCriteriaEngine to check workout against all active events
         await EventCriteriaEngine.shared.processWorkoutForEvents(workout, userId: userId)
         
-        print("🎯 AppDelegate: Immediate event processing completed for workout \(workout.id)")
+        print("⚡ AppDelegate: INSTANT event processing completed for workout \(workout.id)")
+    }
+    
+    private func sendInstantWorkoutNotification(for workout: HealthKitWorkout) {
+        print("🔔 AppDelegate: Sending INSTANT workout notification")
+        
+        // Check if user wants workout completion notifications
+        let workoutNotificationsEnabled = UserDefaults.standard.bool(forKey: "notifications.workout_completed")
+        guard workoutNotificationsEnabled else { 
+            print("🔔 AppDelegate: Workout notifications disabled by user")
+            return 
+        }
+        
+        // Get user's teams for team-branded notifications
+        Task {
+            await sendInstantTeamBrandedWorkoutNotification(for: workout)
+        }
+    }
+    
+    private func sendInstantTeamBrandedWorkoutNotification(for workout: HealthKitWorkout) async {
+        guard let userId = AuthenticationService.shared.currentUserId else { return }
+        
+        let notificationStartTime = Date()
+        
+        // Calculate estimated reward
+        let estimatedPoints = calculateWorkoutPoints(workout)
+        let estimatedSats = estimatedPoints * 10
+        
+        do {
+            // Fetch user's teams to include in notification
+            let userTeams = try await SupabaseService.shared.fetchUserTeams(userId: userId)
+            
+            // Send notification for each team the user is part of
+            for team in userTeams {
+                let content = UNMutableNotificationContent()
+                content.title = "🚀 \(team.name): Workout Synced!"
+                content.body = "Your \(workout.workoutType) is now live! +\(estimatedSats) sats earned ⚡"
+                content.sound = .default
+                content.badge = 1
+                content.categoryIdentifier = "WORKOUT_COMPLETION"
+                content.userInfo = [
+                    "type": "workout_completed",
+                    "team_id": team.id,
+                    "team_name": team.name,
+                    "workout_type": workout.workoutType,
+                    "estimated_sats": estimatedSats,
+                    "duration": workout.duration,
+                    "sync_time": Date().timeIntervalSince1970
+                ]
+                
+                // Send immediately - NO delay
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+                let request = UNNotificationRequest(
+                    identifier: "instant_workout_\(team.id)_\(workout.id)",
+                    content: content,
+                    trigger: trigger
+                )
+                
+                UNUserNotificationCenter.current().add(request) { error in
+                    let notificationTime = Date().timeIntervalSince(notificationStartTime)
+                    if let error = error {
+                        print("🔔 AppDelegate: ❌ Failed to send instant notification for \(team.name): \(error)")
+                    } else {
+                        print("🔔 AppDelegate: ✅ INSTANT notification sent for \(team.name) in \(String(format: "%.3f", notificationTime))s")
+                    }
+                }
+            }
+            
+            // If user has no teams, send generic instant notification
+            if userTeams.isEmpty {
+                let content = UNMutableNotificationContent()
+                content.title = "🚀 Workout Synced!"
+                content.body = "Your \(workout.workoutType) is live! Earned ~\(estimatedSats) sats ⚡"
+                content.sound = .default
+                content.badge = 1
+                content.categoryIdentifier = "WORKOUT_COMPLETION"
+                content.userInfo = [
+                    "type": "workout_completed",
+                    "workout_type": workout.workoutType,
+                    "estimated_sats": estimatedSats,
+                    "duration": workout.duration,
+                    "sync_time": Date().timeIntervalSince1970
+                ]
+                
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+                let request = UNNotificationRequest(
+                    identifier: "instant_workout_\(workout.id)",
+                    content: content,
+                    trigger: trigger
+                )
+                
+                UNUserNotificationCenter.current().add(request) { error in
+                    let notificationTime = Date().timeIntervalSince(notificationStartTime)
+                    if let error = error {
+                        print("🔔 AppDelegate: ❌ Failed to send generic instant notification: \(error)")
+                    } else {
+                        print("🔔 AppDelegate: ✅ Generic INSTANT notification sent in \(String(format: "%.3f", notificationTime))s")
+                    }
+                }
+            }
+            
+        } catch {
+            print("🔔 AppDelegate: ❌ Failed to fetch user teams for instant notification: \(error)")
+            
+            // Fallback to immediate generic notification
+            let content = UNMutableNotificationContent()
+            content.title = "🚀 Workout Detected!"
+            content.body = "Your \(workout.workoutType) is syncing now! ~\(estimatedSats) sats ⚡"
+            content.sound = .default
+            content.badge = 1
+            content.categoryIdentifier = "WORKOUT_COMPLETION"
+            
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+            let request = UNNotificationRequest(
+                identifier: "instant_fallback_\(workout.id)",
+                content: content,
+                trigger: trigger
+            )
+            
+            UNUserNotificationCenter.current().add(request) { _ in
+                print("🔔 AppDelegate: ✅ Fallback instant notification sent")
+            }
+        }
     }
     
     private func setupNetworkNotifications() {
@@ -415,11 +544,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func applicationWillEnterForeground(_ application: UIApplication) {
-        // Process any pending sync tasks when app comes to foreground
+        print("🚀 AppDelegate: App entering foreground - triggering IMMEDIATE workout check")
+        
+        // FORCE check for any new workouts that might have been missed
         Task {
+            await forceImmediateWorkoutCheck()
             await BackgroundTaskManager.shared.processPendingTasksInForeground()
         }
-        print("AppDelegate: Processing pending tasks in foreground")
+    }
+    
+    private func forceImmediateWorkoutCheck() async {
+        print("🔥 AppDelegate: FORCE checking for missed workouts")
+        
+        await HealthKitService.shared.forceWorkoutCheck { [weak self] newWorkouts in
+            if !newWorkouts.isEmpty {
+                print("🔥 AppDelegate: Force check found \(newWorkouts.count) missed workouts!")
+                
+                Task {
+                    await self?.processNewWorkoutsInstantly(newWorkouts)
+                }
+                
+                for workout in newWorkouts {
+                    self?.sendInstantWorkoutNotification(for: workout)
+                }
+            } else {
+                print("🔥 AppDelegate: Force check - no missed workouts found")
+            }
+        }
     }
     
     // MARK: - Remote Notifications

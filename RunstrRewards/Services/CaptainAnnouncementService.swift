@@ -178,6 +178,20 @@ class CaptainAnnouncementService {
                     print("CaptainAnnouncementService: ✅ Sent announcement notification to member \(memberId)")
                 }
             }
+            
+            // Store in notification inbox
+            NotificationService.shared.storeNotificationInInbox(
+                userId: memberId,
+                type: "team_announcement",
+                title: notificationTitle,
+                body: notificationBody,
+                teamId: announcement.teamId,
+                fromUserId: announcement.captainId,
+                actionData: [
+                    "announcement_id": announcement.id,
+                    "priority": announcement.priority.rawValue
+                ]
+            )
         }
     }
     

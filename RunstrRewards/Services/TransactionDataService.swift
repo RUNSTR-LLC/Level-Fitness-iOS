@@ -638,4 +638,192 @@ class TransactionDataService {
         // For now, return empty array until proper implementation
         return []
     }
+    
+    // MARK: - Prize Distribution Persistence
+    
+    func createPrizeDistribution(distribution: PrizeDistribution) async throws -> String {
+        struct DatabaseDistribution: Encodable {
+            let id: String
+            let teamId: String
+            let eventId: String?
+            let createdBy: String
+            let totalPrize: Int
+            let distributionMethod: String
+            let status: String
+            let notes: String?
+            let createdAt: String
+            
+            enum CodingKeys: String, CodingKey {
+                case id
+                case teamId = "team_id"
+                case eventId = "event_id"
+                case createdBy = "created_by"
+                case totalPrize = "total_prize"
+                case distributionMethod = "distribution_method"
+                case status
+                case notes
+                case createdAt = "created_at"
+            }
+        }
+        
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        
+        let dbDistribution = DatabaseDistribution(
+            id: distribution.distributionId,
+            teamId: distribution.teamId,
+            eventId: distribution.eventId,
+            createdBy: distribution.createdBy,
+            totalPrize: Int(distribution.totalPrize),
+            distributionMethod: String(describing: distribution.distributionMethod),
+            status: String(describing: distribution.status),
+            notes: distribution.notes,
+            createdAt: iso8601Formatter.string(from: distribution.createdDate)
+        )
+        
+        try await client
+            .from("prize_distributions")
+            .insert(dbDistribution)
+            .execute()
+        
+        // Insert recipients
+        for recipient in distribution.recipients {
+            try await createPrizeRecipient(distributionId: distribution.distributionId, recipient: recipient)
+        }
+        
+        print("TransactionDataService: Prize distribution \(distribution.distributionId) stored in database")
+        return distribution.distributionId
+    }
+    
+    private func createPrizeRecipient(distributionId: String, recipient: PrizeRecipient) async throws {
+        struct DatabaseRecipient: Encodable {
+            let id: String
+            let distributionId: String
+            let userId: String
+            let allocation: Int
+            let percentage: Double
+            let reason: String?
+            let performanceData: Data?
+            let payoutStatus: String
+            let createdAt: String
+            
+            enum CodingKeys: String, CodingKey {
+                case id
+                case distributionId = "distribution_id"
+                case userId = "user_id"
+                case allocation
+                case percentage
+                case reason
+                case performanceData = "performance_data"
+                case payoutStatus = "payout_status"
+                case createdAt = "created_at"
+            }
+        }
+        
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        
+        // Encode performance data to JSON if available
+        var performanceData: Data?
+        if let performance = recipient.performance {
+            performanceData = try? JSONEncoder().encode(performance)
+        }
+        
+        let dbRecipient = DatabaseRecipient(
+            id: UUID().uuidString,
+            distributionId: distributionId,
+            userId: recipient.userId,
+            allocation: Int(recipient.allocation),
+            percentage: recipient.percentage,
+            reason: recipient.reason,
+            performanceData: performanceData,
+            payoutStatus: String(describing: recipient.payoutStatus),
+            createdAt: iso8601Formatter.string(from: Date())
+        )
+        
+        try await client
+            .from("prize_recipients")
+            .insert(dbRecipient)
+            .execute()
+    }
+    
+    func updateDistributionStatus(distributionId: String, status: DistributionStatus, executedAt: Date? = nil) async throws {
+        struct StatusUpdate: Encodable {
+            let status: String
+            let executedAt: String?
+            
+            enum CodingKeys: String, CodingKey {
+                case status
+                case executedAt = "executed_at"
+            }
+        }
+        
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        
+        let update = StatusUpdate(
+            status: String(describing: status),
+            executedAt: executedAt != nil ? iso8601Formatter.string(from: executedAt!) : nil
+        )
+        
+        try await client
+            .from("prize_distributions")
+            .update(update)
+            .eq("id", value: distributionId)
+            .execute()
+        
+        print("TransactionDataService: Distribution \(distributionId) status updated to \(status)")
+    }
+    
+    func updateRecipientPayout(
+        distributionId: String,
+        userId: String,
+        status: PayoutStatus,
+        transactionId: String?,
+        payoutDate: Date?
+    ) async throws {
+        struct PayoutUpdate: Encodable {
+            let payoutStatus: String
+            let transactionId: String?
+            let payoutDate: String?
+            
+            enum CodingKeys: String, CodingKey {
+                case payoutStatus = "payout_status"
+                case transactionId = "transaction_id"
+                case payoutDate = "payout_date"
+            }
+        }
+        
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        
+        let update = PayoutUpdate(
+            payoutStatus: String(describing: status),
+            transactionId: transactionId,
+            payoutDate: payoutDate != nil ? iso8601Formatter.string(from: payoutDate!) : nil
+        )
+        
+        try await client
+            .from("prize_recipients")
+            .update(update)
+            .eq("distribution_id", value: distributionId)
+            .eq("user_id", value: userId)
+            .execute()
+        
+        print("TransactionDataService: Recipient payout status updated for user \(userId)")
+    }
+    
+    func getPrizeDistributions(teamId: String) async throws -> [PrizeDistribution] {
+        // Fetch distributions from database
+        let response = try await client
+            .from("prize_distributions")
+            .select("*, prize_recipients(*)")
+            .eq("team_id", value: teamId)
+            .order("created_at", ascending: false)
+            .execute()
+        
+        // Parse and return distributions
+        // This would need proper JSON parsing - placeholder for now
+        return []
+    }
 }
