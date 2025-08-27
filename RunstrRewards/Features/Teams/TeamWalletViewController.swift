@@ -419,7 +419,9 @@ class TeamWalletViewController: UIViewController {
             await loadWalletData()
             
         } catch {
-            await showError("Failed to verify access: \(error.localizedDescription)")
+            await MainActor.run {
+                ErrorHandlingService.shared.handleError(error, context: "Team Wallet Access Verification", in: self)
+            }
         }
     }
     

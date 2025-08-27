@@ -7,6 +7,7 @@ class TeamWalletManager {
     private let lightningWalletManager = LightningWalletManager.shared
     private let supabaseService = SupabaseService.shared
     private let accessController = TeamWalletAccessController.shared
+    private let monitoringService = WalletMonitoringService.shared
     
     private init() {}
     
@@ -78,6 +79,18 @@ class TeamWalletManager {
         
         if userSession.id != userId {
             print("TeamWalletManager: ❌ Session user ID doesn't match requested user ID")
+            
+            monitoringService.logSecurityEvent(
+                eventType: "session_user_id_mismatch",
+                teamId: teamId,
+                userId: userId,
+                severity: .high,
+                details: [
+                    "session_user_id": userSession.id,
+                    "requested_user_id": userId
+                ]
+            )
+            
             throw TeamWalletError.notAuthorized
         }
         
@@ -97,6 +110,15 @@ class TeamWalletManager {
                 
                 if captainIdLower == userIdLower {
                     print("TeamWalletManager: ✅ CAPTAIN ACCESS VERIFIED - User \(userId) is captain of team \(teamId)")
+                    
+                    monitoringService.logAccessAttempt(
+                        teamId: teamId,
+                        userId: userId,
+                        operation: "captain_verification",
+                        granted: true,
+                        reason: "User is team captain"
+                    )
+                    
                     return true
                 } else {
                     print("TeamWalletManager: ❌ CAPTAIN CHECK FAILED in teams table - user '\(userId)' is not captain")
@@ -668,66 +690,5 @@ class TeamWalletManager {
     }
 }
 
-// MARK: - Data Models
-
-struct TeamWallet: Codable {
-    let id: String
-    let teamId: String
-    let captainId: String
-    let provider: String
-    let balance: Int
-    let address: String
-    let walletId: String
-    let createdAt: Date
-}
-
-struct UserWalletCredentials {
-    let username: String
-    let password: String
-}
-
-
-enum TeamWalletAccessType {
-    case view    // Can see balance and transactions
-    case manage  // Can fund wallet and distribute rewards
-}
-
-enum RewardDistributionType {
-    case equal
-    case weighted([Int]) // Array of weights for each recipient
-}
-
-// MARK: - Errors
-
-enum TeamWalletError: LocalizedError {
-    case teamWalletCreationFailed
-    case teamWalletNotFound
-    case authenticationRequired
-    case notAuthorized
-    case insufficientBalance
-    case rewardDistributionFailed
-    case userWalletNotFound
-    case userInvoiceCreationFailed
-    
-    var errorDescription: String? {
-        switch self {
-        case .teamWalletCreationFailed:
-            return "Failed to create team wallet"
-        case .teamWalletNotFound:
-            return "Team wallet not found"
-        case .authenticationRequired:
-            return "Authentication required for team wallet operations"
-        case .notAuthorized:
-            return "Not authorized to perform this team wallet operation"
-        case .insufficientBalance:
-            return "Insufficient team wallet balance"
-        case .rewardDistributionFailed:
-            return "Failed to distribute team rewards"
-        case .userWalletNotFound:
-            return "User wallet not found or not set up"
-        case .userInvoiceCreationFailed:
-            return "Failed to create invoice in user wallet"
-        }
-    }
-}
+// Note: Types moved to TeamWalletModels.swift for better organization
 

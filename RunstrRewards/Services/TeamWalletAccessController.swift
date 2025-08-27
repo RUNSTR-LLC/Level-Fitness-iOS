@@ -6,7 +6,66 @@ class TeamWalletAccessController {
     private let authenticationService = AuthenticationService.shared
     private let supabaseService = SupabaseService.shared
     
+    // Captain verification cache with TTL
+    private var captainCache: [String: CaptainCacheEntry] = [:]
+    private let cacheQueue = DispatchQueue(label: "captain-verification-cache", attributes: .concurrent)
+    private let cacheTTL: TimeInterval = 300 // 5 minutes
+    
     private init() {}
+    
+    // MARK: - Cache Data Structures
+    
+    private struct CaptainCacheEntry {
+        let isCaptain: Bool
+        let timestamp: Date
+    }
+    
+    // MARK: - Cache Methods
+    
+    private func getCachedResult(for key: String) -> Bool? {
+        guard let entry = captainCache[key] else { return nil }
+        
+        let age = Date().timeIntervalSince(entry.timestamp)
+        if age > cacheTTL {
+            captainCache.removeValue(forKey: key)
+            print("TeamWalletAccessController: 🗑️ Cache entry expired for \(key)")
+            return nil
+        }
+        
+        print("TeamWalletAccessController: 📦 Cache hit for \(key), age: \(Int(age))s")
+        return entry.isCaptain
+    }
+    
+    private func cacheResult(_ result: Bool, for key: String) {
+        let entry = CaptainCacheEntry(isCaptain: result, timestamp: Date())
+        captainCache[key] = entry
+        print("TeamWalletAccessController: 📦 Cached result \(result) for \(key)")
+        
+        // Cleanup old entries periodically
+        if captainCache.count > 100 {
+            cleanupExpiredEntries()
+        }
+    }
+    
+    private func cleanupExpiredEntries() {
+        let now = Date()
+        let expiredKeys = captainCache.compactMap { key, entry in
+            now.timeIntervalSince(entry.timestamp) > cacheTTL ? key : nil
+        }
+        
+        for key in expiredKeys {
+            captainCache.removeValue(forKey: key)
+        }
+        
+        print("TeamWalletAccessController: 🧹 Cleaned up \(expiredKeys.count) expired cache entries")
+    }
+    
+    func clearCache() {
+        cacheQueue.async(flags: .barrier) {
+            self.captainCache.removeAll()
+            print("TeamWalletAccessController: 🗑️ Cache cleared")
+        }
+    }
     
     // MARK: - Team Wallet Access Control
     
@@ -32,6 +91,14 @@ class TeamWalletAccessController {
     }
     
     func canUserManageTeamWallet(teamId: String, userId: String) async -> Bool {
+        // Check cache first
+        let cacheKey = "manage:\(teamId):\(userId)"
+        
+        if let cachedResult = cacheQueue.sync(execute: { getCachedResult(for: cacheKey) }) {
+            print("TeamWalletAccessController: ✅ Using cached captain verification result: \(cachedResult)")
+            return cachedResult
+        }
+        
         do {
             // Check if user is authenticated
             guard authenticationService.loadSession() != nil else {
@@ -42,6 +109,7 @@ class TeamWalletAccessController {
             // Check if user is team captain
             guard let team = try await supabaseService.getTeam(teamId) else {
                 print("TeamWalletAccessController: ❌ Team not found: \(teamId)")
+                cacheQueue.async(flags: .barrier) { self.cacheResult(false, for: cacheKey) }
                 return false
             }
             
@@ -51,9 +119,15 @@ class TeamWalletAccessController {
             let isCaptain = team.captainId.lowercased() == userId.lowercased()
             print("TeamWalletAccessController: Captain access result: \(isCaptain)")
             
+            // Cache the result
+            cacheQueue.async(flags: .barrier) {
+                self.cacheResult(isCaptain, for: cacheKey)
+            }
+            
             return isCaptain
         } catch {
             print("TeamWalletAccessController: Error checking team wallet management access: \(error)")
+            cacheQueue.async(flags: .barrier) { self.cacheResult(false, for: cacheKey) }
             return false
         }
     }
@@ -120,39 +194,4 @@ class TeamWalletAccessController {
     }
 }
 
-// MARK: - Data Models
-
-enum TeamRole {
-    case captain
-    case member
-    case none
-    
-    var description: String {
-        switch self {
-        case .captain: return "Team Captain"
-        case .member: return "Team Member"
-        case .none: return "Not a team member"
-        }
-    }
-}
-
-enum TeamWalletOperation {
-    case fundWallet
-    case distributeReward
-}
-
-// MARK: - Simplified Error Handling
-
-enum TeamWalletAccessError: LocalizedError {
-    case notAuthenticated
-    case accessDenied
-    
-    var errorDescription: String? {
-        switch self {
-        case .notAuthenticated:
-            return "Authentication required to access team wallet"
-        case .accessDenied:
-            return "Access denied for team wallet operation"
-        }
-    }
-}
+// Note: Types moved to TeamWalletModels.swift for better organization
