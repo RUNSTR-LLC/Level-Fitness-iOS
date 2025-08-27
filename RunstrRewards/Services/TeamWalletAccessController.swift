@@ -14,11 +14,17 @@ class TeamWalletAccessController {
         do {
             // Check if user is authenticated
             guard authenticationService.loadSession() != nil else {
+                print("TeamWalletAccessController: ❌ User not authenticated for team wallet access")
                 return false
             }
             
+            print("TeamWalletAccessController: 🔍 Checking team wallet access for user: \(userId) on team: \(teamId)")
+            
             // Check if user is a team member
-            return try await supabaseService.isUserMemberOfTeam(userId: userId, teamId: teamId)
+            let isMember = try await supabaseService.isUserMemberOfTeam(userId: userId, teamId: teamId)
+            print("TeamWalletAccessController: Team membership result: \(isMember)")
+            
+            return isMember
         } catch {
             print("TeamWalletAccessController: Error checking team wallet access: \(error)")
             return false
@@ -29,15 +35,23 @@ class TeamWalletAccessController {
         do {
             // Check if user is authenticated
             guard authenticationService.loadSession() != nil else {
+                print("TeamWalletAccessController: ❌ User not authenticated")
                 return false
             }
             
             // Check if user is team captain
             guard let team = try await supabaseService.getTeam(teamId) else {
+                print("TeamWalletAccessController: ❌ Team not found: \(teamId)")
                 return false
             }
             
-            return team.captainId == userId
+            print("TeamWalletAccessController: 🔍 Checking captain access for user: \(userId)")
+            print("TeamWalletAccessController: 🔍 Team captain_id: \(team.captainId)")
+            
+            let isCaptain = team.captainId.lowercased() == userId.lowercased()
+            print("TeamWalletAccessController: Captain access result: \(isCaptain)")
+            
+            return isCaptain
         } catch {
             print("TeamWalletAccessController: Error checking team wallet management access: \(error)")
             return false

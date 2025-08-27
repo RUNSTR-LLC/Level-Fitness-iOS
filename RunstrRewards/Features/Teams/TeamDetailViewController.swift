@@ -50,6 +50,12 @@ class TeamDetailViewController: UIViewController {
     private var eventsEmptyLabel: UILabel?
     private var eventsTitleLabel: UILabel?
     
+    // Challenge management
+    private var challengesContainer: UIView?
+    private var challengesEmptyLabel: UILabel?
+    // Placeholder for challenges - will use proper Event model when integrated
+    private var activeChallenges: [String] = [] // Using String IDs as placeholder
+    
     // Removed: tabNavigation and tabContentView (simplified to single scroll layout)
     
     // MARK: - Initialization
@@ -228,6 +234,9 @@ class TeamDetailViewController: UIViewController {
         
         // Add simplified events section  
         createSimpleEvents()
+        
+        // Add challenges section
+        createChallengesSection()
     }
     
     private func createSimpleLeaderboard() {
@@ -339,6 +348,73 @@ class TeamDetailViewController: UIViewController {
         ])
     }
     
+    private func createChallengesSection() {
+        let challengesContainer = UIView()
+        challengesContainer.translatesAutoresizingMaskIntoConstraints = false
+        challengesContainer.backgroundColor = UIColor(red: 0.06, green: 0.06, blue: 0.06, alpha: 0.8)
+        challengesContainer.layer.cornerRadius = 12
+        challengesContainer.layer.borderWidth = 1
+        challengesContainer.layer.borderColor = UIColor(red: 0.17, green: 0.17, blue: 0.17, alpha: 1.0).cgColor
+        self.challengesContainer = challengesContainer
+        
+        let titleLabel = UILabel()
+        titleLabel.text = "Challenges"
+        titleLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        titleLabel.textColor = IndustrialDesign.Colors.primaryText
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Create challenge button (for team members, not captains)
+        let createChallengeButton = UIButton(type: .system)
+        createChallengeButton.setImage(UIImage(systemName: "plus"), for: .normal)
+        createChallengeButton.tintColor = IndustrialDesign.Colors.bitcoin
+        createChallengeButton.translatesAutoresizingMaskIntoConstraints = false
+        createChallengeButton.addTarget(self, action: #selector(createChallengeButtonTapped), for: .touchUpInside)
+        
+        let emptyLabel = UILabel()
+        emptyLabel.text = "No active challenges"
+        emptyLabel.font = UIFont.systemFont(ofSize: 14, weight: .regular)
+        emptyLabel.textColor = IndustrialDesign.Colors.secondaryText
+        emptyLabel.textAlignment = .center
+        emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+        self.challengesEmptyLabel = emptyLabel
+        
+        challengesContainer.addSubview(titleLabel)
+        challengesContainer.addSubview(createChallengeButton)
+        challengesContainer.addSubview(emptyLabel)
+        contentView.addSubview(challengesContainer)
+        
+        // Store reference for constraints
+        challengesContainer.tag = 102 // Different tag from events (101)
+        
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(equalTo: challengesContainer.topAnchor, constant: 16),
+            titleLabel.leadingAnchor.constraint(equalTo: challengesContainer.leadingAnchor, constant: 16),
+            
+            createChallengeButton.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+            createChallengeButton.trailingAnchor.constraint(equalTo: challengesContainer.trailingAnchor, constant: -16),
+            createChallengeButton.widthAnchor.constraint(equalToConstant: 24),
+            createChallengeButton.heightAnchor.constraint(equalToConstant: 24),
+            
+            emptyLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
+            emptyLabel.centerXAnchor.constraint(equalTo: challengesContainer.centerXAnchor),
+            emptyLabel.bottomAnchor.constraint(equalTo: challengesContainer.bottomAnchor, constant: -16)
+        ])
+    }
+    
+    @objc private func createChallengeButtonTapped() {
+        print("🏆 Challenge: Create challenge button tapped")
+        
+        let challengeModal = ChallengeCreationModal(teamData: teamData)
+        challengeModal.onCompletion = { [weak self] success in
+            if success {
+                self?.showAlert(title: "Success!", message: "Challenge created successfully!")
+                // TODO: Refresh challenges list or update UI as needed
+            }
+        }
+        
+        present(challengeModal, animated: true)
+    }
+    
     private func setupAboutSectionHeightConstraint() {
         // Create height constraint for aboutSection (dynamic based on captain status)
         aboutSectionHeightConstraint = aboutSection.heightAnchor.constraint(equalToConstant: 140)
@@ -354,6 +430,7 @@ class TeamDetailViewController: UIViewController {
     private func setupSimpleConstraints() {
         let leaderboardContainer = contentView.viewWithTag(100)!
         let eventsContainer = contentView.viewWithTag(101)!
+        let challengesContainer = contentView.viewWithTag(102)!
         
         // Create both possible constraints but don't activate yet
         teamMembersToSubscriptionConstraint = teamMembersView.topAnchor.constraint(equalTo: subscriptionStatusView.bottomAnchor, constant: 16)
@@ -379,7 +456,13 @@ class TeamDetailViewController: UIViewController {
             eventsContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             eventsContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             eventsContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 100),
-            eventsContainer.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -32)
+            
+            // Challenges below events
+            challengesContainer.topAnchor.constraint(equalTo: eventsContainer.bottomAnchor, constant: 16),
+            challengesContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            challengesContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            challengesContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 100),
+            challengesContainer.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -32)
         ])
     }
     
@@ -493,6 +576,7 @@ class TeamDetailViewController: UIViewController {
             
             await MainActor.run {
                 self.isCaptain = isTeamOwner // Store captain status
+                print("🏗️ TeamDetailViewController: Captain status determined: \(isTeamOwner) for user \(userSession.id) on team \(self.teamData.id)")
                 self.updateAboutSectionHeight(isCaptain: isTeamOwner) // Update height for captain UI
                 
                 if isTeamOwner {
@@ -540,6 +624,7 @@ class TeamDetailViewController: UIViewController {
             print("🏗️ TeamDetailMain: Could not verify team ownership - defaulting to member view")
             await MainActor.run {
                 self.isCaptain = false // Default to non-captain for safety
+                print("🏗️ TeamDetailViewController: Defaulting to non-captain status (could not verify ownership)")
                 self.updateAboutSectionHeight(isCaptain: false) // Update height for member UI
                 
                 // Show subscription UI for non-captains
@@ -881,13 +966,23 @@ class TeamDetailViewController: UIViewController {
 
 extension TeamDetailViewController: TeamDetailAboutSectionDelegate {
     func didTapManageWallet() {
-        print("🏗️ TeamDetailViewController: Manage wallet tapped - isCaptain: \(isCaptain)")
+        print("🏗️ TeamDetailViewController: Manage wallet button tapped")
+        print("🏗️ TeamDetailViewController: Current captain status: \(isCaptain)")
+        print("🏗️ TeamDetailViewController: Team ID: \(teamData.id)")
         
-        guard isCaptain else {
-            print("🏗️ TeamDetailViewController: User is not captain, ignoring wallet tap")
+        guard let userSession = AuthenticationService.shared.loadSession() else {
+            print("🏗️ TeamDetailViewController: ❌ No user session found for wallet access")
             return
         }
         
+        print("🏗️ TeamDetailViewController: User session ID: \(userSession.id)")
+        
+        guard isCaptain else {
+            print("🏗️ TeamDetailViewController: ❌ User is not captain according to local flag, denying wallet access")
+            return
+        }
+        
+        print("🏗️ TeamDetailViewController: ✅ Captain access confirmed, opening wallet")
         let walletViewController = TeamWalletViewController(teamData: teamData)
         navigationController?.pushViewController(walletViewController, animated: true)
     }
@@ -1602,6 +1697,12 @@ extension TeamDetailViewController: TeamActivityFeedViewDelegate {
             let mSats = Double(satsAmount) / 1_000_000.0
             return String(format: "%.1fM", mSats)
         }
+    }
+    
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 }
 

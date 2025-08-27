@@ -387,17 +387,25 @@ class TeamWalletViewController: UIViewController {
     // MARK: - Data Loading
     
     private func verifyAccessAndLoadData() async {
+        print("🏗️ TeamWalletViewController: Starting wallet access verification for team: \(teamData.name) (ID: \(teamData.id))")
+        
         guard let userSession = AuthenticationService.shared.loadSession() else {
+            print("🏗️ TeamWalletViewController: ❌ No authentication session found")
             await showError("Authentication required")
             return
         }
         
+        print("🏗️ TeamWalletViewController: User session found: \(userSession.id)")
+        
         do {
             // Verify user is team captain
+            print("🏗️ TeamWalletViewController: Verifying captain access...")
             let hasAccess = try await teamWalletManager.verifyTeamCaptainAccess(teamId: teamData.id, userId: userSession.id)
+            print("🏗️ TeamWalletViewController: Captain access verification result: \(hasAccess)")
             
             if !hasAccess {
-                await showError("Only team captains can access team wallet management")
+                print("🏗️ TeamWalletViewController: ❌ Captain verification failed for user \(userSession.id) on team \(teamData.id)")
+                await showError("Access denied: Only team captains can manage the team wallet. If you are the team captain, please check your team settings.")
                 return
             }
             

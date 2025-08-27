@@ -84,33 +84,39 @@ class TeamWalletManager {
             print("TeamWalletManager: 🔍 Team data retrieved: \(String(describing: team))")
             
             if let team = team {
-                print("TeamWalletManager: 🔍 Team captain_id: \(String(describing: team.captainId))")
-                print("TeamWalletManager: 🔍 Comparing with user_id: \(userId)")
+                print("TeamWalletManager: 🔍 Team captain_id: '\(team.captainId)' (length: \(team.captainId.count))")
+                print("TeamWalletManager: 🔍 Comparing with user_id: '\(userId)' (length: \(userId.count))")
                 
-                if team.captainId == userId {
-                    print("TeamWalletManager: ✅ Verified captain access for user \(userId) on team \(teamId)")
+                let captainIdLower = team.captainId.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                let userIdLower = userId.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                print("TeamWalletManager: 🔍 Normalized comparison: '\(captainIdLower)' vs '\(userIdLower)'")
+                
+                if captainIdLower == userIdLower {
+                    print("TeamWalletManager: ✅ CAPTAIN ACCESS VERIFIED - User \(userId) is captain of team \(teamId)")
                     return true
                 } else {
-                    print("TeamWalletManager: ❌ Captain ID mismatch - team.captainId: \(String(describing: team.captainId)), userId: \(userId)")
+                    print("TeamWalletManager: ❌ CAPTAIN CHECK FAILED in teams table - user '\(userId)' is not captain")
                 }
             } else {
-                print("TeamWalletManager: ❌ Team not found: \(teamId)")
+                print("TeamWalletManager: ❌ TEAM NOT FOUND: \(teamId) - team data is null")
             }
             
             // Fallback: Check team_members table for captain role
-            print("TeamWalletManager: 🔍 Checking team_members table as fallback...")
+            print("TeamWalletManager: 🔍 FALLBACK CHECK: Checking team_members table for captain role...")
             let isCaptainInMembers = try await isUserTeamCaptainInMembers(teamId: teamId, userId: userId)
             
             if isCaptainInMembers {
-                print("TeamWalletManager: ✅ User is captain in team_members table")
+                print("TeamWalletManager: ✅ CAPTAIN ACCESS VERIFIED - User found as captain in team_members table")
                 return true
             }
             
-            print("TeamWalletManager: ❌ User \(userId) is not captain of team \(teamId) in either table")
+            print("TeamWalletManager: ❌ FINAL RESULT: User \(userId) is NOT captain of team \(teamId) in either teams table or team_members table")
             return false
             
         } catch {
-            print("TeamWalletManager: ❌ Error verifying captain access: \(error)")
+            print("TeamWalletManager: ❌ EXCEPTION during captain verification: \(error)")
+            print("TeamWalletManager: ❌ Error type: \(type(of: error))")
             throw TeamWalletError.notAuthorized
         }
     }
@@ -420,19 +426,36 @@ class TeamWalletManager {
     private func isUserTeamCaptainInMembers(teamId: String, userId: String) async throws -> Bool {
         // Check if user has captain role in team_members table
         do {
+            print("TeamWalletManager: 🔍 FALLBACK: Fetching team members for team \(teamId)")
             let members = try await supabaseService.fetchTeamMembers(teamId: teamId)
-            let captainMember = members.first { $0.profile.id == userId && $0.role == "captain" }
+            print("TeamWalletManager: 🔍 FALLBACK: Found \(members.count) team members")
+            
+            // Debug: Print all members and their roles
+            for member in members {
+                print("TeamWalletManager: 🔍 Member: '\(member.profile.id)' (role: '\(member.role)')")
+            }
+            
+            let userIdLower = userId.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            let captainMember = members.first { member in
+                let memberIdLower = member.profile.id.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                let isMatch = memberIdLower == userIdLower && member.role == "captain"
+                print("TeamWalletManager: 🔍 Comparing member '\(memberIdLower)' with target '\(userIdLower)' (role: '\(member.role)') -> match: \(isMatch)")
+                return isMatch
+            }
+            
             let isCaptain = captainMember != nil
             
-            print("TeamWalletManager: User \(userId) captain role in team_members for team \(teamId): \(isCaptain)")
+            print("TeamWalletManager: FALLBACK RESULT: User \(userId) captain role in team_members for team \(teamId): \(isCaptain)")
             if let member = captainMember {
-                print("TeamWalletManager: Found captain member: \(member.profile.id) with role: \(member.role)")
+                print("TeamWalletManager: ✅ FALLBACK SUCCESS: Found captain member: \(member.profile.id) with role: \(member.role)")
+            } else {
+                print("TeamWalletManager: ❌ FALLBACK FAILED: User not found as captain in team_members table")
             }
             
             return isCaptain
             
         } catch {
-            print("TeamWalletManager: Error checking captain role in team_members: \(error)")
+            print("TeamWalletManager: ❌ FALLBACK ERROR: Error checking captain role in team_members: \(error)")
             return false // Don't throw, just return false as fallback
         }
     }
