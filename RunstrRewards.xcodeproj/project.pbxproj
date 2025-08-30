@@ -154,6 +154,7 @@
 		BB22CC33-DD44-EE55-FF66-778899001122 /* PaymentQueueManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11009988-7766-5544-3322-FFEEDDCCBBAA /* PaymentQueueManager.swift */; };
 		CC33DD44-EE55-FF66-7788-990011223344 /* PaymentCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22110099-8877-6655-4433-FFEEDDCCBBAA /* PaymentCard.swift */; };
 		DD44EE55-FF66-7788-9900-112233445566 /* PendingPaymentsModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33221100-9988-7766-5544-FFEEDDCCBBAA /* PendingPaymentsModal.swift */; };
+		WALLET12345678-ABCD-EFGH-IJKL-9900112233445566 /* TeamWalletSetupStepViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = WALLET98765432-ZYXW-VUSR-QPON-FFEEDDCCBBAA1234 /* TeamWalletSetupStepViewController.swift */; };
 		EE55FF66-7788-9900-1122-334455667788 /* BadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44332211-0099-8877-6655-FFEEDDCCBBAA /* BadgeView.swift */; };
 /* End PBXBuildFile section */
 
@@ -309,6 +310,7 @@
 		11009988-7766-5544-3322-FFEEDDCCBBAA /* PaymentQueueManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunstrRewards/Services/PaymentQueueManager.swift; sourceTree = "<group>"; };
 		22110099-8877-6655-4433-FFEEDDCCBBAA /* PaymentCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunstrRewards/Features/Teams/PaymentCard.swift; sourceTree = "<group>"; };
 		33221100-9988-7766-5544-FFEEDDCCBBAA /* PendingPaymentsModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunstrRewards/Features/Teams/PendingPaymentsModal.swift; sourceTree = "<group>"; };
+		WALLET98765432-ZYXW-VUSR-QPON-FFEEDDCCBBAA1234 /* TeamWalletSetupStepViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunstrRewards/Features/Teams/TeamWalletSetupStepViewController.swift; sourceTree = "<group>"; };
 		44332211-0099-8877-6655-FFEEDDCCBBAA /* BadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunstrRewards/Shared/UI/BadgeView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -714,6 +716,7 @@
 				BB22CC33-DD44-EE55-FF66-778899001122 /* PaymentQueueManager.swift in Sources */,
 				CC33DD44-EE55-FF66-7788-990011223344 /* PaymentCard.swift in Sources */,
 				DD44EE55-FF66-7788-9900-112233445566 /* PendingPaymentsModal.swift in Sources */,
+				WALLET12345678-ABCD-EFGH-IJKL-9900112233445566 /* TeamWalletSetupStepViewController.swift in Sources */,
 				EE55FF66-7788-9900-1122-334455667788 /* BadgeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

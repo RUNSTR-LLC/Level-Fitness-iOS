@@ -295,8 +295,7 @@ class TeamCreationWizardViewController: UIViewController {
             TeamBasicInfoStepViewController(teamData: teamData),
             TeamMetricSelectionStepViewController(teamData: teamData),
             TeamLeaderboardSetupStepViewController(teamData: teamData),
-            // TODO: Add TeamWalletSetupStepViewController via Xcode GUI
-            // TeamWalletSetupStepViewController(teamData: teamData),
+            TeamWalletSetupStepViewController(teamData: teamData),
             TeamReviewStepViewController(teamData: teamData)
         ]
     }
