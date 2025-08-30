@@ -1,4 +1,5 @@
 import Foundation
+import HealthKit
 
 // MARK: - Event Criteria Data Models
 
@@ -87,7 +88,58 @@ class EventCriteriaEngine {
     
     func initialize() async {
         await loadActiveCriteria()
+        setupNotificationObservers()
         print("EventCriteriaEngine: Initialized with \(activeCriteria.count) active events")
+    }
+    
+    private func setupNotificationObservers() {
+        // Listen to WorkoutAdded notifications from WorkoutSyncQueue
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleWorkoutAdded),
+            name: NSNotification.Name("WorkoutAdded"),
+            object: nil
+        )
+        
+        print("🎯 EventCriteriaEngine: Set up notification observers for WorkoutAdded")
+    }
+    
+    @objc private func handleWorkoutAdded(_ notification: Notification) {
+        guard let userId = notification.userInfo?["userId"] as? String else {
+            print("🎯 EventCriteriaEngine: WorkoutAdded notification missing userId")
+            return
+        }
+        
+        Task {
+            // Check for HealthKitWorkout first (from HealthKit observer)
+            if let healthKitWorkout = notification.userInfo?["workout"] as? HealthKitWorkout {
+                print("🎯 EventCriteriaEngine: Processing HealthKitWorkout from notification")
+                await self.processWorkoutForEvents(healthKitWorkout, userId: userId)
+            }
+            // Check for Workout (from WorkoutSyncQueue)  
+            else if let workout = notification.userInfo?["workout"] as? Workout {
+                print("🎯 EventCriteriaEngine: Processing Workout from notification, converting to HealthKitWorkout")
+                let healthKitWorkout = self.convertWorkoutToHealthKitWorkout(workout)
+                await self.processWorkoutForEvents(healthKitWorkout, userId: userId)
+            }
+            else {
+                print("🎯 EventCriteriaEngine: ⚠️ WorkoutAdded notification missing expected workout object")
+            }
+        }
+    }
+    
+    private func convertWorkoutToHealthKitWorkout(_ workout: Workout) -> HealthKitWorkout {
+        return HealthKitWorkout(
+            id: workout.id,
+            activityType: HKWorkoutActivityType.running, // Default to running, could be enhanced based on workout.type
+            startDate: workout.startedAt,
+            endDate: workout.endedAt ?? workout.startedAt.addingTimeInterval(TimeInterval(workout.duration)),
+            duration: TimeInterval(workout.duration),
+            totalDistance: workout.distance,
+            totalEnergyBurned: workout.calories.map { Double($0) },
+            syncSource: WorkoutSyncSource(rawValue: workout.source) ?? .healthKit,
+            metadata: [:]
+        )
     }
     
     private func loadActiveCriteria() async {
@@ -320,7 +372,16 @@ class EventCriteriaEngine {
             reason = "Distance \(workoutKm)km < required \(targetKm)km"
         }
         
-        print("🎯 EventCriteriaEngine: Distance rule - Workout: \(String(format: "%.1f", workoutDistance/1000))km, Target: \(String(format: "%.1f", targetDistance/1000))km, Passes: \(passes)")
+        print("🎯 EventCriteriaEngine: Distance rule evaluation:")
+        print("🎯   - Workout distance: \(String(format: "%.1f", workoutDistance/1000))km (\(Int(workoutDistance))m)")
+        print("🎯   - Target distance: \(String(format: "%.1f", targetDistance/1000))km (\(Int(targetDistance))m)")
+        print("🎯   - Rule unit: \(rule.unit ?? "meters")")
+        print("🎯   - Rule value: \(rule.value)")
+        print("🎯   - Comparison: \(rule.comparisonOperator.rawValue)")
+        print("🎯   - Passes: \(passes) | Progress: \(String(format: "%.1f", progress * 100))%")
+        if !reason.isEmpty {
+            print("🎯   - Reason: \(reason)")
+        }
         
         return (passes: passes, progress: progress, reason: reason)
     }
@@ -535,29 +596,47 @@ class EventCriteriaEngine {
     }
     
     func processWorkoutForEvents(_ workout: HealthKitWorkout, userId: String) async {
-        print("🎯 EventCriteriaEngine: Processing workout against \(activeCriteria.count) active events")
-        print("🎯 Workout details: Type=\(workout.workoutType), Distance=\(String(format: "%.1f", (workout.totalDistance ?? 0)/1000))km, Duration=\(Int(workout.duration/60))min")
+        print("\n🎯 ===== EventCriteriaEngine: Processing Workout =====")
+        print("🎯 User: \(userId)")
+        print("🎯 Workout ID: \(workout.id)")
+        print("🎯 Type: \(workout.workoutType)")
+        print("🎯 Distance: \(String(format: "%.1f", (workout.totalDistance ?? 0)/1000))km (\(Int(workout.totalDistance ?? 0))m)")
+        print("🎯 Duration: \(Int(workout.duration/60))min \(Int(workout.duration.truncatingRemainder(dividingBy: 60)))sec")
+        print("🎯 Start Date: \(workout.startDate)")
+        print("🎯 Active Events: \(activeCriteria.count)")
+        print("🎯 ================================================")
         
         let matches = await evaluateWorkout(workout, userId: userId)
         
-        print("🎯 EventCriteriaEngine: Found \(matches.count) event matches")
+        print("🎯 ===== Evaluation Results =====")
+        print("🎯 Found \(matches.count) event matches")
         
-        for match in matches {
+        for (index, match) in matches.enumerated() {
+            print("🎯 Event \(index + 1): '\(match.criteria.name)' (ID: \(match.eventId))")
             switch match.qualification {
             case .qualified:
-                print("🎯 EventCriteriaEngine: ✅ User qualified for event: \(match.criteria.name)")
-                print("🎯 Matched rules: \(match.matchedRules.count)/\(match.criteria.rules.count)")
+                print("🎯   ✅ QUALIFIED - User qualified for event!")
+                print("🎯   📋 Matched rules: \(match.matchedRules.count)/\(match.criteria.rules.count)")
+                print("🎯   📊 Progress: \(String(format: "%.1f", match.progress * 100))%")
                 
             case .inProgress(let progress):
-                print("🎯 EventCriteriaEngine: 🔄 User progress in event \(match.criteria.name): \(Int(progress * 100))%")
+                print("🎯   🔄 IN PROGRESS - \(Int(progress * 100))% complete")
+                print("🎯   📋 Matched rules: \(match.matchedRules.count)/\(match.criteria.rules.count)")
                 
             case .notQualified(let reason):
-                print("🎯 EventCriteriaEngine: ❌ User not qualified for event \(match.criteria.name): \(reason)")
+                print("🎯   ❌ NOT QUALIFIED - \(reason)")
+                print("🎯   📋 Matched rules: \(match.matchedRules.count)/\(match.criteria.rules.count)")
             }
         }
         
         if matches.isEmpty {
-            print("🎯 EventCriteriaEngine: No matching events found for this workout")
+            print("🎯 ❓ No matching events found for this workout")
         }
+        
+        print("🎯 ============= End Processing ============\n")
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 }
