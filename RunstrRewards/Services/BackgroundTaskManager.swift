@@ -102,8 +102,8 @@ class BackgroundTaskManager {
         request.requiresNetworkConnectivity = true
         request.requiresExternalPower = false
         
-        // Schedule to run every 2 hours
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 2 * 3600)
+        // Schedule to run every 30 minutes for faster workout sync
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 30 * 60)
         
         do {
             try BGTaskScheduler.shared.submit(request)
@@ -632,11 +632,15 @@ class BackgroundTaskManager {
     }
     
     private func processWorkoutInForeground(_ workout: Workout, userId: String, teamMultiplier: Double) async {
-        // TODO: Fix type issues - need to convert between Workout and HealthKitWorkout types
-        print("🔄 BackgroundTaskManager: Processing workout \(workout.id) in foreground (temporarily disabled)")
+        print("🔄 BackgroundTaskManager: Processing workout \(workout.id) in foreground")
         
-        // Placeholder implementation until type issues are resolved
-        // The original complex processing will be re-enabled after fixing type conversions
+        do {
+            // Process workout for rewards and team updates
+            try await WorkoutDataService.shared.processWorkoutForRewards(workout)
+            print("✅ BackgroundTaskManager: Successfully processed workout \(workout.id) for rewards")
+        } catch {
+            print("❌ BackgroundTaskManager: Failed to process workout \(workout.id) in foreground: \(error)")
+        }
     }
     
     // MARK: - Status and Monitoring

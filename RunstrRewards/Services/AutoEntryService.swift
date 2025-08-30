@@ -232,8 +232,11 @@ class AutoEntryService {
     @objc private func workoutSyncCompleted() {
         print("🎯 AutoEntry: Workout sync completed, checking qualifications")
         
-        // Get current user ID (in real app, this would come from authentication)
-        let currentUserId = "current_user" // Placeholder
+        // Get current user ID from authentication service
+        guard let currentUserId = AuthenticationService.shared.currentUserId else {
+            print("🎯 AutoEntry: No authenticated user, skipping qualification check")
+            return
+        }
         
         // Check all active events for qualification
         for eventId in qualificationCriteria.keys {
@@ -242,8 +245,11 @@ class AutoEntryService {
     }
     
     private func checkAllUsersForQualification(eventId: String) {
-        // In a real implementation, this would iterate through all users
-        let currentUserId = "current_user" // Placeholder
+        // Get current user ID from authentication service
+        guard let currentUserId = AuthenticationService.shared.currentUserId else {
+            print("🎯 AutoEntry: No authenticated user, skipping qualification check")
+            return
+        }
         checkUserForEventQualification(userId: currentUserId, eventId: eventId)
     }
     
