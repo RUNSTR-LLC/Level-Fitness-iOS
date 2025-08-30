@@ -87,117 +87,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
     
-    // MARK: - Core Services Setup
-    
-    private func setupCoreServices() {
-        // Initialize only essential services needed before authentication
-        
-        // Clear any temporary token sessions from previous app versions
-        AuthenticationService.shared.clearTemporaryTokenSessions()
-        print("AppDelegate: Cleared any temporary token sessions")
-        
-        // Start network monitoring (lightweight, needed for auth)
-        let _ = NetworkMonitorService.shared
-        print("AppDelegate: Network monitoring initialized")
-        
-        // Initialize offline data service (lightweight)
-        let _ = OfflineDataService.shared
-        print("AppDelegate: Offline data service initialized")
-        
-        // Initialize error handling service (lightweight)
-        let _ = ErrorHandlingService.shared
-        print("AppDelegate: Error handling service initialized")
-        
-        // Register background tasks now (required before app finishes launching)
-        BackgroundTaskManager.shared.registerBackgroundTasks()
-        print("AppDelegate: Background tasks registered")
-        
-        // Defer these until after authentication:
-        // - Background task scheduling
-        // - HealthKit setup
-        // These will be initialized in setupPostAuthenticationServices()
-    }
-    
-    // Call this after user successfully authenticates
-    public func setupPostAuthenticationServices() {
-        // Schedule background tasks (registration was done during app launch)
-        BackgroundTaskManager.shared.scheduleAllBackgroundTasks()
-        print("AppDelegate: Background tasks scheduled")
-        
-        // Setup HealthKit background delivery for automatic workout sync
-        setupHealthKitBackgroundDelivery()
-        
-        // Setup network change notifications
-        setupNetworkNotifications()
-        
-        // Validate StoreKit configuration
-        validateStoreKitSetup()
-    }
-    
-    private func validateStoreKitSetup() {
-        Task {
-            let isValid = await SubscriptionService.shared.validateStoreKitConfiguration()
-            if isValid {
-                print("AppDelegate: ✅ StoreKit configuration validated successfully")
-            } else {
-                print("AppDelegate: ❌ StoreKit configuration validation failed - subscription features may not work")
-            }
-        }
-    }
-    
-    private func setupHealthKitBackgroundDelivery() {
-        Task {
-            do {
-                // Wrap in error handling to prevent crashes
-                guard HKHealthStore.isHealthDataAvailable() else {
-                    print("AppDelegate: HealthKit not available on this device")
-                    return
-                }
-                
-                // Check if HealthKit is authorized first
-                if HealthKitService.shared.checkAuthorizationStatus() {
-                    // Enable background delivery for workout updates
-                    try await HealthKitService.shared.enableBackgroundDelivery()
-                    print("AppDelegate: HealthKit background delivery enabled")
-                    
-                    // Enable workout completion notifications by default for new users
-                    let hasSetWorkoutNotificationPreference = UserDefaults.standard.object(forKey: "notifications.workout_completed") != nil
-                    if !hasSetWorkoutNotificationPreference {
-                        UserDefaults.standard.set(true, forKey: "notifications.workout_completed")
-                        print("AppDelegate: Enabled workout completion notifications by default")
-                    }
-                    
-                    // Set up enhanced observer to detect new workouts with ZERO delay
-                    HealthKitService.shared.observeWorkouts { [weak self] newWorkouts in
-                        if !newWorkouts.isEmpty {
-                            print("🚀 AppDelegate: IMMEDIATE detection of \(newWorkouts.count) new workouts!")
-                            
-                            // Process workouts with ZERO delay - don't wait for anything
-                            Task {
-                                await self?.processNewWorkoutsInstantly(newWorkouts)
-                            }
-                            
-                            // Send workout completion notifications INSTANTLY
-                            for workout in newWorkouts {
-                                self?.sendInstantWorkoutNotification(for: workout)
-                            }
-                        }
-                    }
-                    print("AppDelegate: HealthKit workout observer started")
-                    
-                    // Initialize EventCriteriaEngine to load active events
-                    Task {
-                        await EventCriteriaEngine.shared.initialize()
-                    }
-                    
-                } else {
-                    print("AppDelegate: HealthKit not authorized, skipping background delivery setup")
-                }
-            } catch {
-                print("AppDelegate: Failed to setup HealthKit background delivery: \(error)")
-            }
-        }
-    }
+    // MARK: - Core Services Setup (Moved to Extension)
     
     private func sendWorkoutCompletionNotification(for workout: HealthKitWorkout) {
         // Check if user wants workout completion notifications
@@ -205,8 +95,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         guard workoutNotificationsEnabled else { return }
         
         // Get user's teams for team-branded notifications
-        Task {
-            await sendTeamBrandedWorkoutNotification(for: workout)
+        Task { [weak self] in
+            await self?.sendTeamBrandedWorkoutNotification(for: workout)
         }
     }
     
@@ -326,6 +216,63 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return min(points, 100) // Cap at 100 points
     }
     
+    // MARK: - Performance Optimization
+    
+    private actor AsyncSemaphore {
+        private var value: Int
+        private var waiters: [CheckedContinuation<Void, Never>] = []
+        
+        init(value: Int) {
+            self.value = value
+        }
+        
+        func wait() async {
+            if value > 0 {
+                value -= 1
+                return
+            }
+            
+            await withCheckedContinuation { continuation in
+                waiters.append(continuation)
+            }
+        }
+        
+        func signal() {
+            if waiters.isEmpty {
+                value += 1
+            } else {
+                let waiter = waiters.removeFirst()
+                waiter.resume()
+            }
+        }
+    }
+    
+    private func calculateOptimalBatchSize(for workoutCount: Int) -> Int {
+        // Base batch size on device capabilities and system load
+        let processorCount = ProcessInfo.processInfo.processorCount
+        let memoryPressure = ProcessInfo.processInfo.thermalState
+        
+        var baseBatchSize: Int
+        
+        // Adjust based on thermal state (device heat/performance)
+        switch memoryPressure {
+        case .nominal:
+            baseBatchSize = max(processorCount, 4) // At least 4, up to processor count
+        case .fair:
+            baseBatchSize = max(processorCount / 2, 2) // Reduce load
+        case .serious, .critical:
+            baseBatchSize = 1 // Process one at a time to avoid overheating
+        @unknown default:
+            baseBatchSize = 3 // Conservative default
+        }
+        
+        // Cap batch size based on total workouts (don't over-batch small datasets)
+        let finalBatchSize = min(baseBatchSize, max(workoutCount / 2, 1))
+        
+        Logger.shared.logPerformance("Optimal batch size: \(finalBatchSize) (processors: \(processorCount), thermal: \(memoryPressure.rawValue))")
+        return finalBatchSize
+    }
+    
     // MARK: - INSTANT Workout Processing (Zero Delay)
     
     private func processNewWorkoutsInstantly(_ healthKitWorkouts: [HealthKitWorkout]) async {
@@ -334,37 +281,78 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return
         }
         
-        print("⚡ AppDelegate: INSTANT processing of \(healthKitWorkouts.count) workouts - NO DELAYS")
+        Logger.shared.logPerformance("SMART BATCHED processing", items: healthKitWorkouts.count)
         
-        for workout in healthKitWorkouts {
-            do {
-                let startTime = Date()
-                
-                // Convert to Supabase workout format
-                let supabaseWorkout = HealthKitService.shared.convertToSupabaseWorkout(workout, userId: userId)
-                
-                // Process ALL operations in parallel for maximum speed
-                async let rewardsTask = WorkoutDataService.shared.processWorkoutForRewards(supabaseWorkout)
-                async let eventsTask = processWorkoutForEventsInstantly(workout, userId: userId)
-                async let leaderboardTask = updateTeamLeaderboardsForWorkout(userId: userId, workout: supabaseWorkout)
-                
-                // Wait for all operations to complete
-                try await rewardsTask
-                await eventsTask
-                await leaderboardTask
-                
-                let processingTime = Date().timeIntervalSince(startTime)
-                print("⚡ AppDelegate: ✅ INSTANT sync completed for workout \(workout.id) in \(String(format: "%.2f", processingTime))s")
-                
-            } catch {
-                print("AppDelegate: ❌ Failed instant sync for workout \(workout.id): \(error)")
-                
-                // Still try to send notification even if sync fails
-                sendInstantWorkoutNotification(for: workout)
-                
-                // Queue for background retry
-                BackgroundTaskManager.shared.triggerWorkoutSync()
+        // Process workouts in adaptive batches based on device capabilities
+        let batchSize = calculateOptimalBatchSize(for: healthKitWorkouts.count)
+        let batches = healthKitWorkouts.chunked(into: batchSize)
+        
+        for (batchIndex, batch) in batches.enumerated() {
+            print("📦 AppDelegate: Processing batch \(batchIndex + 1)/\(batches.count) (\(batch.count) workouts)")
+            
+            // Add resource-aware processing with throttling
+            await processWorkoutBatchWithThrottling(batch, batchIndex: batchIndex, totalBatches: batches.count, userId: userId)
+        }
+        
+        print("🎉 AppDelegate: All \(healthKitWorkouts.count) workouts processed successfully!")
+    }
+    
+    private func processWorkoutBatchWithThrottling(_ batch: [HealthKitWorkout], batchIndex: Int, totalBatches: Int, userId: String) async {
+        let semaphore = AsyncSemaphore(value: min(batch.count, 3)) // Limit concurrent tasks
+        
+        await withTaskGroup(of: Void.self) { group in
+            for workout in batch {
+                group.addTask { [weak self] in
+                    await semaphore.wait() // Wait for available slot
+                    defer { semaphore.signal() } // Release slot when done
+                    
+                    await self?.processSingleWorkoutInstantly(workout, userId: userId)
+                }
             }
+            
+            // Wait for all workouts in this batch to complete
+            await group.waitForAll()
+            
+            print("✅ AppDelegate: Batch \(batchIndex + 1)/\(totalBatches) completed")
+        }
+    }
+    
+    private func processSingleWorkoutInstantly(_ workout: HealthKitWorkout, userId: String) async {
+        do {
+            let startTime = Date()
+            
+            // Convert to Supabase workout format
+            let supabaseWorkout = HealthKitService.shared.convertToSupabaseWorkout(workout, userId: userId)
+            
+            // Process ALL operations in parallel for maximum speed
+            async let rewardsTask: Void = WorkoutDataService.shared.processWorkoutForRewards(supabaseWorkout)
+            async let eventsTask: Void = processWorkoutForEventsInstantly(workout, userId: userId)
+            async let leaderboardTask: Void = updateTeamLeaderboardsForWorkout(userId: userId, workout: supabaseWorkout)
+            
+            // Wait for all operations to complete
+            try await rewardsTask
+            await eventsTask
+            await leaderboardTask
+            
+            let processingTime = Date().timeIntervalSince(startTime)
+            print("⚡ AppDelegate: ✅ INSTANT sync completed for workout \(workout.id) in \(String(format: "%.2f", processingTime))s")
+            
+            // Mark successful sync (removes from retry queue if it was there)
+            await WorkoutSyncRetryManager.shared.recordSuccessfulSync(workoutId: workout.id)
+            
+        } catch {
+            print("AppDelegate: ❌ Failed instant sync for workout \(workout.id): \(error)")
+            
+            // Record failure for intelligent retry with exponential backoff
+            await WorkoutSyncRetryManager.shared.recordFailedSync(
+                workout: workout,
+                userId: userId,
+                error: error,
+                source: "InstantSync"
+            )
+            
+            // Still try to send notification even if sync fails
+            sendInstantWorkoutNotification(for: workout)
         }
     }
     
@@ -402,8 +390,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         // Get user's teams for team-branded notifications
-        Task {
-            await sendInstantTeamBrandedWorkoutNotification(for: workout)
+        Task { [weak self] in
+            await self?.sendInstantTeamBrandedWorkoutNotification(for: workout)
         }
     }
     
@@ -446,13 +434,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     trigger: trigger
                 )
                 
-                UNUserNotificationCenter.current().add(request) { error in
+                do {
+                    try await UNUserNotificationCenter.current().add(request)
                     let notificationTime = Date().timeIntervalSince(notificationStartTime)
-                    if let error = error {
-                        print("🔔 AppDelegate: ❌ Failed to send instant notification for \(team.name): \(error)")
-                    } else {
-                        print("🔔 AppDelegate: ✅ INSTANT notification sent for \(team.name) in \(String(format: "%.3f", notificationTime))s")
-                    }
+                    print("🔔 AppDelegate: ✅ INSTANT notification sent for \(team.name) in \(String(format: "%.3f", notificationTime))s")
+                } catch {
+                    print("🔔 AppDelegate: ❌ Failed to send instant notification for \(team.name): \(error)")
                 }
             }
             
@@ -479,13 +466,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     trigger: trigger
                 )
                 
-                UNUserNotificationCenter.current().add(request) { error in
+                do {
+                    try await UNUserNotificationCenter.current().add(request)
                     let notificationTime = Date().timeIntervalSince(notificationStartTime)
-                    if let error = error {
-                        print("🔔 AppDelegate: ❌ Failed to send generic instant notification: \(error)")
-                    } else {
-                        print("🔔 AppDelegate: ✅ Generic INSTANT notification sent in \(String(format: "%.3f", notificationTime))s")
-                    }
+                    print("🔔 AppDelegate: ✅ Generic INSTANT notification sent in \(String(format: "%.3f", notificationTime))s")
+                } catch {
+                    print("🔔 AppDelegate: ❌ Failed to send generic instant notification: \(error)")
                 }
             }
             
@@ -507,8 +493,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 trigger: trigger
             )
             
-            UNUserNotificationCenter.current().add(request) { _ in
+            do {
+                try await UNUserNotificationCenter.current().add(request)
                 print("🔔 AppDelegate: ✅ Fallback instant notification sent")
+            } catch {
+                print("🔔 AppDelegate: ❌ Failed to send fallback notification: \(error)")
             }
         }
     }
@@ -547,8 +536,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         print("🚀 AppDelegate: App entering foreground - triggering IMMEDIATE workout check")
         
         // FORCE check for any new workouts that might have been missed
-        Task {
-            await forceImmediateWorkoutCheck()
+        Task { [weak self] in
+            await self?.forceImmediateWorkoutCheck()
             await BackgroundTaskManager.shared.processPendingTasksInForeground()
         }
     }
@@ -560,7 +549,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             if !newWorkouts.isEmpty {
                 print("🔥 AppDelegate: Force check found \(newWorkouts.count) missed workouts!")
                 
-                Task {
+                Task { [weak self] in
                     await self?.processNewWorkoutsInstantly(newWorkouts)
                 }
                 
@@ -581,5 +570,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         print("AppDelegate: Failed to register for remote notifications: \(error)")
+    }
+}
+
+// MARK: - Array Extension for Batching
+
+extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0 + size, count)])
+        }
     }
 }

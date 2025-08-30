@@ -119,6 +119,35 @@ CREATE TABLE IF NOT EXISTS event_participants (
     PRIMARY KEY (event_id, user_id)
 );
 
+-- Event registrations (separate from participants for registration tracking)
+CREATE TABLE IF NOT EXISTS event_registrations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    event_id UUID REFERENCES events(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+    registered_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    status TEXT DEFAULT 'active' NOT NULL CHECK (status IN ('active', 'cancelled', 'withdrawn')),
+    UNIQUE (event_id, user_id)
+);
+
+-- Team invitations
+CREATE TABLE IF NOT EXISTS team_invitations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    team_id UUID REFERENCES teams(id) ON DELETE CASCADE NOT NULL,
+    invite_code TEXT NOT NULL UNIQUE,
+    created_by UUID REFERENCES profiles(id) NOT NULL,
+    expires_at TIMESTAMPTZ,
+    used_count INTEGER DEFAULT 0,
+    max_uses INTEGER DEFAULT NULL, -- NULL means unlimited
+    is_active TEXT DEFAULT 'true',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for team invitations performance  
+CREATE INDEX IF NOT EXISTS idx_team_invitations_team_id ON team_invitations(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_invitations_invite_code ON team_invitations(invite_code);
+CREATE INDEX IF NOT EXISTS idx_team_invitations_active ON team_invitations(team_id, is_active);
+
 -- Team challenges
 CREATE TABLE IF NOT EXISTS challenges (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -146,6 +175,34 @@ CREATE TABLE IF NOT EXISTS challenge_participants (
     joined_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (challenge_id, user_id)
 );
+
+-- P2P Challenges (user-to-user direct challenges)
+CREATE TABLE IF NOT EXISTS p2p_challenges (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    challenger_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+    challenged_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+    type TEXT NOT NULL, -- '5k_race', 'weekly_miles', 'daily_run'
+    target_value DECIMAL, -- 5 (for 5K), 50 (for 50 miles)
+    end_date TIMESTAMPTZ NOT NULL,
+    stake_amount INTEGER NOT NULL DEFAULT 0, -- satoshis per person
+    challenger_paid TEXT DEFAULT 'false',
+    challenged_paid TEXT DEFAULT 'false',
+    winner_id UUID REFERENCES profiles(id),
+    challenger_result DECIMAL,
+    challenged_result DECIMAL,
+    payout_completed TEXT DEFAULT 'false',
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'completed', 'cancelled')),
+    challenge_message TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for P2P challenges performance
+CREATE INDEX IF NOT EXISTS idx_p2p_challenges_participants ON p2p_challenges(challenger_id, challenged_id);
+CREATE INDEX IF NOT EXISTS idx_p2p_challenges_status ON p2p_challenges(status);
+CREATE INDEX IF NOT EXISTS idx_p2p_challenges_end_date ON p2p_challenges(end_date);
+CREATE INDEX IF NOT EXISTS idx_p2p_challenges_challenger_status ON p2p_challenges(challenger_id, status);
+CREATE INDEX IF NOT EXISTS idx_p2p_challenges_challenged_status ON p2p_challenges(challenged_id, status);
 
 -- ========================================
 -- BITCOIN & TRANSACTIONS
@@ -401,11 +458,14 @@ GROUP BY p.id, p.username, p.total_workouts, p.total_distance, p.total_earnings,
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_invitations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workouts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE challenge_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE p2p_challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE event_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lightning_wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_messages ENABLE ROW LEVEL SECURITY;
@@ -467,6 +527,33 @@ CREATE POLICY "Users can leave teams or captains can remove members" ON team_mem
     );
 
 -- ========================================
+-- TEAM INVITATIONS POLICIES
+-- ========================================
+
+-- Anyone can view active team invitations (needed for QR code validation)
+CREATE POLICY "Anyone can view active team invitations" ON team_invitations
+    FOR SELECT USING (is_active = true);
+
+-- Team captains can create invitations for their teams
+CREATE POLICY "Team captains can create invitations" ON team_invitations
+    FOR INSERT WITH CHECK (
+        auth.uid() = created_by AND
+        EXISTS (SELECT 1 FROM teams WHERE id = team_invitations.team_id AND captain_id = auth.uid())
+    );
+
+-- Team captains can update their team's invitations
+CREATE POLICY "Team captains can update team invitations" ON team_invitations
+    FOR UPDATE USING (
+        EXISTS (SELECT 1 FROM teams WHERE id = team_invitations.team_id AND captain_id = auth.uid())
+    );
+
+-- Team captains can delete their team's invitations
+CREATE POLICY "Team captains can delete team invitations" ON team_invitations
+    FOR DELETE USING (
+        EXISTS (SELECT 1 FROM teams WHERE id = team_invitations.team_id AND captain_id = auth.uid())
+    );
+
+-- ========================================
 -- WORKOUTS POLICIES
 -- ========================================
 
@@ -505,12 +592,50 @@ CREATE POLICY "Team captains can create challenges" ON challenges
     ));
 
 -- ========================================
+-- P2P CHALLENGES POLICIES
+-- ========================================
+
+-- Users can view P2P challenges they're involved in (challenger or challenged)
+CREATE POLICY "Users can view their P2P challenges" ON p2p_challenges
+    FOR SELECT USING (
+        auth.uid() = challenger_id OR 
+        auth.uid() = challenged_id
+    );
+
+-- Users can create P2P challenges (as challenger)
+CREATE POLICY "Users can create P2P challenges" ON p2p_challenges
+    FOR INSERT WITH CHECK (auth.uid() = challenger_id);
+
+-- Users can update P2P challenges they're involved in
+CREATE POLICY "Users can update their P2P challenges" ON p2p_challenges
+    FOR UPDATE USING (
+        auth.uid() = challenger_id OR 
+        auth.uid() = challenged_id
+    );
+
+-- ========================================
 -- EVENTS POLICIES
 -- ========================================
 
 -- Everyone can view active events
 CREATE POLICY "Everyone can view active events" ON events
     FOR SELECT USING (status IN ('upcoming', 'active'));
+
+-- ========================================
+-- EVENT REGISTRATIONS POLICIES
+-- ========================================
+
+-- Users can view their own registrations
+CREATE POLICY "Users can view own event registrations" ON event_registrations
+    FOR SELECT USING (auth.uid() = user_id);
+
+-- Users can create their own registrations
+CREATE POLICY "Users can create own event registrations" ON event_registrations
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own registration status
+CREATE POLICY "Users can update own event registrations" ON event_registrations
+    FOR UPDATE USING (auth.uid() = user_id);
 
 -- ========================================
 -- LIGHTNING WALLETS POLICIES
@@ -1544,4 +1669,54 @@ CREATE POLICY IF NOT EXISTS "Users can view challenges they're involved in" ON e
         auth.uid() = challenger_id OR 
         auth.uid() = ANY(challenged_user_ids) OR
         EXISTS (SELECT 1 FROM team_members WHERE team_id = events.team_id AND user_id = auth.uid())
+    );
+
+-- ========================================
+-- TEAM LEAGUES SYSTEM
+-- ========================================
+
+-- Team Leagues (one monthly league per team)
+CREATE TABLE IF NOT EXISTS team_leagues (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'monthly_distance',
+    start_date TIMESTAMPTZ NOT NULL,
+    end_date TIMESTAMPTZ NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'cancelled')),
+    payout_percentages INTEGER[] NOT NULL DEFAULT '{100}',
+    created_by UUID NOT NULL REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMPTZ
+);
+
+-- Create unique constraint: only one active league per team
+CREATE UNIQUE INDEX IF NOT EXISTS idx_team_active_league 
+ON team_leagues(team_id) 
+WHERE status = 'active';
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_team_leagues_team_id ON team_leagues(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_leagues_status ON team_leagues(status);
+CREATE INDEX IF NOT EXISTS idx_team_leagues_dates ON team_leagues(start_date, end_date);
+
+-- Add Row Level Security (RLS)
+ALTER TABLE team_leagues ENABLE ROW LEVEL SECURITY;
+
+-- Team members can view their team's leagues
+CREATE POLICY "Team members can view team leagues" ON team_leagues
+    FOR SELECT USING (
+        team_id IN (
+            SELECT team_id FROM team_members 
+            WHERE user_id = auth.uid()
+        )
+    );
+
+-- Team captains can create/update their team's leagues
+CREATE POLICY "Team captains can manage team leagues" ON team_leagues
+    FOR ALL USING (
+        team_id IN (
+            SELECT id FROM teams 
+            WHERE captain_id = auth.uid()
+        )
     );
