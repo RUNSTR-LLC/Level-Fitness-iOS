@@ -147,6 +147,9 @@
 		DE42FDED15D942AD9989C6FADB52EEEC /* TeamWalletAccessController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B493D1F9F45E49D19563503FA6B517A8 /* TeamWalletAccessController.swift */; };
 		9142EE11903943E194EDFE7B90263D59 /* TeamWalletBalanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC4FF82330A24A959EBD2C8C2B1E6E55 /* TeamWalletBalanceView.swift */; };
 		AB7C74C0F5414E4C8F3C9DF8BFF84B5C /* TeamWalletFundingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F08D7F38987A496B9E9ED7591DDA5299 /* TeamWalletFundingViewController.swift */; };
+		548C2EA6-B7EC-41AC-B7E5-BEA6B656D7C6 /* P2PChallengeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A2F1B8-9C5D-4E76-8A31-2B4C5F6A7E8D /* P2PChallengeService.swift */; };
+		15CD1DEA-4827-4E42-9628-A0BD63200534 /* CreateChallengeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8E9B7A-6D2C-4A1B-9E8F-7C5A4B3D2E1F /* CreateChallengeViewController.swift */; };
+		257CC308-C810-489B-9FD9-42E9951E0DA0 /* P2PChallengeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A7F8E5B-4C9D-3E2A-8B6F-9D1C2A3B4E5F /* P2PChallengeCard.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -294,6 +297,9 @@
 		B493D1F9F45E49D19563503FA6B517A8 /* TeamWalletAccessController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/TeamWalletAccessController.swift"; sourceTree = "<group>"; };
 		CC4FF82330A24A959EBD2C8C2B1E6E55 /* TeamWalletBalanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Teams/TeamWalletBalanceView.swift; sourceTree = "<group>"; };
 		F08D7F38987A496B9E9ED7591DDA5299 /* TeamWalletFundingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Teams/TeamWalletFundingViewController.swift; sourceTree = "<group>"; };
+		E7A2F1B8-9C5D-4E76-8A31-2B4C5F6A7E8D /* P2PChallengeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/P2PChallengeService.swift"; sourceTree = "<group>"; };
+		3F8E9B7A-6D2C-4A1B-9E8F-7C5A4B3D2E1F /* CreateChallengeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Teams/CreateChallengeViewController.swift; sourceTree = "<group>"; };
+		1A7F8E5B-4C9D-3E2A-8B6F-9D1C2A3B4E5F /* P2PChallengeCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UI/P2PChallengeCard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -438,6 +444,9 @@
 				B493D1F9F45E49D19563503FA6B517A8 /* TeamWalletAccessController.swift */,
 				CC4FF82330A24A959EBD2C8C2B1E6E55 /* TeamWalletBalanceView.swift */,
 				F08D7F38987A496B9E9ED7591DDA5299 /* TeamWalletFundingViewController.swift */,
+				E7A2F1B8-9C5D-4E76-8A31-2B4C5F6A7E8D /* P2PChallengeService.swift */,
+				3F8E9B7A-6D2C-4A1B-9E8F-7C5A4B3D2E1F /* CreateChallengeViewController.swift */,
+				1A7F8E5B-4C9D-3E2A-8B6F-9D1C2A3B4E5F /* P2PChallengeCard.swift */,
 				PROFILE1FEEDDCCBBAA99887766554433 /* ProfileViewController.swift */,
 				PROFILE2EEDDCCBBAA99887766554433 /* ProfileHeaderView.swift */,
 				PROFILE3EDDCCBBAA99887766554433 /* ProfileTabNavigationView.swift */,
@@ -688,6 +697,9 @@
 				037B1A7AA126425B9E14040C /* LeagueSchedulerService.swift in Sources */,
 				6CBFC352CB4944B99A63E751 /* EventBasicDetailsViewController.swift in Sources */,
 				57DDC31ED8464B088F997D5E /* EventPresetSelectionViewController.swift in Sources */,
+				548C2EA6-B7EC-41AC-B7E5-BEA6B656D7C6 /* P2PChallengeService.swift in Sources */,
+				15CD1DEA-4827-4E42-9628-A0BD63200534 /* CreateChallengeViewController.swift in Sources */,
+				257CC308-C810-489B-9FD9-42E9951E0DA0 /* P2PChallengeCard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

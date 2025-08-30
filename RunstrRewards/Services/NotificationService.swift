@@ -766,6 +766,394 @@ class NotificationService: NSObject {
         }
     }
     
+    // MARK: - P2P Challenge Notifications
+    
+    func scheduleChallengeInvite(challengeId: String, challengedUserId: String, challengerUsername: String, stake: Int, type: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = "💪 Challenge Received!"
+        content.body = "\(challengerUsername) challenged you to a \(type) for \(stake) sats! You have 24 hours to accept."
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "CHALLENGE_INVITATION"
+        content.userInfo = [
+            "type": "challenge_invitation",
+            "challenge_id": challengeId,
+            "challenger": challengerUsername,
+            "stake": stake,
+            "challenge_type": type
+        ]
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "challenge_invite_\(challengeId)",
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("NotificationService: Failed to schedule challenge invite: \(error)")
+            } else {
+                print("NotificationService: ✅ Challenge invite notification scheduled")
+            }
+        }
+    }
+    
+    func scheduleChallengeAccepted(challengeId: String, challengerUserId: String, challengedUsername: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = "⚡ Challenge Accepted!"
+        content.body = "\(challengedUsername) accepted your challenge! The competition begins now."
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "CHALLENGE_ACCEPTED"
+        content.userInfo = [
+            "type": "challenge_accepted",
+            "challenge_id": challengeId,
+            "opponent": challengedUsername
+        ]
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "challenge_accepted_\(challengeId)",
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("NotificationService: Failed to schedule challenge accepted notification: \(error)")
+            } else {
+                print("NotificationService: ✅ Challenge accepted notification scheduled")
+            }
+        }
+    }
+    
+    func scheduleChallengeDeclined(challengeId: String, challengerUserId: String, challengedUsername: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = "Challenge Declined"
+        content.body = "\(challengedUsername) declined your challenge. Your stake has been refunded."
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "CHALLENGE_DECLINED"
+        content.userInfo = [
+            "type": "challenge_declined",
+            "challenge_id": challengeId,
+            "opponent": challengedUsername
+        ]
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "challenge_declined_\(challengeId)",
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("NotificationService: Failed to schedule challenge declined notification: \(error)")
+            } else {
+                print("NotificationService: ✅ Challenge declined notification scheduled")
+            }
+        }
+    }
+    
+    // MARK: - Captain Arbitration Notifications
+    
+    func sendP2PChallengeNotification(toUserId: String, challengerName: String, challengeType: String) async throws {
+        print("🥊 NotificationService: Sending P2P challenge notification to \(toUserId)")
+        
+        // Get challenged user's FCM token
+        let response = try await SupabaseService.shared.client
+            .from("profiles")
+            .select("fcm_token, display_name")
+            .eq("id", value: toUserId)
+            .single()
+            .execute()
+        
+        let profileData = try JSONDecoder().decode([String: AnyCodable].self, from: response.data)
+        
+        guard let fcmToken = profileData["fcm_token"]?.value as? String,
+              let displayName = profileData["display_name"]?.value as? String else {
+            print("❌ NotificationService: No FCM token found for user \(toUserId)")
+            return
+        }
+        
+        // Create local notification for immediate display
+        let content = UNMutableNotificationContent()
+        content.title = "Challenge Received! 🥊"
+        content.body = "\(challengerName) challenged you to a \(challengeType) competition! Will you accept?"
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "P2P_CHALLENGE"
+        content.userInfo = [
+            "type": "p2p_challenge",
+            "challenger_name": challengerName,
+            "challenge_type": challengeType,
+            "to_user_id": toUserId
+        ]
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "p2p_challenge_\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("NotificationService: Failed to schedule P2P challenge notification: \(error)")
+            } else {
+                print("✅ NotificationService: P2P challenge notification scheduled")
+            }
+        }
+        
+        // Send FCM notification for background delivery
+        let payload: [String: Any] = [
+            "to": fcmToken,
+            "notification": [
+                "title": "Challenge Received! 🥊",
+                "body": "\(challengerName) challenged you to a \(challengeType) competition!"
+            ],
+            "data": [
+                "type": "p2p_challenge",
+                "challenger_name": challengerName,
+                "challenge_type": challengeType,
+                "to_user_id": toUserId
+            ]
+        ]
+        
+        // TODO: Implement FCM notification sending when backend is ready
+        print("📮 NotificationService: P2P challenge notification queued for \(displayName)")
+    }
+    
+    func notifyCaptainOfArbitrationNeeded(challengeId: String, teamId: String) async throws {
+        print("⚖️ NotificationService: Notifying captain of arbitration needed for challenge \(challengeId)")
+        
+        // Get team captain information  
+        let response = try await SupabaseService.shared.client
+            .from("team_members")
+            .select("""
+                profiles:user_id(id, username, fcm_token),
+                teams:team_id(name)
+            """)
+            .eq("team_id", value: teamId)
+            .eq("role", value: "captain")
+            .execute()
+        
+        if response.data.isEmpty {
+            print("❌ NotificationService: No captain found for team \(teamId)")
+            return
+        }
+        
+        let captainData = try JSONDecoder().decode([[String: AnyCodable]].self, from: response.data)
+        
+        guard let captain = captainData.first,
+              let profile = captain["profiles"]?.value as? [String: Any],
+              let team = captain["teams"]?.value as? [String: Any],
+              let captainId = profile["id"] as? String,
+              let captainUsername = profile["username"] as? String,
+              let teamName = team["name"] as? String,
+              let fcmToken = profile["fcm_token"] as? String else {
+            print("❌ NotificationService: Invalid captain data structure")
+            return
+        }
+        
+        // Send push notification to captain
+        let content = UNMutableNotificationContent()
+        content.title = "Challenge Arbitration Needed ⚖️"
+        content.body = "A P2P challenge in Team \(teamName) needs your arbitration decision. Open the team wallet to review."
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "CHALLENGE_ARBITRATION"
+        content.userInfo = [
+            "type": "challenge_arbitration",
+            "challenge_id": challengeId,
+            "team_id": teamId,
+            "captain_id": captainId
+        ]
+        
+        // Schedule local notification
+        let identifier = "arbitration_\(challengeId)"
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("❌ NotificationService: Failed to schedule arbitration notification: \(error)")
+            } else {
+                print("✅ NotificationService: Captain \(captainUsername) notified of arbitration needed")
+            }
+        }
+        
+        // Note: FCM push notification would be sent here if implemented
+    }
+    
+    func scheduleChallengeExpired(challengeId: String, challengerUserId: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = "Challenge Expired"
+        content.body = "Your challenge invitation expired after 24 hours. Your stake has been refunded."
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "CHALLENGE_EXPIRED"
+        content.userInfo = [
+            "type": "challenge_expired",
+            "challenge_id": challengeId
+        ]
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "challenge_expired_\(challengeId)",
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("NotificationService: Failed to schedule challenge expired notification: \(error)")
+            } else {
+                print("NotificationService: ✅ Challenge expired notification scheduled")
+            }
+        }
+    }
+    
+    func scheduleChallengeProgress(challengeId: String, userId: String, position: String, opponentName: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = "Challenge Update 📊"
+        content.body = "You're currently \(position) in your challenge against \(opponentName). Keep pushing!"
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "CHALLENGE_PROGRESS"
+        content.userInfo = [
+            "type": "challenge_progress",
+            "challenge_id": challengeId,
+            "position": position,
+            "opponent": opponentName
+        ]
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "challenge_progress_\(challengeId)_\(userId)",
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("NotificationService: Failed to schedule challenge progress notification: \(error)")
+            } else {
+                print("NotificationService: ✅ Challenge progress notification scheduled")
+            }
+        }
+    }
+    
+    func scheduleChallengeComplete(challengeId: String, winnerId: String, amount: Int, challengeType: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = "🏆 Challenge Won!"
+        content.body = "Congratulations! You won your \(challengeType) challenge and earned \(amount) sats!"
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "CHALLENGE_COMPLETE"
+        content.userInfo = [
+            "type": "challenge_complete",
+            "challenge_id": challengeId,
+            "amount": amount,
+            "challenge_type": challengeType
+        ]
+        
+        // Add celebration attachment
+        if let celebrationURL = createCelebrationImage(amount: amount) {
+            if let attachment = try? UNNotificationAttachment(identifier: "celebration", url: celebrationURL, options: nil) {
+                content.attachments = [attachment]
+            }
+        }
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "challenge_complete_\(challengeId)",
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("NotificationService: Failed to schedule challenge complete notification: \(error)")
+            } else {
+                print("NotificationService: ✅ Challenge complete notification scheduled")
+            }
+        }
+    }
+    
+    func scheduleArbitrationRequest(challengeId: String, captainId: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = "⚖️ Arbitration Needed"
+        content.body = "A P2P challenge in your team is complete and needs your arbitration. Review the results and declare a winner."
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "CHALLENGE_ARBITRATION"
+        content.userInfo = [
+            "type": "challenge_arbitration",
+            "challenge_id": challengeId,
+            "requires_action": true
+        ]
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "arbitration_\(challengeId)",
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("NotificationService: Failed to schedule arbitration request: \(error)")
+            } else {
+                print("NotificationService: ✅ Arbitration request notification scheduled")
+            }
+        }
+    }
+    
+    func scheduleChallengeReminder(challengeId: String, userId: String, hoursLeft: Int) async {
+        let content = UNMutableNotificationContent()
+        content.title = "⏰ Challenge Reminder"
+        
+        if hoursLeft > 1 {
+            content.body = "\(hoursLeft) hours left to accept your challenge! Don't let this opportunity slip away."
+        } else {
+            content.body = "Less than 1 hour left to accept your challenge! Time is running out!"
+        }
+        
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = "CHALLENGE_REMINDER"
+        content.userInfo = [
+            "type": "challenge_reminder",
+            "challenge_id": challengeId,
+            "hours_left": hoursLeft
+        ]
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "challenge_reminder_\(challengeId)_\(hoursLeft)h",
+            content: content,
+            trigger: trigger
+        )
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("NotificationService: Failed to schedule challenge reminder: \(error)")
+            } else {
+                print("NotificationService: ✅ Challenge reminder notification scheduled")
+            }
+        }
+    }
+    
+    // MARK: - Challenge Notification Helpers
+    
+    private func createCelebrationImage(amount: Int) -> URL? {
+        // Create a simple celebration image for winning notifications
+        // For now, return nil - could implement dynamic image generation
+        return nil
+    }
+    
     // MARK: - Silent Push Registration
     
     func configureSilentPushNotifications() {
@@ -874,18 +1262,65 @@ extension NotificationService: UNUserNotificationCenterDelegate {
     }
     
     private func handleAcceptChallenge(userInfo: [AnyHashable: Any]) {
-        guard let challengeId = userInfo["challenge_id"] as? String else { return }
+        guard let challengeId = userInfo["challenge_id"] as? String,
+              let userId = AuthenticationService.shared.currentUserId else { return }
         
         Task {
-            // Accept challenge via API
-            print("NotificationService: Accepting challenge \(challengeId)")
+            do {
+                let updatedChallenge = try await P2PChallengeService.shared.acceptChallenge(challengeId: challengeId, userId: userId)
+                print("NotificationService: ✅ Challenge accepted successfully")
+                
+                // Navigate to challenges to show active challenge
+                await MainActor.run {
+                    NotificationCenter.default.post(
+                        name: .navigateToChallenges,
+                        object: nil,
+                        userInfo: ["challenge_id": challengeId, "action": "view_active"]
+                    )
+                }
+            } catch {
+                print("NotificationService: ❌ Failed to accept challenge: \(error)")
+                await MainActor.run {
+                    // Show error to user
+                    NotificationCenter.default.post(
+                        name: .showError,
+                        object: nil,
+                        userInfo: ["error": error.localizedDescription]
+                    )
+                }
+            }
         }
     }
     
     private func handleDeclineChallenge(userInfo: [AnyHashable: Any]) {
-        guard let challengeId = userInfo["challenge_id"] as? String else { return }
+        guard let challengeId = userInfo["challenge_id"] as? String,
+              let userId = AuthenticationService.shared.currentUserId else { return }
         
-        print("NotificationService: Declining challenge \(challengeId)")
+        Task {
+            do {
+                let updatedChallenge = try await P2PChallengeService.shared.declineChallenge(challengeId: challengeId, userId: userId)
+                print("NotificationService: ✅ Challenge declined successfully")
+                
+                // Show confirmation to user
+                await MainActor.run {
+                    NotificationCenter.default.post(
+                        name: .showMessage,
+                        object: nil,
+                        userInfo: ["message": "Challenge declined. Stake has been refunded."]
+                    )
+                }
+            } catch {
+                print("NotificationService: ❌ Failed to decline challenge: \(error)")
+                await MainActor.run {
+                    // Show error to user
+                    NotificationCenter.default.post(
+                        name: .showError,
+                        object: nil,
+                        userInfo: ["error": error.localizedDescription]
+                    )
+                }
+            }
+        }
     }
     
     private func handleSnoozeReminder(userInfo: [AnyHashable: Any]) {
@@ -944,6 +1379,8 @@ extension Notification.Name {
     static let navigateToEvents = Notification.Name("navigateToEvents")
     static let navigateToChallenges = Notification.Name("navigateToChallenges")
     static let shareWorkout = Notification.Name("shareWorkout")
+    static let showError = Notification.Name("showError")
+    static let showMessage = Notification.Name("showMessage")
 }
 
 // MARK: - Errors

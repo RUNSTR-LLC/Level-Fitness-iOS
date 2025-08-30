@@ -33,6 +33,14 @@ class TeamWalletViewController: UIViewController {
     private let distributionDescriptionLabel = UILabel()
     private let distributeRewardsButton = UIButton(type: .custom)
     
+    // P2P Challenge arbitration section
+    private let arbitrationContainer = UIView()
+    private let arbitrationTitleLabel = UILabel()
+    private let arbitrationDescriptionLabel = UILabel()
+    private let arbitrationStackView = UIStackView()
+    private let noArbitrationsLabel = UILabel()
+    private var pendingArbitrations: [P2PChallengeWithParticipants] = []
+    
     // Recent transactions section
     private let transactionsContainer = UIView()
     private let transactionsTitleLabel = UILabel()
@@ -64,6 +72,7 @@ class TeamWalletViewController: UIViewController {
         setupBalanceSection()
         setupActionsSection()
         setupDistributionSection()
+        setupArbitrationSection()
         setupTransactionsSection()
         setupLoadingAndErrorStates() // Must add views to hierarchy first
         setupConstraints() // Then set up constraints
@@ -225,6 +234,45 @@ class TeamWalletViewController: UIViewController {
         contentView.addSubview(distributionContainer)
     }
     
+    private func setupArbitrationSection() {
+        arbitrationContainer.translatesAutoresizingMaskIntoConstraints = false
+        arbitrationContainer.backgroundColor = UIColor(red: 0.06, green: 0.06, blue: 0.06, alpha: 0.8)
+        arbitrationContainer.layer.cornerRadius = 12
+        arbitrationContainer.layer.borderWidth = 1
+        arbitrationContainer.layer.borderColor = UIColor(red: 0.17, green: 0.17, blue: 0.17, alpha: 1.0).cgColor
+        
+        // Title
+        arbitrationTitleLabel.text = "Challenge Arbitration"
+        arbitrationTitleLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        arbitrationTitleLabel.textColor = IndustrialDesign.Colors.primaryText
+        arbitrationTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Description
+        arbitrationDescriptionLabel.text = "Review and decide the outcome of challenges that need team captain arbitration."
+        arbitrationDescriptionLabel.font = UIFont.systemFont(ofSize: 14)
+        arbitrationDescriptionLabel.textColor = IndustrialDesign.Colors.secondaryText
+        arbitrationDescriptionLabel.numberOfLines = 0
+        arbitrationDescriptionLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Stack view for arbitration items
+        arbitrationStackView.axis = .vertical
+        arbitrationStackView.spacing = 12
+        arbitrationStackView.translatesAutoresizingMaskIntoConstraints = false
+        
+        // No arbitrations label
+        noArbitrationsLabel.text = "No challenges need arbitration"
+        noArbitrationsLabel.font = UIFont.systemFont(ofSize: 14)
+        noArbitrationsLabel.textColor = IndustrialDesign.Colors.secondaryText
+        noArbitrationsLabel.textAlignment = .center
+        noArbitrationsLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        arbitrationContainer.addSubview(arbitrationTitleLabel)
+        arbitrationContainer.addSubview(arbitrationDescriptionLabel)
+        arbitrationContainer.addSubview(arbitrationStackView)
+        arbitrationContainer.addSubview(noArbitrationsLabel)
+        contentView.addSubview(arbitrationContainer)
+    }
+    
     private func setupTransactionsSection() {
         transactionsContainer.translatesAutoresizingMaskIntoConstraints = false
         transactionsContainer.backgroundColor = UIColor(red: 0.06, green: 0.06, blue: 0.06, alpha: 0.8)
@@ -354,8 +402,31 @@ class TeamWalletViewController: UIViewController {
             distributeRewardsButton.heightAnchor.constraint(equalToConstant: 48),
             distributeRewardsButton.bottomAnchor.constraint(equalTo: distributionContainer.bottomAnchor, constant: -16),
             
+            // Arbitration section
+            arbitrationContainer.topAnchor.constraint(equalTo: distributionContainer.bottomAnchor, constant: 24),
+            arbitrationContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
+            arbitrationContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
+            arbitrationContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 120),
+            
+            arbitrationTitleLabel.topAnchor.constraint(equalTo: arbitrationContainer.topAnchor, constant: 16),
+            arbitrationTitleLabel.leadingAnchor.constraint(equalTo: arbitrationContainer.leadingAnchor, constant: 16),
+            arbitrationTitleLabel.trailingAnchor.constraint(equalTo: arbitrationContainer.trailingAnchor, constant: -16),
+            
+            arbitrationDescriptionLabel.topAnchor.constraint(equalTo: arbitrationTitleLabel.bottomAnchor, constant: 8),
+            arbitrationDescriptionLabel.leadingAnchor.constraint(equalTo: arbitrationContainer.leadingAnchor, constant: 16),
+            arbitrationDescriptionLabel.trailingAnchor.constraint(equalTo: arbitrationContainer.trailingAnchor, constant: -16),
+            
+            arbitrationStackView.topAnchor.constraint(equalTo: arbitrationDescriptionLabel.bottomAnchor, constant: 16),
+            arbitrationStackView.leadingAnchor.constraint(equalTo: arbitrationContainer.leadingAnchor, constant: 16),
+            arbitrationStackView.trailingAnchor.constraint(equalTo: arbitrationContainer.trailingAnchor, constant: -16),
+            
+            noArbitrationsLabel.topAnchor.constraint(equalTo: arbitrationDescriptionLabel.bottomAnchor, constant: 16),
+            noArbitrationsLabel.leadingAnchor.constraint(equalTo: arbitrationContainer.leadingAnchor, constant: 16),
+            noArbitrationsLabel.trailingAnchor.constraint(equalTo: arbitrationContainer.trailingAnchor, constant: -16),
+            noArbitrationsLabel.bottomAnchor.constraint(equalTo: arbitrationContainer.bottomAnchor, constant: -16),
+            
             // Transactions section
-            transactionsContainer.topAnchor.constraint(equalTo: distributionContainer.bottomAnchor, constant: 24),
+            transactionsContainer.topAnchor.constraint(equalTo: arbitrationContainer.bottomAnchor, constant: 24),
             transactionsContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
             transactionsContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
             transactionsContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 200),
@@ -426,6 +497,10 @@ class TeamWalletViewController: UIViewController {
             // Load pending distributions
             let distributions = try await prizeDistributionService.getPendingDistributions(teamId: teamData.id)
             
+            // Load team challenges and filter for those needing arbitration
+            let allChallenges = try await P2PChallengeService.shared.getTeamChallenges(teamId: teamData.id)
+            let arbitrations = allChallenges.filter { $0.challenge.arbitrationStatus == .pending || $0.challenge.arbitrationStatus == .inProgress }
+            
             await MainActor.run {
                 // Create TeamWalletBalance from the Int value
                 let teamWalletBalance = TeamWalletBalance(
@@ -438,7 +513,9 @@ class TeamWalletViewController: UIViewController {
                 )
                 self.teamWallet = teamWalletBalance
                 self.pendingDistributions = distributions
+                self.pendingArbitrations = arbitrations
                 self.updateUI(with: teamWalletBalance, transactions: recentTransactions)
+                self.updateArbitrationSection()
                 self.loadingIndicator.stopAnimating()
             }
             
@@ -535,6 +612,135 @@ class TeamWalletViewController: UIViewController {
         } else {
             distributeRewardsButton.backgroundColor = IndustrialDesign.Colors.bitcoin
         }
+    }
+    
+    private func updateArbitrationSection() {
+        // Clear existing arbitration views
+        arbitrationStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        
+        if pendingArbitrations.isEmpty {
+            // Show empty state
+            noArbitrationsLabel.isHidden = false
+            arbitrationStackView.isHidden = true
+        } else {
+            // Hide empty state and show arbitration items
+            noArbitrationsLabel.isHidden = true
+            arbitrationStackView.isHidden = false
+            
+            // Add arbitration items
+            for arbitration in pendingArbitrations {
+                let arbitrationView = createArbitrationView(for: arbitration)
+                arbitrationStackView.addArrangedSubview(arbitrationView)
+            }
+        }
+    }
+    
+    private func createArbitrationView(for challengeData: P2PChallengeWithParticipants) -> UIView {
+        let container = UIView()
+        container.backgroundColor = UIColor(red: 0.08, green: 0.08, blue: 0.08, alpha: 1.0)
+        container.layer.cornerRadius = 8
+        container.layer.borderWidth = 1
+        container.layer.borderColor = UIColor.systemOrange.cgColor
+        
+        // Challenge details
+        let titleLabel = UILabel()
+        titleLabel.text = "\(challengeData.challenge.challengeType.displayName) Challenge"
+        titleLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        titleLabel.textColor = IndustrialDesign.Colors.primaryText
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        let participantsLabel = UILabel()
+        participantsLabel.text = "\(challengeData.challenger.username) vs \(challengeData.challenged.username)"
+        participantsLabel.font = UIFont.systemFont(ofSize: 14)
+        participantsLabel.textColor = IndustrialDesign.Colors.secondaryText
+        participantsLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        let stakeLabel = UILabel()
+        stakeLabel.text = "Stake: \(challengeData.challenge.entryFee) sats"
+        stakeLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        stakeLabel.textColor = IndustrialDesign.Colors.bitcoin
+        stakeLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Arbitration buttons
+        let buttonContainer = UIView()
+        buttonContainer.translatesAutoresizingMaskIntoConstraints = false
+        
+        let challengerWinsButton = UIButton(type: .custom)
+        challengerWinsButton.setTitle("Challenger Wins", for: .normal)
+        challengerWinsButton.setTitleColor(.black, for: .normal)
+        challengerWinsButton.backgroundColor = UIColor.systemGreen
+        challengerWinsButton.layer.cornerRadius = 6
+        challengerWinsButton.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        challengerWinsButton.translatesAutoresizingMaskIntoConstraints = false
+        challengerWinsButton.addTarget(self, action: #selector(challengerWinsTapped(_:)), for: .touchUpInside)
+        challengerWinsButton.tag = pendingArbitrations.firstIndex(where: { $0.challenge.id == challengeData.challenge.id }) ?? 0
+        
+        let challengedWinsButton = UIButton(type: .custom)
+        challengedWinsButton.setTitle("Challenged Wins", for: .normal)
+        challengedWinsButton.setTitleColor(.black, for: .normal)
+        challengedWinsButton.backgroundColor = UIColor.systemBlue
+        challengedWinsButton.layer.cornerRadius = 6
+        challengedWinsButton.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        challengedWinsButton.translatesAutoresizingMaskIntoConstraints = false
+        challengedWinsButton.addTarget(self, action: #selector(challengedWinsTapped(_:)), for: .touchUpInside)
+        challengedWinsButton.tag = pendingArbitrations.firstIndex(where: { $0.challenge.id == challengeData.challenge.id }) ?? 0
+        
+        let drawButton = UIButton(type: .custom)
+        drawButton.setTitle("Draw", for: .normal)
+        drawButton.setTitleColor(.black, for: .normal)
+        drawButton.backgroundColor = UIColor.systemGray
+        drawButton.layer.cornerRadius = 6
+        drawButton.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        drawButton.translatesAutoresizingMaskIntoConstraints = false
+        drawButton.addTarget(self, action: #selector(drawTapped(_:)), for: .touchUpInside)
+        drawButton.tag = pendingArbitrations.firstIndex(where: { $0.challenge.id == challengeData.challenge.id }) ?? 0
+        
+        buttonContainer.addSubview(challengerWinsButton)
+        buttonContainer.addSubview(challengedWinsButton)
+        buttonContainer.addSubview(drawButton)
+        
+        container.addSubview(titleLabel)
+        container.addSubview(participantsLabel)
+        container.addSubview(stakeLabel)
+        container.addSubview(buttonContainer)
+        
+        NSLayoutConstraint.activate([
+            container.heightAnchor.constraint(equalToConstant: 120),
+            
+            titleLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 12),
+            titleLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
+            titleLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
+            
+            participantsLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
+            participantsLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
+            participantsLabel.trailingAnchor.constraint(lessThanOrEqualTo: stakeLabel.leadingAnchor, constant: -8),
+            
+            stakeLabel.centerYAnchor.constraint(equalTo: participantsLabel.centerYAnchor),
+            stakeLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
+            
+            buttonContainer.topAnchor.constraint(equalTo: participantsLabel.bottomAnchor, constant: 12),
+            buttonContainer.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
+            buttonContainer.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
+            buttonContainer.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -12),
+            buttonContainer.heightAnchor.constraint(equalToConstant: 32),
+            
+            challengerWinsButton.topAnchor.constraint(equalTo: buttonContainer.topAnchor),
+            challengerWinsButton.bottomAnchor.constraint(equalTo: buttonContainer.bottomAnchor),
+            challengerWinsButton.leadingAnchor.constraint(equalTo: buttonContainer.leadingAnchor),
+            challengerWinsButton.widthAnchor.constraint(equalTo: buttonContainer.widthAnchor, multiplier: 0.32),
+            
+            challengedWinsButton.topAnchor.constraint(equalTo: buttonContainer.topAnchor),
+            challengedWinsButton.bottomAnchor.constraint(equalTo: buttonContainer.bottomAnchor),
+            challengedWinsButton.centerXAnchor.constraint(equalTo: buttonContainer.centerXAnchor),
+            challengedWinsButton.widthAnchor.constraint(equalTo: buttonContainer.widthAnchor, multiplier: 0.32),
+            
+            drawButton.topAnchor.constraint(equalTo: buttonContainer.topAnchor),
+            drawButton.bottomAnchor.constraint(equalTo: buttonContainer.bottomAnchor),
+            drawButton.trailingAnchor.constraint(equalTo: buttonContainer.trailingAnchor),
+            drawButton.widthAnchor.constraint(equalTo: buttonContainer.widthAnchor, multiplier: 0.32)
+        ])
+        
+        return container
     }
     
     // MARK: - Helper Methods
@@ -856,6 +1062,135 @@ class TeamWalletViewController: UIViewController {
         )
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
+    }
+    
+    // MARK: - Arbitration Actions
+    
+    @objc private func challengerWinsTapped(_ sender: UIButton) {
+        let index = sender.tag
+        guard index < pendingArbitrations.count else { return }
+        
+        let challengeData = pendingArbitrations[index]
+        confirmArbitrationDecision(
+            challengeData: challengeData,
+            winnerId: challengeData.challenge.challengerId,
+            winnerName: challengeData.challenger.username ?? "Challenger",
+            decision: .challenger_wins
+        )
+    }
+    
+    @objc private func challengedWinsTapped(_ sender: UIButton) {
+        let index = sender.tag
+        guard index < pendingArbitrations.count else { return }
+        
+        let challengeData = pendingArbitrations[index]
+        confirmArbitrationDecision(
+            challengeData: challengeData,
+            winnerId: challengeData.challenge.challengedId,
+            winnerName: challengeData.challenged.username ?? "Challenged",
+            decision: .challenged_wins
+        )
+    }
+    
+    @objc private func drawTapped(_ sender: UIButton) {
+        let index = sender.tag
+        guard index < pendingArbitrations.count else { return }
+        
+        let challengeData = pendingArbitrations[index]
+        confirmArbitrationDecision(
+            challengeData: challengeData,
+            winnerId: nil,
+            winnerName: "Draw",
+            decision: .tie
+        )
+    }
+    
+    private func confirmArbitrationDecision(
+        challengeData: P2PChallengeWithParticipants,
+        winnerId: String?,
+        winnerName: String,
+        decision: P2PChallengeOutcome
+    ) {
+        let alert = UIAlertController(
+            title: "Confirm Arbitration",
+            message: "Are you sure you want to declare \(winnerName) as the winner of this challenge?",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Confirm", style: .default) { _ in
+            Task {
+                await self.processArbitrationDecision(
+                    challengeData: challengeData,
+                    outcome: decision
+                )
+            }
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    private func processArbitrationDecision(challengeData: P2PChallengeWithParticipants, outcome: P2PChallengeOutcome) async {
+        print("🏗️ TeamWalletViewController: Processing arbitration decision for challenge \(challengeData.challenge.id)")
+        
+        do {
+            await MainActor.run {
+                self.loadingIndicator.startAnimating()
+            }
+            
+            // Process the arbitration through P2PChallengeService
+            let winnerId: String
+            switch outcome {
+            case .challenger_wins:
+                winnerId = challengeData.challenge.challengerId
+            case .challenged_wins:
+                winnerId = challengeData.challenge.challengedId
+            case .tie:
+                // For tie, pick the challenger as winner (or handle differently based on your business logic)
+                winnerId = challengeData.challenge.challengerId
+            }
+            
+            guard let currentUserId = AuthenticationService.shared.currentUserId else {
+                throw AppError.authenticationRequired
+            }
+            
+            try await P2PChallengeService.shared.arbitrateChallenge(challengeId: challengeData.challenge.id, winnerId: winnerId, captainId: currentUserId)
+            
+            await MainActor.run {
+                self.loadingIndicator.stopAnimating()
+                
+                // Show success message
+                let successAlert = UIAlertController(
+                    title: "Arbitration Complete",
+                    message: "The challenge has been arbitrated and rewards distributed.",
+                    preferredStyle: .alert
+                )
+                successAlert.addAction(UIAlertAction(title: "OK", style: .default))
+                self.present(successAlert, animated: true)
+                
+                // Refresh wallet data to show updated arbitrations and balance
+                Task {
+                    await self.loadWalletData()
+                }
+                
+                print("✅ TeamWalletViewController: Arbitration completed successfully")
+            }
+            
+        } catch {
+            print("❌ TeamWalletViewController: Arbitration failed - \(error)")
+            
+            await MainActor.run {
+                self.loadingIndicator.stopAnimating()
+                
+                let errorAlert = UIAlertController(
+                    title: "Arbitration Failed",
+                    message: "Could not process the arbitration: \(error.localizedDescription)",
+                    preferredStyle: .alert
+                )
+                errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
+                self.present(errorAlert, animated: true)
+            }
+        }
     }
     
     private func showErrorAlert(_ message: String) {

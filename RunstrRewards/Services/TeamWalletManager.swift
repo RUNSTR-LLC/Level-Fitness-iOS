@@ -542,9 +542,152 @@ class TeamWalletManager {
             // Don't fail the operation for database issues - transaction already completed
         }
     }
+    
+    // MARK: - P2P Challenge Fund Management
+    
+    func lockChallengeStake(challengeId: String, amount: Int, userId: String, teamId: String) async throws {
+        print("TeamWalletManager: Locking \(amount) sats for challenge \(challengeId)")
+        
+        // Verify team wallet has sufficient balance
+        let balance = try await getTeamWalletBalance(teamId: teamId)
+        guard balance.total >= amount else {
+            throw TeamWalletError.insufficientBalance
+        }
+        
+        // Record the stake lock transaction
+        try await recordTeamTransaction(
+            teamId: teamId,
+            userId: userId,
+            amount: -amount, // Negative because it's locked
+            type: "challenge_stake_lock",
+            description: "Locked \(amount) sats for P2P challenge",
+            metadata: [
+                "challenge_id": challengeId,
+                "action": "stake_locked"
+            ]
+        )
+        
+        print("TeamWalletManager: ✅ Challenge stake locked successfully")
+    }
+    
+    func refundChallenge(challengeId: String, userId: String, amount: Int, teamId: String) async throws {
+        print("TeamWalletManager: Refunding \(amount) sats for declined challenge \(challengeId)")
+        
+        // Record the refund transaction
+        try await recordTeamTransaction(
+            teamId: teamId,
+            userId: userId,
+            amount: amount, // Positive because it's returned
+            type: "challenge_refund",
+            description: "Refunded \(amount) sats from declined challenge",
+            metadata: [
+                "challenge_id": challengeId,
+                "action": "stake_refunded"
+            ]
+        )
+        
+        print("TeamWalletManager: ✅ Challenge refunded successfully")
+    }
+    
+    func distributeChallengeReward(
+        challengeId: String,
+        winnerId: String,
+        winnerAmount: Int,
+        teamFee: Int,
+        teamId: String
+    ) async throws {
+        print("TeamWalletManager: Distributing challenge reward - \(winnerAmount) to winner, \(teamFee) to team")
+        
+        // Get team credentials for wallet operations
+        guard let teamCredentials = loadTeamWalletCredentials(teamId: teamId) else {
+            throw TeamWalletError.authenticationRequired
+        }
+        
+        // Setup CoinOS with team wallet credentials
+        _ = try await coinOSService.loginUser(username: teamCredentials.username, password: teamCredentials.password)
+        
+        do {
+            // Get winner's wallet info to create invoice
+            let winnerInvoice = try await createUserInvoice(userId: winnerId, amount: winnerAmount, memo: "P2P Challenge Win!")
+            
+            // Pay winner from team wallet
+            let paymentResult = try await coinOSService.payInvoice(winnerInvoice.paymentRequest)
+            
+            // Record winner payout transaction
+            try await recordTeamTransaction(
+                teamId: teamId,
+                userId: winnerId,
+                amount: -winnerAmount, // Negative from team wallet perspective
+                type: "challenge_payout",
+                description: "P2P Challenge reward payout",
+                metadata: [
+                    "challenge_id": challengeId,
+                    "winner_id": winnerId,
+                    "payment_hash": paymentResult.paymentHash
+                ]
+            )
+            
+            // Record team fee transaction
+            try await recordTeamTransaction(
+                teamId: teamId,
+                userId: nil,
+                amount: teamFee, // Positive team revenue
+                type: "challenge_fee",
+                description: "P2P Challenge arbitration fee (20%)",
+                metadata: [
+                    "challenge_id": challengeId,
+                    "fee_percentage": 20
+                ]
+            )
+            
+            print("TeamWalletManager: ✅ Challenge rewards distributed successfully")
+            
+        } catch {
+            print("TeamWalletManager: ❌ Failed to distribute challenge rewards: \(error)")
+            throw TeamWalletError.rewardDistributionFailed
+        }
+    }
+    
+    func getChallengeStakingCapacity(teamId: String, requestedAmount: Int) async throws -> Bool {
+        let balance = try await getTeamWalletBalance(teamId: teamId)
+        return balance.total >= requestedAmount
+    }
+    
+    func getTeamChallengeTransactions(teamId: String, limit: Int = 50) async throws -> [TeamWalletTransaction] {
+        // This would return challenge-related transactions for the team
+        // For now, return empty array - would need to implement in database service
+        return []
+    }
+    
+    private func createChallengeInvoice(userId: String, amount: Int, challengeId: String) async throws -> LightningInvoice {
+        let memo = "P2P Challenge Stake - \(amount) sats"
+        return try await createUserInvoice(userId: userId, amount: amount, memo: memo)
+    }
 }
 
 // MARK: - Data Models
+
+struct TeamWalletTransaction: Codable {
+    let id: String
+    let teamId: String
+    let userId: String?
+    let amount: Int
+    let type: String
+    let description: String
+    let metadata: [String: String]
+    let createdAt: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case teamId = "team_id"
+        case userId = "user_id"
+        case amount
+        case type
+        case description
+        case metadata
+        case createdAt = "created_at"
+    }
+}
 
 struct TeamWallet: Codable {
     let id: String

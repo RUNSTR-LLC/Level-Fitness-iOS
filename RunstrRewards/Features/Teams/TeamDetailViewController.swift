@@ -50,6 +50,10 @@ class TeamDetailViewController: UIViewController {
     private var eventsEmptyLabel: UILabel?
     private var eventsTitleLabel: UILabel?
     
+    // P2P Challenges
+    private var challengesContainer: UIView?
+    private var p2pChallenges: [P2PChallengeWithParticipants] = []
+    
     // Removed: tabNavigation and tabContentView (simplified to single scroll layout)
     
     // MARK: - Initialization
@@ -226,6 +230,9 @@ class TeamDetailViewController: UIViewController {
         // Add simplified leaderboard section
         createSimpleLeaderboard()
         
+        // Add P2P challenges section
+        createChallengesSection()
+        
         // Add simplified events section  
         createSimpleEvents()
     }
@@ -353,6 +360,7 @@ class TeamDetailViewController: UIViewController {
     
     private func setupSimpleConstraints() {
         let leaderboardContainer = contentView.viewWithTag(100)!
+        let challengesContainer = contentView.viewWithTag(102)!
         let eventsContainer = contentView.viewWithTag(101)!
         
         // Create both possible constraints but don't activate yet
@@ -374,8 +382,14 @@ class TeamDetailViewController: UIViewController {
             leaderboardContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             leaderboardContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 100),
             
-            // Events below leaderboard
-            eventsContainer.topAnchor.constraint(equalTo: leaderboardContainer.bottomAnchor, constant: 16),
+            // Challenges below leaderboard
+            challengesContainer.topAnchor.constraint(equalTo: leaderboardContainer.bottomAnchor, constant: 16),
+            challengesContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            challengesContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            challengesContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 100),
+            
+            // Events below challenges
+            eventsContainer.topAnchor.constraint(equalTo: challengesContainer.bottomAnchor, constant: 16),
             eventsContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             eventsContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             eventsContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 100),
@@ -870,6 +884,190 @@ class TeamDetailViewController: UIViewController {
         ])
         
         return card
+    }
+    
+    // MARK: - P2P Challenges Section
+    
+    private func createChallengesSection() {
+        let challengesContainer = UIView()
+        challengesContainer.translatesAutoresizingMaskIntoConstraints = false
+        challengesContainer.backgroundColor = UIColor(red: 0.06, green: 0.06, blue: 0.06, alpha: 0.8)
+        challengesContainer.layer.cornerRadius = 12
+        challengesContainer.layer.borderWidth = 1
+        challengesContainer.layer.borderColor = UIColor(red: 0.17, green: 0.17, blue: 0.17, alpha: 1.0).cgColor
+        self.challengesContainer = challengesContainer
+        
+        // Title label
+        let titleLabel = UILabel()
+        titleLabel.text = "Challenges"
+        titleLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        titleLabel.textColor = IndustrialDesign.Colors.primaryText
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Create challenge button
+        let createButton = UIButton(type: .custom)
+        createButton.setTitle("+ New", for: .normal)
+        createButton.setTitleColor(.black, for: .normal)
+        createButton.backgroundColor = IndustrialDesign.Colors.bitcoin
+        createButton.layer.cornerRadius = 6
+        createButton.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        createButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
+        createButton.translatesAutoresizingMaskIntoConstraints = false
+        createButton.addTarget(self, action: #selector(createChallengeButtonTapped), for: .touchUpInside)
+        
+        // Empty state label
+        let emptyLabel = UILabel()
+        emptyLabel.text = "No challenges yet. Create one to get started!"
+        emptyLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        emptyLabel.textColor = IndustrialDesign.Colors.secondaryText
+        emptyLabel.textAlignment = .center
+        emptyLabel.numberOfLines = 2
+        emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        challengesContainer.addSubview(titleLabel)
+        challengesContainer.addSubview(createButton)
+        challengesContainer.addSubview(emptyLabel)
+        contentView.addSubview(challengesContainer)
+        
+        // Set tag for constraint setup
+        challengesContainer.tag = 102
+        
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(equalTo: challengesContainer.topAnchor, constant: 16),
+            titleLabel.leadingAnchor.constraint(equalTo: challengesContainer.leadingAnchor, constant: 16),
+            
+            createButton.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+            createButton.trailingAnchor.constraint(equalTo: challengesContainer.trailingAnchor, constant: -16),
+            createButton.heightAnchor.constraint(equalToConstant: 32),
+            
+            emptyLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
+            emptyLabel.leadingAnchor.constraint(equalTo: challengesContainer.leadingAnchor, constant: 16),
+            emptyLabel.trailingAnchor.constraint(equalTo: challengesContainer.trailingAnchor, constant: -16),
+            emptyLabel.centerXAnchor.constraint(equalTo: challengesContainer.centerXAnchor),
+            emptyLabel.bottomAnchor.constraint(equalTo: challengesContainer.bottomAnchor, constant: -16)
+        ])
+        
+        // Load challenges data
+        Task {
+            await loadP2PChallenges()
+        }
+    }
+    
+    private func loadP2PChallenges() async {
+        print("🥊 TeamDetailViewController: Loading P2P challenges for team \(teamData.id)")
+        
+        do {
+            let challenges = try await P2PChallengeService.shared.getTeamChallenges(teamId: teamData.id, limit: 10)
+            
+            await MainActor.run {
+                self.p2pChallenges = challenges
+                self.updateChallengesSection()
+            }
+            
+            print("✅ TeamDetailViewController: Loaded \(challenges.count) P2P challenges")
+            
+        } catch {
+            print("❌ TeamDetailViewController: Failed to load P2P challenges - \(error)")
+            await MainActor.run {
+                self.p2pChallenges = []
+                self.updateChallengesSection()
+            }
+        }
+    }
+    
+    private func updateChallengesSection() {
+        guard let challengesContainer = self.challengesContainer else { return }
+        
+        // Remove existing challenge cards
+        challengesContainer.subviews.forEach { subview in
+            if subview.tag >= 200 && subview.tag < 300 {
+                subview.removeFromSuperview()
+            }
+        }
+        
+        // Find the title label and empty label
+        guard let titleLabel = challengesContainer.subviews.first(where: { $0 is UILabel && ($0 as! UILabel).text == "Challenges" }),
+              let emptyLabel = challengesContainer.subviews.first(where: { $0 is UILabel && ($0 as! UILabel).text?.contains("No challenges yet") == true }) else {
+            return
+        }
+        
+        if p2pChallenges.isEmpty {
+            // Show empty state
+            emptyLabel.isHidden = false
+            let containerHeight: CGFloat = 100
+            challengesContainer.heightAnchor.constraint(equalToConstant: containerHeight).isActive = true
+        } else {
+            // Hide empty state and add challenge cards
+            emptyLabel.isHidden = true
+            
+            let cardHeight: CGFloat = 120
+            let cardSpacing: CGFloat = 12
+            let titleBottomSpacing: CGFloat = 16
+            let bottomPadding: CGFloat = 16
+            
+            var previousView: UIView? = titleLabel
+            
+            for (index, challengeWithParticipants) in p2pChallenges.enumerated() {
+                guard let currentUserId = AuthenticationService.shared.currentUserId else { continue }
+                
+                let challengeCard = P2PChallengeCard(challengeData: challengeWithParticipants, currentUserId: currentUserId)
+                challengeCard.translatesAutoresizingMaskIntoConstraints = false
+                challengeCard.delegate = self
+                challengeCard.tag = 200 + index
+                challengesContainer.addSubview(challengeCard)
+                
+                let topConstraint: NSLayoutConstraint
+                if index == 0 {
+                    topConstraint = challengeCard.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: titleBottomSpacing)
+                } else if let prevView = previousView, prevView != titleLabel {
+                    topConstraint = challengeCard.topAnchor.constraint(equalTo: prevView.bottomAnchor, constant: cardSpacing)
+                } else {
+                    topConstraint = challengeCard.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: titleBottomSpacing)
+                }
+                
+                NSLayoutConstraint.activate([
+                    topConstraint,
+                    challengeCard.leadingAnchor.constraint(equalTo: challengesContainer.leadingAnchor, constant: 16),
+                    challengeCard.trailingAnchor.constraint(equalTo: challengesContainer.trailingAnchor, constant: -16),
+                    challengeCard.heightAnchor.constraint(equalToConstant: cardHeight)
+                ])
+                
+                previousView = challengeCard
+            }
+            
+            // Calculate and set container height
+            let titleSectionHeight: CGFloat = 50
+            let totalHeight = titleSectionHeight + titleBottomSpacing + CGFloat(p2pChallenges.count) * cardHeight + CGFloat(max(0, p2pChallenges.count - 1)) * cardSpacing + bottomPadding
+            challengesContainer.heightAnchor.constraint(equalToConstant: totalHeight).isActive = true
+        }
+    }
+    
+    @objc private func createChallengeButtonTapped() {
+        print("🥊 TeamDetailViewController: Create challenge button tapped")
+        
+        Task {
+            do {
+                // Get team members for challenge creation
+                let teamMembers = try await TeamDataService.shared.fetchTeamMembers(teamId: teamData.id)
+                guard let currentUserId = AuthenticationService.shared.currentUserId else {
+                    print("❌ TeamDetailViewController: No current user ID")
+                    return
+                }
+                
+                await MainActor.run {
+                    let createChallengeVC = CreateChallengeViewController(
+                        teamId: self.teamData.id,
+                        teamMembers: teamMembers,
+                        currentUserId: currentUserId
+                    )
+                    createChallengeVC.delegate = self
+                    self.navigationController?.pushViewController(createChallengeVC, animated: true)
+                }
+                
+            } catch {
+                print("❌ TeamDetailViewController: Failed to get team members - \(error)")
+            }
+        }
     }
     
     deinit {
@@ -1602,6 +1800,165 @@ extension TeamDetailViewController: TeamActivityFeedViewDelegate {
             let mSats = Double(satsAmount) / 1_000_000.0
             return String(format: "%.1fM", mSats)
         }
+    }
+    
+    private func calculateDuration(from startDate: Date, to endDate: Date) -> Int {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.day], from: startDate, to: endDate)
+        return components.day ?? 0
+    }
+}
+
+// MARK: - P2PChallengeCardDelegate
+
+extension TeamDetailViewController: P2PChallengeCardDelegate {
+    func didTapAcceptChallenge(_ challengeData: P2PChallengeWithParticipants) {
+        let challenge = challengeData.challenge
+        print("🥊 TeamDetailViewController: Accept challenge tapped for challenge \(challenge.id)")
+        
+        Task {
+            do {
+                guard let currentUserId = AuthenticationService.shared.currentUserId else {
+                    print("❌ TeamDetailViewController: No current user ID for accepting challenge")
+                    return
+                }
+                try await P2PChallengeService.shared.acceptChallenge(challengeId: challenge.id, userId: currentUserId)
+                
+                await MainActor.run {
+                    // Refresh challenges to show updated state
+                    Task {
+                        await self.loadP2PChallenges()
+                    }
+                    
+                    // Show success feedback
+                    let alert = UIAlertController(
+                        title: "Challenge Accepted!",
+                        message: "You've accepted the challenge. Good luck!",
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "Let's Go!", style: .default))
+                    self.present(alert, animated: true)
+                }
+                
+                print("✅ TeamDetailViewController: Challenge accepted successfully")
+                
+            } catch {
+                print("❌ TeamDetailViewController: Failed to accept challenge - \(error)")
+                
+                await MainActor.run {
+                    let alert = UIAlertController(
+                        title: "Accept Failed",
+                        message: "Could not accept the challenge. Please try again.",
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    self.present(alert, animated: true)
+                }
+            }
+        }
+    }
+    
+    func didTapDeclineChallenge(_ challengeData: P2PChallengeWithParticipants) {
+        let challenge = challengeData.challenge
+        print("🥊 TeamDetailViewController: Decline challenge tapped for challenge \(challenge.id)")
+        
+        // Show confirmation dialog
+        let alert = UIAlertController(
+            title: "Decline Challenge?",
+            message: "Are you sure you want to decline this challenge? The challenger's stake will be refunded.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Decline", style: .destructive) { _ in
+            Task {
+                do {
+                    guard let currentUserId = AuthenticationService.shared.currentUserId else {
+                        print("❌ TeamDetailViewController: No current user ID for declining challenge")
+                        return
+                    }
+                    try await P2PChallengeService.shared.declineChallenge(challengeId: challenge.id, userId: currentUserId)
+                    
+                    await MainActor.run {
+                        // Refresh challenges to show updated state
+                        Task {
+                            await self.loadP2PChallenges()
+                        }
+                        
+                        print("✅ TeamDetailViewController: Challenge declined successfully")
+                    }
+                    
+                } catch {
+                    print("❌ TeamDetailViewController: Failed to decline challenge - \(error)")
+                    
+                    await MainActor.run {
+                        let errorAlert = UIAlertController(
+                            title: "Decline Failed",
+                            message: "Could not decline the challenge. Please try again.",
+                            preferredStyle: .alert
+                        )
+                        errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
+                        self.present(errorAlert, animated: true)
+                    }
+                }
+            }
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    func didTapP2PChallengeCard(_ challengeData: P2PChallengeWithParticipants) {
+        let challenge = challengeData.challenge
+        print("🥊 TeamDetailViewController: Challenge card tapped for challenge \(challenge.id)")
+        
+        // Show challenge details
+        let alert = UIAlertController(
+            title: "Challenge Details",
+            message: "Challenge type: \(challenge.challengeType.displayName)\nStake: \(challenge.entryFee) sats\nDuration: \(calculateDuration(from: challenge.startDate, to: challenge.endDate)) day(s)\nStatus: \(challenge.status.displayName)",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+}
+
+// MARK: - CreateChallengeDelegate
+
+extension TeamDetailViewController: CreateChallengeDelegate {
+    func didCreateChallenge(_ challenge: P2PChallenge) {
+        print("✅ TeamDetailViewController: Challenge created successfully - \(challenge.id)")
+        
+        // Refresh challenges list to show the new challenge
+        Task {
+            await loadP2PChallenges()
+        }
+        
+        // Show success feedback
+        let alert = UIAlertController(
+            title: "Challenge Created!",
+            message: "Your challenge has been sent. Your opponent has 24 hours to accept.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Great!", style: .default))
+        present(alert, animated: true)
+    }
+    
+    func didCancelChallenge() {
+        print("❌ TeamDetailViewController: Challenge creation cancelled")
+        // No specific action needed - the modal will be dismissed
+    }
+    
+    func challengeCreationFailed(_ error: Error) {
+        print("❌ TeamDetailViewController: Challenge creation failed - \(error)")
+        
+        let alert = UIAlertController(
+            title: "Challenge Creation Failed",
+            message: "Could not create the challenge: \(error.localizedDescription)",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 }
 
