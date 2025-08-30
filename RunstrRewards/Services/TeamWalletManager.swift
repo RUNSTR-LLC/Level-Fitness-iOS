@@ -126,6 +126,38 @@ class TeamWalletManager {
         }
     }
     
+    // MARK: - Team Wallet Verification
+    
+    func verifyTeamWalletExists(teamId: String) async throws -> Bool {
+        // Check if team wallet credentials exist in Keychain using correct key format
+        let usernameKey = "coinOS_team_\(teamId)_username"
+        let passwordKey = "coinOS_team_\(teamId)_password"
+        let tokenKey = "coinOS_team_\(teamId)_token"
+        
+        guard let username = KeychainService.shared.loadCustom(for: usernameKey),
+              let password = KeychainService.shared.loadCustom(for: passwordKey),
+              let _ = KeychainService.shared.loadCustom(for: tokenKey) else {
+            print("TeamWalletManager: Team wallet credentials not found for team \(teamId)")
+            return false
+        }
+        
+        // Try to authenticate with CoinOS to verify wallet is still valid
+        do {
+            let authResponse = try await coinOSService.loginUser(username: username, password: password)
+            
+            // Verify the token still works by getting user info
+            coinOSService.setAuthToken(authResponse.token)
+            let _ = try await coinOSService.getCurrentUser()
+            
+            print("TeamWalletManager: Team wallet verified for team \(teamId)")
+            return true
+            
+        } catch {
+            print("TeamWalletManager: Team wallet verification failed for team \(teamId): \(error)")
+            return false
+        }
+    }
+    
     // MARK: - Team Wallet Operations
     
     func getTeamWalletBalance(teamId: String, userId: String? = nil) async throws -> WalletBalance {

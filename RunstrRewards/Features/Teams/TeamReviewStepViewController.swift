@@ -151,8 +151,7 @@ class TeamReviewStepViewController: UIViewController {
             title: "Team Information",
             items: [
                 ("Team Name", teamData.teamName.isEmpty ? "Not specified" : teamData.teamName),
-                ("Description", teamData.description.isEmpty ? "None" : teamData.description),
-                ("Monthly Price", "$1.99")
+                ("Description", teamData.description.isEmpty ? "None" : teamData.description)
             ]
         )
         addContentToSection(teamInfoSection, content: teamInfoContent)
@@ -182,7 +181,7 @@ class TeamReviewStepViewController: UIViewController {
             items: [
                 ("Next Steps", "After creation, you'll get a QR code to share with potential members"),
                 ("Team Management", "Access your team dashboard to view analytics and manage competitions"),
-                ("Member Revenue", "You keep 100% of subscription revenue from your members")
+                ("Bitcoin Rewards", "Earn and distribute Bitcoin rewards for fitness achievements")
             ],
             highlightColor: UIColor(red: 0.97, green: 0.58, blue: 0.10, alpha: 1.0)
         )

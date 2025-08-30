@@ -26,7 +26,7 @@ class TeamCreationWizardViewController: UIViewController {
     
     // MARK: - Wizard State
     private var currentStep = 0
-    private let totalSteps = 4
+    private let totalSteps = 4 // TODO: Change to 5 after adding wallet step via Xcode
     
     // Team data being collected
     private var teamData = TeamCreationData()
@@ -295,6 +295,8 @@ class TeamCreationWizardViewController: UIViewController {
             TeamBasicInfoStepViewController(teamData: teamData),
             TeamMetricSelectionStepViewController(teamData: teamData),
             TeamLeaderboardSetupStepViewController(teamData: teamData),
+            // TODO: Add TeamWalletSetupStepViewController via Xcode GUI
+            // TeamWalletSetupStepViewController(teamData: teamData),
             TeamReviewStepViewController(teamData: teamData)
         ]
     }
@@ -434,7 +436,14 @@ class TeamCreationWizardViewController: UIViewController {
             // Leaderboard type and period have default values, so always valid
             return true
             
-        case 3: // Review Step
+        case 3: // Wallet Setup Step
+            if !teamData.isWalletReady {
+                showValidationError("Please wait for the Bitcoin wallet to be ready before proceeding")
+                return false
+            }
+            return true
+            
+        case 4: // Review Step
             return true
             
         default:
@@ -518,9 +527,25 @@ class TeamCreationWizardViewController: UIViewController {
                     throw NSError(domain: "TeamCreation", code: 1002, userInfo: [NSLocalizedDescriptionKey: "Team name is required"])
                 }
                 
-                // Create team in database
+                // Validate wallet readiness - CRITICAL requirement
+                guard teamData.isWalletReady else {
+                    throw NSError(domain: "TeamCreation", code: 1006, userInfo: [NSLocalizedDescriptionKey: "Bitcoin wallet setup is required. Please wait for wallet to be ready before creating team."])
+                }
+                
+                // Generate team ID first (needed for wallet creation)
+                let teamId = UUID().uuidString
+                
+                // Create team wallet FIRST (this is the critical step that can fail)
+                print("🧙‍♂️ TeamCreationWizard: Creating team wallet first...")
+                let teamWallet = try await TeamWalletManager.shared.createTeamWallet(
+                    for: teamId,
+                    captainId: userSession.id
+                )
+                print("🧙‍♂️ TeamCreationWizard: Team wallet created successfully with ID: \(teamWallet.id)")
+                
+                // Only create team in database AFTER wallet succeeds
                 let newTeam = Team(
-                    id: UUID().uuidString,
+                    id: teamId,
                     name: teamData.teamName.trimmingCharacters(in: .whitespacesAndNewlines),
                     description: teamData.description.isEmpty ? nil : teamData.description,
                     captainId: userSession.id,
@@ -534,48 +559,20 @@ class TeamCreationWizardViewController: UIViewController {
                 
                 print("🧙‍♂️ TeamCreationWizard: Team created successfully with ID: \(team.id)")
                 
-                // Automatically create team wallet for the new team
-                do {
-                    let teamWallet = try await TeamWalletManager.shared.createTeamWallet(
-                        for: team.id,
-                        captainId: userSession.id
+                await MainActor.run {
+                    // Show success and dismiss
+                    let successAlert = UIAlertController(
+                        title: "Team Created Successfully! 🎉",
+                        message: "Your team '\(teamData.teamName)' is now live with a Bitcoin wallet! Start sharing your QR code to get members and fund your team's prize pool.",
+                        preferredStyle: .alert
                     )
-                    print("🧙‍♂️ TeamCreationWizard: Team wallet created successfully with ID: \(teamWallet.id)")
                     
-                    await MainActor.run {
-                        // Show success and dismiss
-                        let successAlert = UIAlertController(
-                            title: "Team Created Successfully! 🎉",
-                            message: "Your team '\(teamData.teamName)' is now live with a Bitcoin wallet! Start sharing your QR code to get members and fund your team's prize pool.",
-                            preferredStyle: .alert
-                        )
-                        
-                        successAlert.addAction(UIAlertAction(title: "Done", style: .default) { _ in
-                            self.onCompletion?(true)
-                            self.dismiss(animated: true)
-                        })
-                        
-                        self.present(successAlert, animated: true)
-                    }
+                    successAlert.addAction(UIAlertAction(title: "Done", style: .default) { _ in
+                        self.onCompletion?(true)
+                        self.dismiss(animated: true)
+                    })
                     
-                } catch {
-                    print("🧙‍♂️ TeamCreationWizard: Failed to create team wallet: \(error)")
-                    
-                    await MainActor.run {
-                        // Team was created but wallet failed - still show success but with warning
-                        let warningAlert = UIAlertController(
-                            title: "Team Created! ⚠️",
-                            message: "Your team '\(teamData.teamName)' was created, but there was an issue setting up the Bitcoin wallet. You can set this up later in team settings.",
-                            preferredStyle: .alert
-                        )
-                        
-                        warningAlert.addAction(UIAlertAction(title: "Done", style: .default) { _ in
-                            self.onCompletion?(true)
-                            self.dismiss(animated: true)
-                        })
-                        
-                        self.present(warningAlert, animated: true)
-                    }
+                    self.present(successAlert, animated: true)
                 }
                 
             } catch {
@@ -676,12 +673,14 @@ class TeamCreationData: ObservableObject {
     @Published var teamName: String = ""
     @Published var description: String = ""
     @Published var selectedMetrics: [String] = ["running"] // Pre-select running to ensure UI has content
-    @Published var subscriptionPrice: Double = 1.99
     @Published var leaderboardType: TeamLeaderboardType = .distance
     @Published var leaderboardPeriod: LeaderboardPeriod = .weekly
+    @Published var speedRankingDistance: SpeedRankingDistance = .fiveK
+    @Published var customSpeedDistance: Double = 5.0 // kilometers
+    @Published var isWalletReady: Bool = false
     
     init() {
-        print("🧙‍♂️ TeamCreationData: Initialized with defaults - metrics: \(selectedMetrics), price: \(subscriptionPrice)")
+        print("🧙‍♂️ TeamCreationData: Initialized with defaults - metrics: \(selectedMetrics)")
     }
 }
 
@@ -689,14 +688,14 @@ enum TeamLeaderboardType: String, CaseIterable {
     case distance = "distance"
     case workoutCount = "workout_count"
     case streaks = "streaks"
-    case points = "points"
+    case speedRankings = "speed_rankings"
     
     var displayName: String {
         switch self {
         case .distance: return "Total Distance"
         case .workoutCount: return "Workout Count"
         case .streaks: return "Workout Streaks"
-        case .points: return "Points System"
+        case .speedRankings: return "Speed Rankings"
         }
     }
     
@@ -705,7 +704,16 @@ enum TeamLeaderboardType: String, CaseIterable {
         case .distance: return "location.fill"
         case .workoutCount: return "figure.run"
         case .streaks: return "flame.fill"
-        case .points: return "star.fill"
+        case .speedRankings: return "stopwatch.fill"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .distance: return "Rank by total distance covered across all workouts"
+        case .workoutCount: return "Rank by number of completed workouts"
+        case .streaks: return "Rank by longest consecutive workout streaks"
+        case .speedRankings: return "Rank by fastest single effort (5K, 10K, custom distance)"
         }
     }
 }
@@ -722,6 +730,34 @@ enum LeaderboardPeriod: String, CaseIterable {
         case .weekly: return "Weekly"
         case .monthly: return "Monthly"
         case .allTime: return "All-Time"
+        }
+    }
+}
+
+enum SpeedRankingDistance: String, CaseIterable {
+    case fiveK = "5K"
+    case tenK = "10K"
+    case halfMarathon = "half_marathon"
+    case marathon = "marathon"
+    case custom = "custom"
+    
+    var displayName: String {
+        switch self {
+        case .fiveK: return "5K"
+        case .tenK: return "10K"
+        case .halfMarathon: return "Half Marathon"
+        case .marathon: return "Marathon"
+        case .custom: return "Custom Distance"
+        }
+    }
+    
+    var distanceInKm: Double {
+        switch self {
+        case .fiveK: return 5.0
+        case .tenK: return 10.0
+        case .halfMarathon: return 21.1
+        case .marathon: return 42.2
+        case .custom: return 0.0 // Will use customSpeedDistance
         }
     }
 }

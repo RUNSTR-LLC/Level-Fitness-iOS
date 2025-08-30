@@ -434,12 +434,17 @@ class TeamDetailViewController: UIViewController {
     
     private func checkTeamWalletStatus() async -> Bool {
         do {
-            // Try to get team wallet balance - if successful, wallet is configured
-            _ = try await TransactionDataService.shared.getTeamWalletBalance(teamId: teamData.id)
-            print("🏗️ RunstrRewards: Team wallet is configured for team \(teamData.id)")
-            return true
+            // Check if team wallet exists using TeamWalletManager
+            let walletExists = try await TeamWalletManager.shared.verifyTeamWalletExists(teamId: teamData.id)
+            if walletExists {
+                print("🏗️ RunstrRewards: Team wallet is configured for team \(teamData.id)")
+                return true
+            } else {
+                print("🏗️ RunstrRewards: Team wallet not found for team \(teamData.id)")
+                return false
+            }
         } catch {
-            print("🏗️ RunstrRewards: Team wallet not configured for team \(teamData.id): \(error)")
+            print("🏗️ RunstrRewards: Error checking team wallet status for team \(teamData.id): \(error)")
             return false
         }
     }
@@ -503,7 +508,18 @@ class TeamDetailViewController: UIViewController {
                 print("🏗️ TeamDetailMain: Member: \(member.profile.id), Role: \(member.role)")
             }
             
-            let isTeamOwner = members.contains { $0.profile.id.lowercased() == userSession.id.lowercased() && $0.role == "captain" }
+            // Check captain status with dual verification:
+            // 1. Check team_members table for role="captain"
+            // 2. Fallback to teams.captain_id field
+            let memberCaptainCheck = members.contains { $0.profile.id.lowercased() == userSession.id.lowercased() && $0.role == "captain" }
+            let teamCaptainIdCheck = teamData.captainId.lowercased() == userSession.id.lowercased()
+            let isTeamOwner = memberCaptainCheck || teamCaptainIdCheck
+            
+            print("🏗️ TeamDetailMain: Captain verification - UserID: \(userSession.id)")
+            print("🏗️ TeamDetailMain: Team captainId: \(teamData.captainId)")
+            print("🏗️ TeamDetailMain: Member table check: \(memberCaptainCheck)")
+            print("🏗️ TeamDetailMain: Captain ID check: \(teamCaptainIdCheck)")
+            print("🏗️ TeamDetailMain: Final captain status: \(isTeamOwner)")
             
             await MainActor.run {
                 self.isCaptain = isTeamOwner // Store captain status
@@ -1125,9 +1141,8 @@ extension TeamDetailViewController: TeamDetailHeaderViewDelegate {
             self.confirmLeaveTeam()
         })
         
-        // Delete Team (for team owners only - in dev mode all users can delete)
-        let isDevelopmentMode = true // Same flag as subscription bypass
-        if isDevelopmentMode {
+        // Delete Team (only for team captains)
+        if isCaptain {
             actionSheet.addAction(UIAlertAction(title: "Delete Team", style: .destructive) { _ in
                 print("🏗️ RUNSTR: Delete team selected")
                 self.confirmDeleteTeam()

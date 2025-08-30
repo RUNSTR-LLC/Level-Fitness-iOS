@@ -19,6 +19,14 @@ class TeamLeaderboardSetupStepViewController: UIViewController {
     private let periodLabel = UILabel()
     private var periodButtons: [UIButton] = []
     
+    // Speed ranking configuration (shown when speed rankings selected)
+    private let speedConfigSection = UIView()
+    private let speedConfigLabel = UILabel()
+    private var speedDistanceButtons: [UIButton] = []
+    private let customDistanceContainer = UIView()
+    private let customDistanceField = UITextField()
+    private let customDistanceLabel = UILabel()
+    
     // Team data reference
     private let teamData: TeamCreationData
     
@@ -68,7 +76,7 @@ class TeamLeaderboardSetupStepViewController: UIViewController {
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
         
-        [stepTitleLabel, stepDescriptionLabel, typeSection, periodSection].forEach {
+        [stepTitleLabel, stepDescriptionLabel, typeSection, periodSection, speedConfigSection].forEach {
             contentView.addSubview($0)
         }
     }
@@ -99,6 +107,45 @@ class TeamLeaderboardSetupStepViewController: UIViewController {
         periodLabel.textColor = IndustrialDesign.Colors.primaryText
         periodLabel.translatesAutoresizingMaskIntoConstraints = false
         periodSection.addSubview(periodLabel)
+        
+        // Speed ranking configuration section (initially hidden)
+        speedConfigSection.translatesAutoresizingMaskIntoConstraints = false
+        speedConfigSection.backgroundColor = UIColor(red: 0.06, green: 0.06, blue: 0.06, alpha: 0.8)
+        speedConfigSection.layer.cornerRadius = 12
+        speedConfigSection.layer.borderWidth = 1
+        speedConfigSection.layer.borderColor = UIColor(red: 0.97, green: 0.58, blue: 0.10, alpha: 0.5).cgColor
+        speedConfigSection.isHidden = true
+        
+        speedConfigLabel.text = "Speed Distance Configuration"
+        speedConfigLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        speedConfigLabel.textColor = IndustrialDesign.Colors.bitcoin
+        speedConfigLabel.translatesAutoresizingMaskIntoConstraints = false
+        speedConfigSection.addSubview(speedConfigLabel)
+        
+        // Custom distance input container
+        customDistanceContainer.translatesAutoresizingMaskIntoConstraints = false
+        customDistanceContainer.backgroundColor = UIColor(red: 0.08, green: 0.08, blue: 0.08, alpha: 1.0)
+        customDistanceContainer.layer.cornerRadius = 8
+        customDistanceContainer.layer.borderWidth = 1
+        customDistanceContainer.layer.borderColor = UIColor(red: 0.15, green: 0.15, blue: 0.15, alpha: 1.0).cgColor
+        customDistanceContainer.isHidden = true
+        
+        customDistanceLabel.text = "Distance (km):"
+        customDistanceLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        customDistanceLabel.textColor = IndustrialDesign.Colors.secondaryText
+        customDistanceLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        customDistanceField.placeholder = "5.0"
+        customDistanceField.text = "\(teamData.customSpeedDistance)"
+        customDistanceField.keyboardType = .decimalPad
+        customDistanceField.backgroundColor = UIColor.clear
+        customDistanceField.textColor = IndustrialDesign.Colors.primaryText
+        customDistanceField.font = UIFont.systemFont(ofSize: 16)
+        customDistanceField.translatesAutoresizingMaskIntoConstraints = false
+        
+        customDistanceContainer.addSubview(customDistanceLabel)
+        customDistanceContainer.addSubview(customDistanceField)
+        speedConfigSection.addSubview(customDistanceContainer)
     }
     
     private func setupSelectionButtons() {

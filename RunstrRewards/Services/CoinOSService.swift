@@ -42,6 +42,34 @@ class CoinOSService {
         print("CoinOSService: Auth token cleared")
     }
     
+    // MARK: - Service Availability
+    
+    func checkServiceAvailability() async throws {
+        guard let url = URL(string: "\(baseURL)/ping") else {
+            throw CoinOSError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 10
+        
+        do {
+            let (_, response) = try await session.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode != 200 {
+                    throw CoinOSError.serviceUnavailable("CoinOS service returned status \(httpResponse.statusCode)")
+                }
+            }
+            
+            print("CoinOSService: Service availability check passed")
+            
+        } catch {
+            print("CoinOSService: Service availability check failed - \(error)")
+            throw CoinOSError.serviceUnavailable("CoinOS service is currently unavailable. Please try again later.")
+        }
+    }
+    
     // MARK: - User Registration and Login
     
     func registerUser(username: String, password: String) async throws -> CoinOSAuthResponse {
@@ -720,10 +748,12 @@ private struct CoinOSPaymentData: Codable {
 enum CoinOSError: LocalizedError {
     case notAuthenticated
     case invalidResponse
+    case invalidURL
     case apiError(Int)
     case networkError
     case decodingError
     case walletCreationFailed
+    case serviceUnavailable(String)
     
     var errorDescription: String? {
         switch self {
@@ -731,8 +761,12 @@ enum CoinOSError: LocalizedError {
             return "CoinOS authentication required"
         case .invalidResponse:
             return "Invalid response from CoinOS API"
+        case .invalidURL:
+            return "Invalid CoinOS API URL"
         case .apiError(let code):
             return "CoinOS API error: HTTP \(code)"
+        case .serviceUnavailable(let message):
+            return message
         case .networkError:
             return "Network error connecting to CoinOS"
         case .decodingError:
