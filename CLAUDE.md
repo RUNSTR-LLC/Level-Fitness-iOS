@@ -135,7 +135,7 @@ Discover Team → Subscribe → HealthKit Sync → Competition Processing → Bi
 
 - **Technical Insights**: See [LESSONS_LEARNED.md](./LESSONS_LEARNED.md) for detailed debugging solutions and architecture patterns
 - **Daily Progress**: See [DEVELOPMENT_LOG.md](./DEVELOPMENT_LOG.md) for session notes and decision rationale
-- **Critical Patterns**: Navigation setup, container height constraints, modular architecture planning
+- **Critical Patterns**: Navigation setup, container height constraints, modular architecture planning, **Xcode project file safety**
 
 ## Notes for Development
 

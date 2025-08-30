@@ -627,18 +627,32 @@ class P2PChallengeService {
         challenge.arbitrationStatus = .completed
         try await updateChallenge(challenge)
         
-        // Distribute funds: 80% to winner, 20% to team
+        // Calculate payout: 80% to winner, 20% to team
         let totalStake = challenge.entryFee * 2 // Both participants staked
         let winnerAmount = Int(Double(totalStake) * 0.8)
         let teamFee = totalStake - winnerAmount
         
-        try await TeamWalletManager.shared.distributeChallengeReward(
-            challengeId: challengeId,
+        // Get participant names
+        let challengerName = try await getUserDisplayName(challenge.challengerId)
+        let challengedName = try await getUserDisplayName(challenge.challengedId)
+        let winnerName = winnerId == challenge.challengerId ? challengerName : challengedName
+        
+        // Create pending payment for captain to review
+        let payment = PendingPayment.forChallenge(
+            teamId: challenge.teamId,
+            challengerId: challenge.challengerId,
+            challengerName: challengerName,
+            challengedId: challenge.challengedId,
+            challengedName: challengedName,
             winnerId: winnerId,
-            winnerAmount: winnerAmount,
-            teamFee: teamFee,
-            teamId: challenge.teamId
+            winnerName: winnerName,
+            amount: winnerAmount,
+            challengeId: challengeId
         )
+        
+        PaymentQueueManager.shared.addPendingPayment(payment)
+        
+        print("⚖️ P2PChallengeService: Created pending payment for challenge winner: \(winnerAmount) sats to \(winnerName)")
         
         // Send notifications
         await NotificationService.shared.scheduleChallengeComplete(
@@ -1138,6 +1152,13 @@ class P2PChallengeService {
         }
         
         return currentStreak
+    }
+    
+    private func getUserDisplayName(_ userId: String) async throws -> String {
+        guard let profile = try await getUserProfile(userId: userId) else {
+            return "User \(userId.prefix(8))"
+        }
+        return profile.username ?? profile.email ?? "Unknown User"
     }
 }
 

@@ -426,6 +426,76 @@ class EventProgressTracker {
         return getProgress(eventId: eventId, userId: userId)?.rank
     }
     
+    // MARK: - Event Completion
+    
+    func completeEvent(eventId: String, eventName: String, teamId: String, prizePool: Int = 0) {
+        print("📊 EventProgressTracker: Completing event \(eventName)")
+        
+        guard let leaderboard = leaderboards[eventId], !leaderboard.isEmpty else {
+            print("📊 EventProgressTracker: No participants found for event \(eventId)")
+            return
+        }
+        
+        // Create payment for top performers (top 3)
+        let topPerformers = Array(leaderboard.prefix(3))
+        let winners: [(userId: String, username: String, position: Int, amount: Int)] = topPerformers.enumerated().compactMap { index, entry in
+            let position = index + 1
+            let amount = calculatePrizeAmount(for: position, totalPrize: prizePool)
+            
+            guard amount > 0 else { return nil }
+            
+            return (entry.userId, entry.username, position, amount)
+        }
+        
+        if !winners.isEmpty && prizePool > 0 {
+            let payment = PendingPayment.forEvent(
+                teamId: teamId,
+                eventName: eventName,
+                eventId: eventId,
+                endDate: Date(),
+                winners: winners
+            )
+            
+            PaymentQueueManager.shared.addPendingPayment(payment)
+            print("📊 EventProgressTracker: Created payment for \(winners.count) winners, total: \(prizePool) sats")
+        }
+        
+        // Send completion notification
+        sendEventCompletionNotification(eventId: eventId, eventName: eventName, leaderboard: leaderboard)
+        
+        // Clean up tracking data (optional - keep for history)
+        // eventProgress.removeAll { $0.key.hasPrefix("\(eventId)_") }
+        // leaderboards.removeValue(forKey: eventId)
+        // eventMetrics.removeValue(forKey: eventId)
+    }
+    
+    private func calculatePrizeAmount(for position: Int, totalPrize: Int) -> Int {
+        guard totalPrize > 0 else { return 0 }
+        
+        switch position {
+        case 1: return Int(Double(totalPrize) * 0.5)  // 50% for 1st place
+        case 2: return Int(Double(totalPrize) * 0.3)  // 30% for 2nd place
+        case 3: return Int(Double(totalPrize) * 0.2)  // 20% for 3rd place
+        default: return 0
+        }
+    }
+    
+    private func sendEventCompletionNotification(eventId: String, eventName: String, leaderboard: [EventLeaderboardEntry]) {
+        let notification = Notification(
+            name: NSNotification.Name("EventCompleted"),
+            object: nil,
+            userInfo: [
+                "eventId": eventId,
+                "eventName": eventName,
+                "leaderboard": leaderboard,
+                "timestamp": Date()
+            ]
+        )
+        
+        notificationCenter.post(notification)
+        print("📊 EventProgressTracker: Posted event completion notification for \(eventName)")
+    }
+    
     // MARK: - Helper Methods
     
     private func getTargetValue(for event: EventData) -> Double {

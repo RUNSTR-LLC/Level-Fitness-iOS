@@ -32,6 +32,7 @@ class TeamWalletViewController: UIViewController {
     private let distributionTitleLabel = UILabel()
     private let distributionDescriptionLabel = UILabel()
     private let distributeRewardsButton = UIButton(type: .custom)
+    private let paymentBadgeView = BadgeView()
     
     // P2P Challenge arbitration section
     private let arbitrationContainer = UIView()
@@ -76,11 +77,16 @@ class TeamWalletViewController: UIViewController {
         setupTransactionsSection()
         setupLoadingAndErrorStates() // Must add views to hierarchy first
         setupConstraints() // Then set up constraints
+        setupPaymentBadgeUpdates() // Setup badge notifications
         
         // Verify captain access and load data
         Task {
             await verifyAccessAndLoadData()
         }
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     // MARK: - Setup Methods
@@ -228,9 +234,13 @@ class TeamWalletViewController: UIViewController {
         distributeRewardsButton.translatesAutoresizingMaskIntoConstraints = false
         distributeRewardsButton.addTarget(self, action: #selector(distributeRewardsTapped), for: .touchUpInside)
         
+        // Payment badge
+        paymentBadgeView.translatesAutoresizingMaskIntoConstraints = false
+        
         distributionContainer.addSubview(distributionTitleLabel)
         distributionContainer.addSubview(distributionDescriptionLabel)
         distributionContainer.addSubview(distributeRewardsButton)
+        distributionContainer.addSubview(paymentBadgeView)
         contentView.addSubview(distributionContainer)
     }
     
@@ -401,6 +411,10 @@ class TeamWalletViewController: UIViewController {
             distributeRewardsButton.trailingAnchor.constraint(equalTo: distributionContainer.trailingAnchor, constant: -16),
             distributeRewardsButton.heightAnchor.constraint(equalToConstant: 48),
             distributeRewardsButton.bottomAnchor.constraint(equalTo: distributionContainer.bottomAnchor, constant: -16),
+            
+            // Payment badge (positioned at top-right of button)
+            paymentBadgeView.topAnchor.constraint(equalTo: distributeRewardsButton.topAnchor, constant: -8),
+            paymentBadgeView.trailingAnchor.constraint(equalTo: distributeRewardsButton.trailingAnchor, constant: 8),
             
             // Arbitration section
             arbitrationContainer.topAnchor.constraint(equalTo: distributionContainer.bottomAnchor, constant: 24),
@@ -1018,38 +1032,10 @@ class TeamWalletViewController: UIViewController {
     @objc private func distributeRewardsTapped() {
         print("🏗️ TeamWalletViewController: Distribute rewards tapped")
         
-        guard let wallet = teamWallet else {
-            showErrorAlert("Wallet data not loaded")
-            return
-        }
-        
-        if wallet.totalBalance <= 0 {
-            showErrorAlert("Insufficient balance to distribute rewards")
-            return
-        }
-        
-        // Show prize distribution interface
-        // For now, create a dummy event data since the constructor requires it
-        let dummyEvent = EventData(
-            id: "temp-event",
-            name: "Team Rewards Distribution",
-            type: .challenge,
-            status: .active,
-            startDate: Date(),
-            endDate: Date().addingTimeInterval(86400),
-            participants: 0,
-            prizePool: wallet.totalBalance,
-            entryFee: 0.0
-        )
-        
-        let distributionVC = PrizeDistributionViewController(
-            teamData: teamData,
-            eventData: dummyEvent
-        )
-        
-        let navigationController = UINavigationController(rootViewController: distributionVC)
-        navigationController.modalPresentationStyle = UIModalPresentationStyle.fullScreen
-        present(navigationController, animated: true)
+        // Open the pending payments modal
+        let modal = PendingPaymentsModal(teamId: teamData.id, teamName: teamData.name)
+        modal.delegate = self
+        present(modal, animated: true)
     }
     
     @objc private func viewAllTransactionsTapped() {
@@ -1227,5 +1213,72 @@ extension TeamWalletViewController: TeamWalletBalanceViewDelegate {
     
     func didTapDistributeRewards(_ view: TeamWalletBalanceView, teamId: String) {
         distributeRewardsTapped()
+    }
+}
+
+// MARK: - PendingPaymentsModalDelegate
+
+extension TeamWalletViewController: PendingPaymentsModalDelegate {
+    func pendingPaymentsModalDidDismiss(_ modal: PendingPaymentsModal) {
+        // Update badge count when modal is dismissed
+        updatePaymentBadge()
+    }
+    
+    func pendingPaymentsModal(_ modal: PendingPaymentsModal, didCompletePayment payment: PendingPayment) {
+        // Update badge count when payment is completed
+        updatePaymentBadge()
+        
+        // Optionally refresh wallet balance
+        Task {
+            await loadWalletData()
+        }
+    }
+}
+
+// MARK: - Payment Badge Management
+
+extension TeamWalletViewController {
+    
+    private func updatePaymentBadge() {
+        let pendingCount = PaymentQueueManager.shared.getPendingCount(for: teamData.id)
+        
+        DispatchQueue.main.async {
+            self.paymentBadgeView.setCount(pendingCount)
+            
+            if pendingCount > 0 {
+                self.paymentBadgeView.animateCountChange()
+            }
+        }
+        
+        print("🏗️ TeamWalletViewController: Updated payment badge to \(pendingCount)")
+    }
+    
+    private func setupPaymentBadgeUpdates() {
+        // Listen for payment queue changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(paymentQueueDidChange),
+            name: .paymentQueueDidChange,
+            object: nil
+        )
+        
+        // Initial badge update
+        updatePaymentBadge()
+    }
+    
+    @objc private func paymentQueueDidChange(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let notificationTeamId = userInfo["teamId"] as? String,
+              notificationTeamId == teamData.id else { return }
+        
+        updatePaymentBadge()
+    }
+    
+    // MARK: - Testing Helper (Remove in production)
+    
+    func addSamplePaymentsForTesting() {
+        PaymentQueueManager.shared.addSamplePayments(for: teamData.id)
+        updatePaymentBadge()
+        print("🏗️ TeamWalletViewController: Added sample payments for testing")
     }
 }

@@ -150,6 +150,11 @@
 		548C2EA6-B7EC-41AC-B7E5-BEA6B656D7C6 /* P2PChallengeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A2F1B8-9C5D-4E76-8A31-2B4C5F6A7E8D /* P2PChallengeService.swift */; };
 		15CD1DEA-4827-4E42-9628-A0BD63200534 /* CreateChallengeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8E9B7A-6D2C-4A1B-9E8F-7C5A4B3D2E1F /* CreateChallengeViewController.swift */; };
 		257CC308-C810-489B-9FD9-42E9951E0DA0 /* P2PChallengeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A7F8E5B-4C9D-3E2A-8B6F-9D1C2A3B4E5F /* P2PChallengeCard.swift */; };
+		AA11BB22-CC33-DD44-EE55-FF6677889900 /* PendingPayment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00998877-6655-4433-2211-FFEEDDCCBBAA /* PendingPayment.swift */; };
+		BB22CC33-DD44-EE55-FF66-778899001122 /* PaymentQueueManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11009988-7766-5544-3322-FFEEDDCCBBAA /* PaymentQueueManager.swift */; };
+		CC33DD44-EE55-FF66-7788-990011223344 /* PaymentCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22110099-8877-6655-4433-FFEEDDCCBBAA /* PaymentCard.swift */; };
+		DD44EE55-FF66-7788-9900-112233445566 /* PendingPaymentsModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33221100-9988-7766-5544-FFEEDDCCBBAA /* PendingPaymentsModal.swift */; };
+		EE55FF66-7788-9900-1122-334455667788 /* BadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44332211-0099-8877-6655-FFEEDDCCBBAA /* BadgeView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -300,6 +305,11 @@
 		E7A2F1B8-9C5D-4E76-8A31-2B4C5F6A7E8D /* P2PChallengeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/P2PChallengeService.swift"; sourceTree = "<group>"; };
 		3F8E9B7A-6D2C-4A1B-9E8F-7C5A4B3D2E1F /* CreateChallengeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Teams/CreateChallengeViewController.swift; sourceTree = "<group>"; };
 		1A7F8E5B-4C9D-3E2A-8B6F-9D1C2A3B4E5F /* P2PChallengeCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UI/P2PChallengeCard.swift; sourceTree = "<group>"; };
+		00998877-6655-4433-2211-FFEEDDCCBBAA /* PendingPayment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunstrRewards/Models/PendingPayment.swift; sourceTree = "<group>"; };
+		11009988-7766-5544-3322-FFEEDDCCBBAA /* PaymentQueueManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunstrRewards/Services/PaymentQueueManager.swift; sourceTree = "<group>"; };
+		22110099-8877-6655-4433-FFEEDDCCBBAA /* PaymentCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunstrRewards/Features/Teams/PaymentCard.swift; sourceTree = "<group>"; };
+		33221100-9988-7766-5544-FFEEDDCCBBAA /* PendingPaymentsModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunstrRewards/Features/Teams/PendingPaymentsModal.swift; sourceTree = "<group>"; };
+		44332211-0099-8877-6655-FFEEDDCCBBAA /* BadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunstrRewards/Shared/UI/BadgeView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -700,6 +710,11 @@
 				548C2EA6-B7EC-41AC-B7E5-BEA6B656D7C6 /* P2PChallengeService.swift in Sources */,
 				15CD1DEA-4827-4E42-9628-A0BD63200534 /* CreateChallengeViewController.swift in Sources */,
 				257CC308-C810-489B-9FD9-42E9951E0DA0 /* P2PChallengeCard.swift in Sources */,
+				AA11BB22-CC33-DD44-EE55-FF6677889900 /* PendingPayment.swift in Sources */,
+				BB22CC33-DD44-EE55-FF66-778899001122 /* PaymentQueueManager.swift in Sources */,
+				CC33DD44-EE55-FF66-7788-990011223344 /* PaymentCard.swift in Sources */,
+				DD44EE55-FF66-7788-9900-112233445566 /* PendingPaymentsModal.swift in Sources */,
+				EE55FF66-7788-9900-1122-334455667788 /* BadgeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

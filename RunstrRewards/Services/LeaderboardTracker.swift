@@ -563,6 +563,66 @@ class LeaderboardTracker {
         }
     }
     
+    // MARK: - Leaderboard Completion
+    
+    func completeWeeklyLeaderboard(for teamId: String, weekEndDate: Date, prizePool: Int = 1000) async throws {
+        print("LeaderboardTracker: Completing weekly leaderboard for team \(teamId)")
+        
+        do {
+            // Fetch the final weekly leaderboard for this team
+            let leaderboard = try await supabaseService.fetchTeamLeaderboard(
+                teamId: teamId,
+                type: "distance",
+                period: "weekly"
+            )
+            
+            guard !leaderboard.isEmpty else {
+                print("LeaderboardTracker: No participants in weekly leaderboard for team \(teamId)")
+                return
+            }
+            
+            // Get top 5 performers
+            let topPerformers = Array(leaderboard.prefix(5))
+            let winners = topPerformers.enumerated().compactMap { index, entry -> (userId: String, username: String, rank: Int, amount: Int)? in
+                let rank = index + 1
+                let amount = calculateWeeklyPrizeAmount(for: rank, totalPrize: prizePool)
+                
+                guard amount > 0 else { return nil }
+                
+                return (entry.userId, "User \(entry.userId)", rank, amount)
+            }
+            
+            if !winners.isEmpty && prizePool > 0 {
+                let payment = PendingPayment.forLeaderboard(
+                    teamId: teamId,
+                    weekEnding: weekEndDate,
+                    topUsers: winners
+                )
+                
+                PaymentQueueManager.shared.addPendingPayment(payment)
+                print("LeaderboardTracker: Created payment for \(winners.count) weekly leaderboard winners, total: \(prizePool) sats")
+            }
+            
+        } catch {
+            print("LeaderboardTracker: Failed to complete weekly leaderboard for team \(teamId): \(error)")
+            throw error
+        }
+    }
+    
+    private func calculateWeeklyPrizeAmount(for rank: Int, totalPrize: Int) -> Int {
+        guard totalPrize > 0 else { return 0 }
+        
+        // Weekly leaderboard prize distribution:
+        switch rank {
+        case 1: return Int(Double(totalPrize) * 0.4)  // 40% for 1st place
+        case 2: return Int(Double(totalPrize) * 0.25) // 25% for 2nd place
+        case 3: return Int(Double(totalPrize) * 0.2)  // 20% for 3rd place
+        case 4: return Int(Double(totalPrize) * 0.1)  // 10% for 4th place
+        case 5: return Int(Double(totalPrize) * 0.05) // 5% for 5th place
+        default: return 0
+        }
+    }
+    
     // MARK: - Public Interface
     
     func getUserPosition(userId: String, leaderboardType: LeaderboardType, leaderboardId: String? = nil) -> LeaderboardPosition? {
