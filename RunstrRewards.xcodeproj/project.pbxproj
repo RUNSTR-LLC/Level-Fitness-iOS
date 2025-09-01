@@ -94,6 +94,8 @@
 		REWARD123456789ABCDEF0011223344 /* WorkoutRewardCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CALCULATOR1234567890ABCDEF001122 /* WorkoutRewardCalculator.swift */; };
 		F274E58B8DB14A08BD0C0B0C7DD64028 /* AuthenticationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */; };
 		COIN123456789ABCDEF01234567890AB /* CoinOSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = COINABCDEF123456789ABCDEF12345678 /* CoinOSService.swift */; };
+		F175432D83254F1B9B0E33B5B3E270FD /* ExitFeeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97FE71E6F1264D708BBBA754966D7DA6 /* ExitFeeManager.swift */; };
+		7AF8158D4C5441148701A507BE43301B /* PaymentProgressViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01C516730F2741FCB3B7A668824E12A4 /* PaymentProgressViewController.swift */; };
 		LIGHT123456789ABCDEF01234567890B /* LightningWalletManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = LIGHTABCDEF123456789ABCDEF123456 /* LightningWalletManager.swift */; };
 		332404E503B442D6AB8B77067842ADCB /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99B4C1E5CC95463981F84EF706BAC273 /* KeychainService.swift */; };
 		HEALTH123456789ABCDEF1234567890AB /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = HEALTHABCDEF1234567890ABCDEF123456 /* HealthKitService.swift */; };
@@ -257,6 +259,8 @@
 		CALCULATOR1234567890ABCDEF001122 /* WorkoutRewardCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/WorkoutRewardCalculator.swift"; sourceTree = "<group>"; };
 		97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/AuthenticationService.swift"; sourceTree = "<group>"; };
 		COINABCDEF123456789ABCDEF12345678 /* CoinOSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/CoinOSService.swift"; sourceTree = "<group>"; };
+		97FE71E6F1264D708BBBA754966D7DA6 /* ExitFeeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/ExitFeeManager.swift"; sourceTree = "<group>"; };
+		01C516730F2741FCB3B7A668824E12A4 /* PaymentProgressViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Features/Payments/PaymentProgressViewController.swift"; sourceTree = "<group>"; };
 		LIGHTABCDEF123456789ABCDEF123456 /* LightningWalletManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/LightningWalletManager.swift"; sourceTree = "<group>"; };
 		99B4C1E5CC95463981F84EF706BAC273 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/KeychainService.swift"; sourceTree = "<group>"; };
 		HEALTHABCDEF1234567890ABCDEF123456 /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/HealthKitService.swift"; sourceTree = "<group>"; };
@@ -367,6 +371,7 @@
 				EE73978B5D414279BCEB2A1430FF657B /* TeamSubscriptionStatusView.swift */,
 				CBD32F90C3A049B1919D788C181C1EF5 /* NotificationPermissionViewController.swift */,
 				00659AAD7E444446B1DB9B539DE9216A /* TeamDetailViewController.swift */,
+				01C516730F2741FCB3B7A668824E12A4 /* PaymentProgressViewController.swift */,
 				E2B60D5CE514427DA660A3D66F3DCF04 /* MessageView.swift */,
 				25CD67441C2849C092B9FF72E3D013BA /* MessageInputView.swift */,
 				5801F4E4750540CABC6C94EBB8DD0B79 /* ChallengeCard.swift */,
@@ -405,6 +410,7 @@
 				CALCULATOR1234567890ABCDEF001122 /* WorkoutRewardCalculator.swift */,
 				97AB43EEA3C94433A902E73BD93537EC /* AuthenticationService.swift */,
 				COINABCDEF123456789ABCDEF12345678 /* CoinOSService.swift */,
+				97FE71E6F1264D708BBBA754966D7DA6 /* ExitFeeManager.swift */,
 				LIGHTABCDEF123456789ABCDEF123456 /* LightningWalletManager.swift */,
 				99B4C1E5CC95463981F84EF706BAC273 /* KeychainService.swift */,
 				A56E5477F5A54399A8C741E91A3D9EE7 /* NotificationService.swift */,
@@ -630,6 +636,8 @@
 				REWARD123456789ABCDEF0011223344 /* WorkoutRewardCalculator.swift in Sources */,
 				F274E58B8DB14A08BD0C0B0C7DD64028 /* AuthenticationService.swift in Sources */,
 				COIN123456789ABCDEF01234567890AB /* CoinOSService.swift in Sources */,
+				F175432D83254F1B9B0E33B5B3E270FD /* ExitFeeManager.swift in Sources */,
+				7AF8158D4C5441148701A507BE43301B /* PaymentProgressViewController.swift in Sources */,
 				LIGHT123456789ABCDEF01234567890B /* LightningWalletManager.swift in Sources */,
 				332404E503B442D6AB8B77067842ADCB /* KeychainService.swift in Sources */,
 				29FDEE5098FF427BB69D9648A0797E89 /* NotificationService.swift in Sources */,

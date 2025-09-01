@@ -368,13 +368,13 @@ class TeamsViewController: UIViewController {
         Task {
             var teamDataArray: [TeamData] = []
             
-            // Get current user's teams for membership checking
-            let userTeams = await getCurrentUserTeams()
-            let userTeamIds = Set(userTeams.map { $0.id })
+            // Get current user's active team for membership checking (single team constraint)
+            let userActiveTeam = await getCurrentUserActiveTeam()
+            let userActiveTeamId = userActiveTeam?.id
             
             for team in teams {
                 let captainUsername = await getCaptainName(for: team.captainId)
-                let isUserMember = userTeamIds.contains(team.id)
+                let isUserMember = team.id == userActiveTeamId
                 
                 let teamData = TeamData(
                     id: team.id,
@@ -384,7 +384,7 @@ class TeamsViewController: UIViewController {
                     members: team.memberCount,
                     prizePool: formatEarnings(team.totalEarnings),
                     activities: getActivitiesForTeam(team),
-                    isJoined: isUserMember // Real membership check implemented
+                    isJoined: isUserMember // Single team membership check
                 )
                 teamDataArray.append(teamData)
             }
@@ -392,6 +392,26 @@ class TeamsViewController: UIViewController {
             await MainActor.run {
                 createTeamCards(teamDataArray)
             }
+        }
+    }
+    
+    private func getCurrentUserActiveTeam() async -> Team? {
+        guard let userSession = AuthenticationService.shared.loadSession() else {
+            print("⚠️ TeamsView: No user session found for membership check")
+            return nil
+        }
+        
+        do {
+            let activeTeam = try await TeamDataService.shared.getUserActiveTeam(userId: userSession.id)
+            if let activeTeam = activeTeam {
+                print("✅ TeamsView: Found active team \(activeTeam.name) for user membership check")
+            } else {
+                print("✅ TeamsView: User not on any team")
+            }
+            return activeTeam
+        } catch {
+            print("⚠️ TeamsView: Error checking active team: \(error)")
+            return nil
         }
     }
     
@@ -684,10 +704,209 @@ class TeamsViewController: UIViewController {
 
 extension TeamsViewController: TeamCardDelegate {
     func teamCardDidTap(_ teamCard: TeamCard, teamData: TeamData) {
-        print("🏗️ RunstrRewards: Navigating to team detail for \(teamData.name)")
+        print("🏗️ RunstrRewards: Team card tapped for \(teamData.name)")
         
-        let teamDetailViewController = TeamDetailViewController(teamData: teamData)
-        navigationController?.pushViewController(teamDetailViewController, animated: true)
+        // Check if user is already on team - if so, navigate directly
+        if teamData.isJoined {
+            print("🏗️ RunstrRewards: User already on team, navigating to team detail")
+            let teamDetailViewController = TeamDetailViewController(teamData: teamData)
+            navigationController?.pushViewController(teamDetailViewController, animated: true)
+            return
+        }
+        
+        // Check if user is on any other team before allowing join/navigation
+        Task {
+            await checkMembershipAndHandleTeamTap(teamData: teamData)
+        }
+    }
+    
+    private func checkMembershipAndHandleTeamTap(teamData: TeamData) async {
+        guard let userSession = AuthenticationService.shared.loadSession() else {
+            await MainActor.run {
+                showErrorAlert("Please log in to join a team")
+            }
+            return
+        }
+        
+        do {
+            // Check if user is already on a team
+            if let currentTeam = try await TeamDataService.shared.getUserActiveTeam(userId: userSession.id) {
+                // User is on another team - show switch teams dialog
+                await MainActor.run {
+                    showSwitchTeamsDialog(currentTeam: currentTeam, targetTeam: teamData)
+                }
+            } else {
+                // User is not on any team - navigate to team detail to join
+                await MainActor.run {
+                    print("🏗️ RunstrRewards: User not on any team, navigating to team detail")
+                    let teamDetailViewController = TeamDetailViewController(teamData: teamData)
+                    navigationController?.pushViewController(teamDetailViewController, animated: true)
+                }
+            }
+        } catch {
+            await MainActor.run {
+                showErrorAlert("Error checking team membership: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    private func showSwitchTeamsDialog(currentTeam: Team, targetTeam: TeamData) {
+        let alert = UIAlertController(
+            title: "Switch Teams",
+            message: "You're currently on '\(currentTeam.name)'. Leaving costs 2,000 sats exit fee.\n\nWould you like to leave '\(currentTeam.name)' and join '\(targetTeam.name)'?",
+            preferredStyle: .alert
+        )
+        
+        // Cancel action
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        
+        // Switch teams action
+        alert.addAction(UIAlertAction(title: "Switch Teams (2,000 sats)", style: .default) { _ in
+            self.initiateTeamSwitch(fromTeam: currentTeam, toTeam: targetTeam)
+        })
+        
+        // Stay on current team action
+        alert.addAction(UIAlertAction(title: "View Current Team", style: .default) { _ in
+            let currentTeamData = TeamData(
+                id: currentTeam.id,
+                name: currentTeam.name,
+                captain: "Captain", // Simplified for now
+                captainId: currentTeam.captainId,
+                members: currentTeam.memberCount,
+                prizePool: self.formatEarnings(currentTeam.totalEarnings),
+                activities: self.getActivitiesForTeam(currentTeam),
+                isJoined: true
+            )
+            
+            let teamDetailViewController = TeamDetailViewController(teamData: currentTeamData)
+            self.navigationController?.pushViewController(teamDetailViewController, animated: true)
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    private func initiateTeamSwitch(fromTeam: Team, toTeam: TeamData) {
+        print("🏗️ RunstrRewards: Initiating team switch from \(fromTeam.name) to \(toTeam.name)")
+        
+        guard let userSession = AuthenticationService.shared.loadSession() else {
+            showErrorAlert("Please log in to switch teams")
+            return
+        }
+        
+        // Show loading alert with progress states
+        let loadingAlert = UIAlertController(
+            title: "Switching Teams",
+            message: "Initiating exit fee payment...",
+            preferredStyle: .alert
+        )
+        
+        // Add cancel button for payment phase only
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel) { _ in
+            // User can cancel during payment initiation
+            print("🏗️ RunstrRewards: Team switch cancelled by user")
+        }
+        loadingAlert.addAction(cancelAction)
+        
+        present(loadingAlert, animated: true)
+        
+        Task {
+            do {
+                // Step 1: Initiate team switch operation
+                let operation = try await ExitFeeManager.shared.initiateTeamSwitch(
+                    userId: userSession.id,
+                    fromTeamId: fromTeam.id,
+                    toTeamId: toTeam.id
+                )
+                
+                await MainActor.run {
+                    loadingAlert.message = "Processing payment (2,000 sats)..."
+                    // Note: Cannot remove actions from UIAlertController once added
+                    // User can still cancel, which will be handled by the operation state management
+                }
+                
+                // Step 2: Process exit fee payment
+                let paymentResult = try await ExitFeeManager.shared.processExitFeePayment(
+                    operationId: operation.id
+                )
+                
+                await MainActor.run {
+                    loadingAlert.message = "Payment confirmed. Updating team membership..."
+                }
+                
+                // Step 3: Execute team changes
+                try await ExitFeeManager.shared.executeTeamChanges(
+                    operationId: operation.id
+                )
+                
+                // Step 4: Success - dismiss loading and refresh UI
+                await MainActor.run {
+                    loadingAlert.dismiss(animated: true) {
+                        self.showTeamSwitchSuccessAlert(fromTeam: fromTeam.name, toTeam: toTeam.name)
+                        
+                        // Refresh teams list to show updated membership
+                        self.loadRealTeams()
+                    }
+                }
+                
+                print("🏗️ RunstrRewards: Team switch completed successfully")
+                
+            } catch ExitFeeError.operationInProgress {
+                await MainActor.run {
+                    loadingAlert.dismiss(animated: true) {
+                        self.showErrorAlert("Another team operation is already in progress. Please try again.")
+                    }
+                }
+                
+            } catch ExitFeeError.paymentFailed(let reason) {
+                await MainActor.run {
+                    loadingAlert.dismiss(animated: true) {
+                        self.showErrorAlert("Payment failed: \(reason)")
+                    }
+                }
+                
+            } catch ExitFeeError.maxRetriesExceeded {
+                await MainActor.run {
+                    loadingAlert.dismiss(animated: true) {
+                        self.showErrorAlert("Payment failed after multiple attempts. Please check your wallet balance and try again.")
+                    }
+                }
+                
+            } catch {
+                await MainActor.run {
+                    loadingAlert.dismiss(animated: true) {
+                        self.showErrorAlert("Team switch failed: \(error.localizedDescription)")
+                    }
+                }
+                
+                print("🏗️ RunstrRewards: Team switch failed: \(error)")
+            }
+        }
+    }
+    
+    private func showTeamSwitchSuccessAlert(fromTeam: String, toTeam: String) {
+        let alert = UIAlertController(
+            title: "Team Switch Complete! ⚡",
+            message: "You've successfully left '\(fromTeam)' and joined '\(toTeam)' for 2,000 sats.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "View New Team", style: .default) { _ in
+            // Find the new team data and navigate to it
+            if let targetTeamData = self.findTeamData(byName: toTeam) {
+                let teamDetailViewController = TeamDetailViewController(teamData: targetTeamData)
+                self.navigationController?.pushViewController(teamDetailViewController, animated: true)
+            }
+        })
+        
+        alert.addAction(UIAlertAction(title: "OK", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+    
+    private func findTeamData(byName teamName: String) -> TeamData? {
+        // This would need to search through the current teams list
+        // For now, return nil - the user can navigate manually
+        return nil
     }
 }
 

@@ -1,6 +1,28 @@
 import Foundation
 import Supabase
 
+// MARK: - Team Membership Errors
+
+enum TeamMembershipError: LocalizedError {
+    case alreadyOnTeam(currentTeamId: String, currentTeamName: String)
+    case notOnAnyTeam(userId: String)
+    case teamNotFound(teamId: String)
+    case membershipCheckFailed(String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .alreadyOnTeam(let teamId, let teamName):
+            return "User is already on team '\(teamName)' (\(teamId))"
+        case .notOnAnyTeam(let userId):
+            return "User \(userId) is not currently on any team"
+        case .teamNotFound(let teamId):
+            return "Team not found: \(teamId)"
+        case .membershipCheckFailed(let message):
+            return "Membership check failed: \(message)"
+        }
+    }
+}
+
 // MARK: - Team Data Models
 
 struct Team: Codable {
@@ -9,6 +31,7 @@ struct Team: Codable {
     let description: String?
     let captainId: String
     let memberCount: Int
+    let maxMembers: Int
     let totalEarnings: Double
     let imageUrl: String?
     let selectedMetrics: [String]?
@@ -18,6 +41,7 @@ struct Team: Codable {
         case id, name, description
         case captainId = "captain_id"
         case memberCount = "member_count"
+        case maxMembers = "max_members"
         case totalEarnings = "total_earnings"
         case imageUrl = "image_url"
         case selectedMetrics = "selected_metrics"
@@ -502,7 +526,70 @@ class TeamDataService {
     
     // MARK: - Team Member Management
     
+    func getUserActiveTeam(userId: String) async throws -> Team? {
+        do {
+            // Get active team membership (where left_at is NULL)
+            let response = try await client
+                .from("team_members")
+                .select("""
+                    team_id,
+                    teams!inner(id, name, description, captain_id, member_count, total_earnings, image_url, selected_metrics, created_at)
+                """)
+                .eq("user_id", value: userId)
+                .is("left_at", value: nil)
+                .single()
+                .execute()
+            
+            let data = response.data
+            
+            // Parse the joined response
+            struct TeamMembershipWithTeam: Codable {
+                let teamId: String
+                let team: Team
+                
+                enum CodingKeys: String, CodingKey {
+                    case teamId = "team_id"
+                    case team = "teams"
+                }
+            }
+            
+            let membership = try SupabaseService.shared.customJSONDecoder().decode(TeamMembershipWithTeam.self, from: data)
+            
+            print("TeamDataService: Found active team \(membership.team.name) for user \(userId)")
+            return membership.team
+            
+        } catch {
+            if error.localizedDescription.contains("Row not found") {
+                // User is not on any active team
+                return nil
+            }
+            
+            print("TeamDataService: Error checking active team for user \(userId): \(error)")
+            throw TeamMembershipError.membershipCheckFailed(error.localizedDescription)
+        }
+    }
+    
+    func checkUserCanJoinTeam(userId: String, targetTeamId: String) async throws {
+        // Check if user is already on a team
+        if let currentTeam = try await getUserActiveTeam(userId: userId) {
+            throw TeamMembershipError.alreadyOnTeam(
+                currentTeamId: currentTeam.id,
+                currentTeamName: currentTeam.name
+            )
+        }
+        
+        // Verify target team exists
+        guard let _ = try await getTeam(targetTeamId) else {
+            throw TeamMembershipError.teamNotFound(teamId: targetTeamId)
+        }
+        
+        print("TeamDataService: User \(userId) can join team \(targetTeamId)")
+    }
+    
     func joinTeam(teamId: String, userId: String) async throws {
+        // Check if user can join team (single team constraint)
+        try await checkUserCanJoinTeam(userId: userId, targetTeamId: teamId)
+        
         let teamMember = TeamMember(
             teamId: teamId,
             userId: userId,
@@ -514,6 +601,8 @@ class TeamDataService {
             .from("team_members")
             .insert(teamMember)
             .execute()
+        
+        print("TeamDataService: User \(userId) successfully joined team \(teamId)")
     }
     
     func removeTeamMember(teamId: String, userId: String) async throws {
@@ -543,17 +632,6 @@ class TeamDataService {
             .execute()
         
         print("TeamDataService: Team member removed successfully, updated count to \(currentMemberCount)")
-    }
-    
-    func removeUserFromTeam(userId: String, teamId: String) async throws {
-        try await client
-            .from("team_members")
-            .delete()
-            .eq("user_id", value: userId)
-            .eq("team_id", value: teamId)
-            .execute()
-        
-        print("TeamDataService: User \(userId) removed from team \(teamId) successfully")
     }
     
     func isUserMemberOfTeam(userId: String, teamId: String) async throws -> Bool {
@@ -782,7 +860,8 @@ class TeamDataService {
                 name: "Updated Team", 
                 description: "Team updated", 
                 captainId: "captain-123",
-                memberCount: 0, 
+                memberCount: 0,
+                maxMembers: 50,
                 totalEarnings: 0.0,
                 imageUrl: nil,
                 selectedMetrics: nil,
@@ -813,4 +892,127 @@ class TeamDataService {
         // This aligns with the invisible micro app design pattern
         // Captain announcements broadcast to all team members automatically
     }
+    
+    // MARK: - Exit Fee Support
+    
+    func removeUserFromTeam(userId: String, teamId: String) async throws {
+        print("TeamDataService: Removing user \(userId) from team \(teamId)")
+        
+        // Update the team_members record to set left_at timestamp
+        let updateData: [String: String] = [
+            "left_at": ISO8601DateFormatter().string(from: Date())
+        ]
+        
+        try await client
+            .from("team_members")
+            .update(updateData)
+            .eq("user_id", value: userId)
+            .eq("team_id", value: teamId)
+            .is("left_at", value: nil) // Only update active memberships
+            .execute()
+        
+        print("TeamDataService: Successfully removed user \(userId) from team \(teamId)")
+        
+        // Trigger team member count update
+        NotificationCenter.default.post(name: NSNotification.Name("teamMembershipChanged"), object: nil, userInfo: [
+            "teamId": teamId,
+            "userId": userId,
+            "action": "removed"
+        ])
+    }
+    
+    // MARK: - Exit Fee Atomic Operations
+    
+    func executeTeamExit(userId: String, teamId: String, exitFeePaymentId: String) async throws {
+        print("TeamDataService: Executing team exit for user \(userId) from team \(teamId) with payment \(exitFeePaymentId)")
+        
+        // Update team_members to set left_at timestamp and link exit fee payment
+        let updateData: [String: String] = [
+            "left_at": ISO8601DateFormatter().string(from: Date()),
+            "exit_fee_paid": "true",
+            "exit_fee_payment_id": exitFeePaymentId
+        ]
+        
+        try await client
+            .from("team_members")
+            .update(updateData)
+            .eq("user_id", value: userId)
+            .eq("team_id", value: teamId)
+            .is("left_at", value: nil) // Only update active memberships
+            .execute()
+        
+        print("TeamDataService: Successfully executed team exit for user \(userId)")
+        
+        // Trigger notifications for UI updates
+        NotificationCenter.default.post(name: NSNotification.Name("teamMembershipChanged"), object: nil, userInfo: [
+            "teamId": teamId,
+            "userId": userId,
+            "action": "exit_with_fee",
+            "exitFeePaymentId": exitFeePaymentId
+        ])
+    }
+    
+    func executeAtomicTeamSwitch(userId: String, fromTeamId: String, toTeamId: String, exitFeePaymentId: String) async throws {
+        print("TeamDataService: Executing atomic team switch for user \(userId): \(fromTeamId) -> \(toTeamId)")
+        
+        // Verify target team exists and has space
+        guard let targetTeam = try await getTeam(toTeamId) else {
+            throw TeamMembershipError.teamNotFound(teamId: toTeamId)
+        }
+        
+        guard targetTeam.memberCount < targetTeam.maxMembers else {
+            throw NSError(domain: "TeamSwitch", code: 4001, userInfo: [
+                NSLocalizedDescriptionKey: "Target team is full"
+            ])
+        }
+        
+        // Execute as atomic transaction using Supabase transaction capabilities
+        do {
+            // Step 1: Leave current team with exit fee tracking
+            let leaveUpdateData: [String: String] = [
+                "left_at": ISO8601DateFormatter().string(from: Date()),
+                "exit_fee_paid": "true",
+                "exit_fee_payment_id": exitFeePaymentId
+            ]
+            
+            try await client
+                .from("team_members")
+                .update(leaveUpdateData)
+                .eq("user_id", value: userId)
+                .eq("team_id", value: fromTeamId)
+                .is("left_at", value: nil)
+                .execute()
+            
+            // Step 2: Join new team
+            let newMembership = TeamMember(
+                teamId: toTeamId,
+                userId: userId,
+                role: "member",
+                joinedAt: Date()
+            )
+            
+            try await client
+                .from("team_members")
+                .insert(newMembership)
+                .execute()
+            
+            print("TeamDataService: Successfully executed atomic team switch")
+            
+            // Trigger notifications for both teams
+            NotificationCenter.default.post(name: NSNotification.Name("teamMembershipChanged"), object: nil, userInfo: [
+                "fromTeamId": fromTeamId,
+                "toTeamId": toTeamId,
+                "userId": userId,
+                "action": "atomic_switch",
+                "exitFeePaymentId": exitFeePaymentId
+            ])
+            
+        } catch {
+            print("TeamDataService: Atomic team switch failed: \(error)")
+            throw NSError(domain: "TeamSwitch", code: 4002, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to switch teams atomically: \(error.localizedDescription)"
+            ])
+        }
+    }
+    
 }

@@ -54,8 +54,33 @@ CREATE TABLE IF NOT EXISTS team_members (
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     role TEXT DEFAULT 'member', -- 'member', 'captain', 'moderator'
     joined_at TIMESTAMPTZ DEFAULT NOW(),
+    left_at TIMESTAMPTZ, -- When user left the team (NULL = still active)
+    exit_fee_payment_id UUID, -- Links to exit_fee_payments table
     PRIMARY KEY (team_id, user_id)
 );
+
+-- Exit fee payments tracking
+CREATE TABLE IF NOT EXISTS exit_fee_payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+    from_team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
+    to_team_id UUID REFERENCES teams(id) ON DELETE SET NULL, -- NULL for simple leave
+    amount INTEGER NOT NULL DEFAULT 2000, -- Exit fee in satoshis
+    lightning_address TEXT NOT NULL DEFAULT 'RUNSTR@coinos.io',
+    payment_hash TEXT, -- Lightning payment hash
+    payment_status TEXT DEFAULT 'pending', -- pending, paid, verified, completed, failed
+    invoice_text TEXT, -- Lightning invoice
+    retry_count INTEGER DEFAULT 0,
+    error_message TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    CONSTRAINT valid_payment_status CHECK (payment_status IN ('pending', 'paid', 'verified', 'completed', 'failed'))
+);
+
+-- Ensure single active team membership per user
+CREATE UNIQUE INDEX IF NOT EXISTS unique_active_membership 
+ON team_members(user_id) 
+WHERE left_at IS NULL;
 
 -- Workouts table
 CREATE TABLE IF NOT EXISTS workouts (

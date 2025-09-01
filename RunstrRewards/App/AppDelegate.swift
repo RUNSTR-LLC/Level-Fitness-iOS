@@ -124,6 +124,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         BackgroundTaskManager.shared.scheduleAllBackgroundTasks()
         print("AppDelegate: Background tasks scheduled")
         
+        // Resume any incomplete exit fee operations
+        resumeIncompleteExitFeeOperations()
+        
         // Setup HealthKit background delivery for automatic workout sync
         setupHealthKitBackgroundDelivery()
         
@@ -404,6 +407,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
     
+    // MARK: - Exit Fee Recovery
+    
+    private func resumeIncompleteExitFeeOperations() {
+        // Only resume if user is authenticated
+        guard AuthenticationService.shared.loadSession() != nil else {
+            print("AppDelegate: Skipping exit fee recovery - user not authenticated")
+            return
+        }
+        
+        Task {
+            do {
+                print("AppDelegate: Starting exit fee recovery check...")
+                try await ExitFeeManager.shared.resumeIncompleteOperations()
+                print("AppDelegate: Exit fee recovery completed successfully")
+            } catch {
+                print("AppDelegate: Exit fee recovery failed: \(error)")
+                
+                // Log error for monitoring but don't crash the app
+                ErrorHandlingService.shared.logError(
+                    error,
+                    context: "ExitFeeRecovery",
+                    userId: AuthenticationService.shared.currentUserId
+                )
+            }
+        }
+    }
+    
     // MARK: - Background Tasks
     
     func applicationDidEnterBackground(_ application: UIApplication) {
@@ -420,6 +450,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             await BackgroundTaskManager.shared.processPendingTasksInForeground()
         }
         print("AppDelegate: Processing pending tasks in foreground")
+        
+        // Resume any incomplete exit fee operations
+        resumeIncompleteExitFeeOperations()
     }
     
     // MARK: - Remote Notifications

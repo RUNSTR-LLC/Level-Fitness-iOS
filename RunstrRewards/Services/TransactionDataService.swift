@@ -638,4 +638,105 @@ class TransactionDataService {
         // For now, return empty array until proper implementation
         return []
     }
+    
+    // MARK: - Exit Fee Operations
+    
+    func createExitFeePaymentIntent(
+        operationId: String,
+        userId: String,
+        fromTeamId: String?,
+        toTeamId: String?,
+        amount: Int,
+        paymentIntentId: String
+    ) async throws {
+        struct ExitFeePaymentInsert: Encodable {
+            let id: String
+            let payment_intent_id: String
+            let user_id: String
+            let from_team_id: String?
+            let to_team_id: String?
+            let amount: Int
+            let lightning_address: String
+            let payment_status: String
+            let retry_count: Int
+            let created_at: String
+            let updated_at: String
+        }
+        
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        let timestamp = iso8601Formatter.string(from: Date())
+        
+        let payment = ExitFeePaymentInsert(
+            id: operationId,
+            payment_intent_id: paymentIntentId,
+            user_id: userId,
+            from_team_id: fromTeamId,
+            to_team_id: toTeamId,
+            amount: amount,
+            lightning_address: "RUNSTR@coinos.io",
+            payment_status: "initiated",
+            retry_count: 0,
+            created_at: timestamp,
+            updated_at: timestamp
+        )
+        
+        try await client
+            .from("exit_fee_payments")
+            .insert(payment)
+            .execute()
+        
+        print("TransactionDataService: Created exit fee payment intent \(paymentIntentId)")
+    }
+    
+    // MARK: - Exit Fee Support
+    // Note: Exit fee operations are now handled by ExitFeeManager service
+    
+    func addToManualReviewQueue(operationId: String, reason: String) async throws {
+        struct ManualReviewEntry: Encodable {
+            let id: String
+            let operation_id: String
+            let reason: String
+            let status: String
+            let created_at: String
+        }
+        
+        let entry = ManualReviewEntry(
+            id: UUID().uuidString,
+            operation_id: operationId,
+            reason: reason,
+            status: "pending",
+            created_at: ISO8601DateFormatter().string(from: Date())
+        )
+        
+        try await client
+            .from("manual_review_queue")
+            .insert(entry)
+            .execute()
+        
+        print("TransactionDataService: Added operation \(operationId) to manual review queue")
+    }
+    
+    func recordExitFeePayment(
+        operationId: String,
+        userId: String,
+        amount: Int,
+        paymentHash: String,
+        lightningAddress: String
+    ) async throws {
+        // Record the completed exit fee payment for accounting
+        try await recordTransaction(
+            userId: userId,
+            amount: amount,
+            type: "exit_fee",
+            description: "Team exit fee payment",
+            metadata: [
+                "operation_id": operationId,
+                "payment_hash": paymentHash,
+                "lightning_address": lightningAddress
+            ]
+        )
+        
+        print("TransactionDataService: Recorded exit fee payment for operation \(operationId)")
+    }
 }

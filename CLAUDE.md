@@ -2,23 +2,25 @@
 
 ## Project Vision
 
-**RunstrRewards is the invisible micro app that turns fitness into Bitcoin-earning competitions.** Users subscribe to teams they love, sync workouts automatically in the background, and earn real Bitcoin rewards through team-branded competitions - all without needing to actively use the app.
+**RunstrRewards is the invisible micro app that turns fitness into Bitcoin-earning competitions.** Users join teams for free, sync workouts automatically in the background, and earn real Bitcoin rewards through team-branded competitions and peer-to-peer challenges - all without needing to actively use the app.
 
 ### Core Value Proposition
-- **Members**: Subscribe to teams ($1.99/month), compete using existing workout data, earn Bitcoin automatically
-- **Teams**: Professional competition platform ($19.99/month) with member revenue and engagement tools
-- **RunstrRewards**: Dual subscription revenue model (team subscriptions + member revenue share)
+- **Members**: Join teams for free, compete using existing workout data, earn Bitcoin through events, challenges, and loyalty rewards
+- **Teams**: Create leagues ($5.99 setup fee), earn through virtual event tickets and P2P challenge arbitration
+- **RunstrRewards**: Revenue from team creation fees, exit fees, and platform transaction facilitation
 
 ### Business Model & Revenue
-- **Team Platform**: $19.99/month for competition platform access
-- **Member Revenue**: Percentage of member subscriptions ($1.99/month per member)
-- **Event Fees**: Premium competitions with entry fees for larger prize pools
+- **Team Creation**: $5.99 one-time fee to create a league (free during development)
+- **P2P Challenge Arbitration**: Teams earn fees facilitating member-vs-member competitions
+- **Exit Fees**: Members pay RUNSTR when switching teams (promotes strategic team selection)
+- **Virtual Event Tickets**: Prize pool funding through event participation fees
 - **Future**: Premium tools, white label solutions, corporate wellness, API access
 
 ### Technical Architecture
 ```
-HealthKit Data → Background Sync → Team Competitions → Lightning Wallet (CoinOS)
-                               → Team-Branded Notifications → Real-time Leaderboards
+HealthKit Data → Background Sync → LEAGUE Leaderboards → Lightning Wallet (CoinOS)
+                               → P2P Challenges → Team Discovery Intelligence
+                               → Team-Branded Notifications → Exit Fee Processing
 ```
 
 ## Development Philosophy
@@ -43,6 +45,8 @@ HealthKit Data → Background Sync → Team Competitions → Lightning Wallet (C
 2. **Team-Branded Experience**: All notifications and interactions prominently feature team branding, not RunstrRewards
 3. **Passive Competition**: Members compete automatically using their existing workout routines and apps
 4. **Bitcoin-Native**: Real Lightning Network rewards, not fake points or tokens
+5. **Strategic Team Movement**: Exit fees create mercenary dynamics balanced by team loyalty rewards
+6. **LEAGUE Competition**: Teams create leagues with intelligent member discovery and performance analytics
 
 ## Git Commit Guidelines
 
@@ -69,16 +73,18 @@ Commit after: component complete, bug fixed, build succeeds, feature milestone, 
 ### Special Notes
 - Flag background sync changes
 - Note Bitcoin/Lightning Network changes
-- Highlight team subscription or revenue impacts
+- Highlight P2P challenge or exit fee impacts
+- Flag LEAGUE branding and team discovery changes
 
 ## Technical Requirements
 
 ### Core Features
 - **HealthKit Background Sync**: Automatic workout data collection
-- **Team Discovery**: In-app browsing + QR code direct linking
-- **Team-Branded Notifications**: Push notifications with team branding
-- **Lightning Wallet**: CoinOS-powered Bitcoin rewards
-- **Team Management**: Leaderboard and event creation tools
+- **Team Discovery Intelligence**: Performance analytics, member stats, prize pool data for strategic team selection
+- **LEAGUE Competition**: Team-created leagues with branded leaderboards and events
+- **P2P Challenge System**: Member-vs-member competitions with team arbitration
+- **Lightning Wallet**: CoinOS-powered Bitcoin rewards and exit fee processing
+- **Team Management**: Event creation, challenge arbitration, loyalty reward distribution
 
 ### Platform Integrations
 - Apple HealthKit, CoinOS Lightning Network, Push notifications, QR codes, Background tasks
@@ -96,33 +102,36 @@ RunstrRewards/
 ```
 
 ### Data Flow
-Discover Team → Subscribe → HealthKit Sync → Competition Processing → Bitcoin Rewards
+Discover Team → Join Free → HealthKit Sync → LEAGUE Competition → P2P Challenges → Bitcoin Rewards → Strategic Team Switching (Exit Fees)
 
 ## Key Metrics & Success
-- **North Star**: Active team members with valid subscriptions syncing weekly
+- **North Star**: Active team members earning Bitcoin through competitions and challenges
 - **Technical**: 99%+ HealthKit sync, <24hr competition updates, zero payment vulnerabilities
-- **Business**: 1,000+ members in 6mo, 50+ teams by month 12, $50k+ monthly revenue
+- **Business**: 1,000+ members in 6mo, 200+ teams by month 12, $75k+ monthly revenue from fees
+- **Game Theory**: Healthy team switching rates balanced by loyalty program retention
 
 ## Competitive Positioning
-**What We Are**: Invisible micro app, competition infrastructure, dual subscription platform, "Stripe for fitness competitions"
-**What We're Not**: Fitness tracking app, social platform, daily-use app
+**What We Are**: Invisible micro app, LEAGUE competition infrastructure, P2P challenge facilitator, "Bitcoin sportsbook for fitness"
+**What We're Not**: Fitness tracking app, social platform, daily-use app, subscription retention platform
 
 ## Development Priorities
 
 ### Phase 1 (MVP) - ✅ COMPLETE
-- [x] Team discovery and subscription system
+- [x] Free team joining and discovery system
 - [x] HealthKit background sync integration
-- [x] Team pages with full branding and management
-- [x] CoinOS Lightning wallet integration  
+- [x] LEAGUE creation with team branding and management
+- [x] CoinOS Lightning wallet integration with exit fee processing
 - [x] Team-branded push notifications
 - [x] Real-time leaderboards and events
+- [x] P2P challenge system with team arbitration
 - [x] Anti-cheat and duplicate detection systems
 
 ### Phase 2 (Growth) - 🚧 IN PROGRESS
 - [x] QR code team marketing system
-- [x] Event management tools for teams
-- [ ] Advanced team analytics dashboard
-- [ ] Team revenue optimization features
+- [x] Event management and virtual ticket sales
+- [x] Team discovery intelligence with performance analytics
+- [ ] Loyalty reward system to counteract mercenary behavior
+- [ ] Advanced team revenue optimization features
 - [ ] Corporate wellness integrations
 
 ### Phase 3 (Scale)
@@ -137,16 +146,38 @@ Discover Team → Subscribe → HealthKit Sync → Competition Processing → Bi
 - **Daily Progress**: See [DEVELOPMENT_LOG.md](./DEVELOPMENT_LOG.md) for session notes and decision rationale
 - **Critical Patterns**: Navigation setup, container height constraints, modular architecture planning, **Xcode project file safety**
 
+## Game Theory & Strategic Design
+
+### Member Incentives
+- **Performance Stratification**: Fast runners seek dominant positions, slower runners target smaller teams
+- **Economic Optimization**: All users seek maximum Bitcoin earning potential through events and challenges
+- **Strategic Movement**: Exit fees create calculated team-switching decisions
+- **Loyalty Balance**: Teams offer rewards to retain valuable performers
+
+### Team Captain Strategy
+- **Member Quality vs Quantity**: Balance elite performers with participation volume
+- **Revenue Streams**: Event tickets, P2P arbitration fees, member retention
+- **Market Competition**: Compete on prize pools, performance stats, earning opportunities
+- **LEAGUE Positioning**: Create compelling competition formats and loyalty programs
+
+### Platform Economics
+- **Team Creation**: $5.99 fee encourages league proliferation (free during development)
+- **Exit Fee Monetization**: Profit from natural member movement between teams
+- **Network Effects**: More teams = more switching opportunities = more revenue
+- **Market Efficiency**: Performance-based sorting with strategic friction
+
 ## Notes for Development
 
 - **Prioritize invisible functionality** - the app should work without users opening it
-- **Team branding must be prominent** in all notifications and experiences, not RunstrRewards branding
-- **Keep the app minimal** - only core use cases: permissions, team discovery, leaderboard standings, event information, Bitcoin management
-- **Bitcoin integration should be seamless** - users shouldn't need to understand Lightning Network complexity
+- **LEAGUE branding must be prominent** - leaderboards and competitions feature team identity, not RunstrRewards
+- **Keep the app minimal** - only core use cases: permissions, team discovery, LEAGUE standings, challenge management, Bitcoin/exit fee processing
+- **Team discovery intelligence** - show performance metrics, member counts, prize pools to enable strategic decisions
+- **P2P challenge system** - seamless member-vs-member betting with team arbitration
+- **Exit fee processing** - smooth team switching with clear cost communication
 - **Push notifications are the primary UI** - team-branded messages drive all engagement
 - **QR codes are critical for growth** - make it trivial for teams to share direct signup links
 
-Remember: We're building an invisible micro app for passive competition. Every decision should enable teams to engage their members through background sync and branded notifications while requiring minimal app interaction.
+Remember: We're building an invisible micro app for strategic fitness competition. Every decision should enable the mercenary dynamics that drive team movement while giving teams tools to retain valuable members through loyalty rewards and superior earning opportunities.
 
 ## Current MVP Status (Updated)
 

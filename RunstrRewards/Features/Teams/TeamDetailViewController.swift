@@ -1164,13 +1164,127 @@ extension TeamDetailViewController: TeamDetailHeaderViewDelegate {
     private func confirmDeleteTeam() {
         let alert = UIAlertController(
             title: "Delete Team?",
-            message: "This will permanently delete \"\(teamData.name)\" and remove all members. This action cannot be undone.",
+            message: "Deleting your team requires a 2,000 sats exit fee payment to RUNSTR. This will permanently delete \"\(teamData.name)\" and remove all members. This action cannot be undone.",
             preferredStyle: .alert
         )
         
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Delete", style: .destructive) { _ in
-            self.deleteTeam()
+        alert.addAction(UIAlertAction(title: "Delete Team (2,000 sats)", style: .destructive) { _ in
+            self.performDeleteTeamWithExitFee()
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    private func performDeleteTeamWithExitFee() {
+        print("🏗️ RunstrRewards: Initiating team deletion with exit fee for team: \(teamData.name)")
+        
+        guard let userSession = AuthenticationService.shared.loadSession() else {
+            showErrorAlert("Please sign in to delete team")
+            return
+        }
+        
+        // Show loading alert with progress states
+        let loadingAlert = UIAlertController(
+            title: "Deleting Team",
+            message: "Processing exit fee payment (2,000 sats)...",
+            preferredStyle: .alert
+        )
+        
+        // Add cancel button for payment phase only
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel) { _ in
+            print("🏗️ RunstrRewards: Team deletion cancelled by user")
+        }
+        loadingAlert.addAction(cancelAction)
+        
+        present(loadingAlert, animated: true)
+        
+        Task {
+            do {
+                // Step 1: Initiate team exit operation for captain
+                let operation = try await ExitFeeManager.shared.initiateTeamLeave(
+                    userId: userSession.id,
+                    teamId: teamData.id
+                )
+                
+                await MainActor.run {
+                    loadingAlert.message = "Processing payment (2,000 sats)..."
+                    // Note: Cannot remove actions from UIAlertController once added
+                    // User can still cancel, which will be handled by the operation state management
+                }
+                
+                // Step 2: Process exit fee payment
+                let paymentResult = try await ExitFeeManager.shared.processExitFeePayment(
+                    operationId: operation.id
+                )
+                
+                await MainActor.run {
+                    loadingAlert.message = "Payment confirmed. Deleting team..."
+                }
+                
+                // Step 3: Execute team exit (captain leaving)
+                try await ExitFeeManager.shared.executeTeamChanges(
+                    operationId: operation.id
+                )
+                
+                // Step 4: Now delete the team (after captain paid exit fee)
+                try await TeamDataService.shared.deleteTeam(teamId: teamData.id)
+                
+                // Step 5: Success - dismiss loading and navigate back
+                await MainActor.run {
+                    loadingAlert.dismiss(animated: true) {
+                        self.showTeamDeletionSuccessAlert()
+                    }
+                }
+                
+                print("🏗️ RunstrRewards: Team deletion with exit fee completed successfully")
+                
+            } catch ExitFeeError.operationInProgress {
+                await MainActor.run {
+                    loadingAlert.dismiss(animated: true) {
+                        self.showErrorAlert("Another team operation is already in progress. Please try again.")
+                    }
+                }
+                
+            } catch ExitFeeError.paymentFailed(let reason) {
+                await MainActor.run {
+                    loadingAlert.dismiss(animated: true) {
+                        self.showErrorAlert("Payment failed: \(reason). Team deletion cancelled.")
+                    }
+                }
+                
+            } catch ExitFeeError.maxRetriesExceeded {
+                await MainActor.run {
+                    loadingAlert.dismiss(animated: true) {
+                        self.showErrorAlert("Payment failed after multiple attempts. Please check your wallet balance and try again.")
+                    }
+                }
+                
+            } catch {
+                await MainActor.run {
+                    loadingAlert.dismiss(animated: true) {
+                        self.showErrorAlert("Team deletion failed: \(error.localizedDescription)")
+                    }
+                }
+                
+                print("🏗️ RunstrRewards: Team deletion failed: \(error)")
+            }
+        }
+    }
+    
+    private func showTeamDeletionSuccessAlert() {
+        let alert = UIAlertController(
+            title: "Team Deleted Successfully! ⚡",
+            message: "You've paid the 2,000 sats exit fee and '\(teamData.name)' has been permanently deleted.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+            // Navigate back to teams list
+            if let navigationController = self.navigationController {
+                // Go back to the teams list or main dashboard
+                navigationController.popToRootViewController(animated: true)
+            }
         })
         
         present(alert, animated: true)
@@ -1316,19 +1430,57 @@ extension TeamDetailViewController: TeamDetailHeaderViewDelegate {
     }
     
     private func confirmLeaveTeam() {
-        let alert = UIAlertController(
-            title: "Leave Team?",
-            message: "Are you sure you want to leave \"\(teamData.name)\"?",
-            preferredStyle: .alert
-        )
+        guard let userSession = AuthenticationService.shared.loadSession() else {
+            showErrorAlert("Please sign in to leave the team")
+            return
+        }
         
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Leave", style: .destructive) { _ in
-            print("🏗️ RUNSTR: Leaving team: \(self.teamData.id)")
-            self.performLeaveTeam()
-        })
-        
-        present(alert, animated: true)
+        // Check user's balance first
+        Task {
+            do {
+                let balance = try await CoinOSService.shared.getBalance()
+                
+                await MainActor.run {
+                    let hasEnoughBalance = balance.total >= 2000
+                    let balanceText = hasEnoughBalance ? 
+                        "Your balance: \(balance.total) sats ✓" :
+                        "Your balance: \(balance.total) sats ⚠️ Insufficient"
+                    
+                    let message = """
+                    Leaving "\(self.teamData.name)" requires a 2000 sats exit fee.
+                    This fee goes to RunstrRewards and cannot be refunded.
+                    
+                    \(balanceText)
+                    """
+                    
+                    let alert = UIAlertController(
+                        title: "Leave Team - 2000 sats fee",
+                        message: message,
+                        preferredStyle: .alert
+                    )
+                    
+                    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+                    
+                    if hasEnoughBalance {
+                        alert.addAction(UIAlertAction(title: "Pay & Leave", style: .destructive) { _ in
+                            print("🏦 RUNSTR: User confirmed exit fee payment")
+                            self.processExitFeePayment()
+                        })
+                    } else {
+                        alert.addAction(UIAlertAction(title: "Add Funds", style: .default) { _ in
+                            // TODO: Navigate to wallet funding screen
+                            print("🏦 RUNSTR: User needs to add funds")
+                        })
+                    }
+                    
+                    self.present(alert, animated: true)
+                }
+            } catch {
+                await MainActor.run {
+                    self.showErrorAlert("Could not check wallet balance: \(error.localizedDescription)")
+                }
+            }
+        }
     }
     
     private func showTeamEditingInterface() {
@@ -1651,51 +1803,152 @@ extension TeamDetailViewController: TeamDetailHeaderViewDelegate {
     
     // MARK: - Leave Team Functionality
     
-    private func performLeaveTeam() {
+    // MARK: - Exit Fee Payment Flow
+    
+    private func processExitFeePayment() {
         guard let userSession = AuthenticationService.shared.loadSession() else {
-            showErrorAlert("Please sign in to leave the team")
+            showErrorAlert("Please sign in to process payment")
             return
         }
         
+        // Present payment progress UI
+        let progressVC = PaymentProgressViewController.presentExitFeePayment(on: self) {
+            // Cancel callback
+            print("🏦 RUNSTR: User cancelled exit fee payment")
+        }
+        
+        // Start the exit fee process
         Task {
             do {
-                print("🏗️ RunstrRewards: Starting leave team process for user \(userSession.id) from team \(teamData.id)")
+                // Step 1: Initiate exit fee operation
+                progressVC.updateProgress(.preparing)
                 
-                // Cancel any active team subscription first
-                let isSubscribed = SubscriptionService.shared.isSubscribedToTeam(teamData.id)
+                let operation = try await ExitFeeManager.shared.initiateExitFee(
+                    userId: userSession.id,
+                    fromTeamId: self.teamData.id,
+                    toTeamId: nil
+                )
+                
+                print("🏦 RUNSTR: Created exit fee operation \(operation.paymentIntentId)")
+                
+                // Step 2: Process payment
+                progressVC.updateProgress(.invoiceCreated)
+                progressVC.setCancelable(false) // No canceling during payment
+                
+                let paymentResult = try await ExitFeeManager.shared.processExitFeePayment(
+                    operationId: operation.id
+                )
+                
+                print("🏦 RUNSTR: Payment processed successfully: \(paymentResult.paymentHash)")
+                
+                // Step 3: Verify and complete (payment verification is handled in processExitFeePayment)
+                progressVC.updateProgress(.verifying)
+                
+                // Step 4: Handle subscription cancellation
+                progressVC.updateProgress(.updatingTeams)
+                
+                let isSubscribed = SubscriptionService.shared.isSubscribedToTeam(self.teamData.id)
                 if isSubscribed {
-                    print("🏗️ RunstrRewards: Cancelling team subscription before leaving")
-                    try await SubscriptionService.shared.unsubscribeFromTeam(teamData.id)
+                    print("🏦 RUNSTR: Cancelling team subscription after exit")
+                    try await SubscriptionService.shared.unsubscribeFromTeam(self.teamData.id)
                 }
                 
-                // Remove user from team members
-                try await SupabaseService.shared.removeUserFromTeam(userId: userSession.id, teamId: teamData.id)
+                // Step 5: Complete
+                progressVC.updateProgress(.complete)
+                
+                // Wait briefly to show success
+                try await Task.sleep(nanoseconds: 1_500_000_000)
                 
                 await MainActor.run {
-                    print("🏗️ RunstrRewards: Successfully left team \(self.teamData.name)")
-                    
-                    // Show success message
-                    let successAlert = UIAlertController(
-                        title: "Left Team",
-                        message: "You have successfully left \(self.teamData.name). You will no longer receive team notifications or be able to participate in team competitions.",
-                        preferredStyle: .alert
-                    )
-                    
-                    successAlert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
-                        // Navigate back to teams list
-                        self.navigationController?.popViewController(animated: true)
-                    })
-                    
-                    self.present(successAlert, animated: true)
+                    progressVC.dismissWithAnimation {
+                        self.showExitFeeSuccessMessage()
+                    }
                 }
                 
             } catch {
+                print("🏦 RUNSTR: Exit fee payment failed: \(error)")
+                
                 await MainActor.run {
-                    print("🏗️ RunstrRewards: Failed to leave team: \(error)")
-                    self.showErrorAlert("Failed to leave team: \(error.localizedDescription)")
+                    progressVC.updateProgress(.failed(error.localizedDescription))
+                    
+                    // Dismiss after showing error
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        progressVC.dismissWithAnimation {
+                            self.handleExitFeeError(error)
+                        }
+                    }
                 }
             }
         }
+    }
+    
+    private func showExitFeeSuccessMessage() {
+        let successAlert = UIAlertController(
+            title: "Successfully Left Team",
+            message: "You have left \(teamData.name). The 2000 sats exit fee has been processed. You will no longer receive team notifications or be able to participate in team competitions.",
+            preferredStyle: .alert
+        )
+        
+        successAlert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+            // Navigate back to teams list
+            self.navigationController?.popViewController(animated: true)
+        })
+        
+        present(successAlert, animated: true)
+    }
+    
+    private func handleExitFeeError(_ error: Error) {
+        var title = "Exit Fee Payment Failed"
+        var message = "Could not process exit fee payment."
+        
+        if let exitError = error as? ExitFeeError {
+            switch exitError {
+            case .operationInProgress:
+                title = "Operation in Progress"
+                message = "Another exit fee operation is already in progress. Please wait and try again."
+            case .invalidOperation:
+                title = "Payment Error"
+                message = "Payment is in an invalid state. Please try again."
+            case .operationExpired:
+                title = "Operation Expired"
+                message = "The payment operation has expired. Please try leaving the team again."
+            case .maxRetriesExceeded:
+                title = "Payment Failed"
+                message = "Payment failed after multiple attempts. Please check your wallet balance and network connection."
+            case .paymentFailed(let reason):
+                title = "Payment Failed"
+                message = "Payment failed: \(reason)"
+            case .teamChangesFailed(let reason):
+                title = "Team Changes Failed"  
+                message = "Team changes failed: \(reason)"
+            case .compensationRequired:
+                title = "Compensation Required"
+                message = "Additional compensation is required for this operation."
+            }
+        } else if let coinosError = error as? CoinOSError {
+            switch coinosError {
+            case .notAuthenticated:
+                title = "Wallet Not Connected"
+                message = "Please ensure your Lightning wallet is properly connected."
+            case .serviceUnavailable:
+                title = "Lightning Network Unavailable"
+                message = "The Lightning Network service is temporarily unavailable. Please try again later."
+            case .networkError:
+                title = "Network Error"
+                message = "Could not connect to the Lightning Network. Please check your internet connection."
+            case .decodingError:
+                title = "Payment Processing Error"
+                message = "There was an error processing your payment. Please try again."
+            default:
+                message = error.localizedDescription
+            }
+        } else {
+            message = error.localizedDescription
+        }
+        
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
     
     func didTapSubscribeButton() {

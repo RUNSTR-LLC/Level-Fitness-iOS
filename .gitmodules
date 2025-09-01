@@ -1,0 +1,3 @@
+[submodule "RUNSTR"]
+	path = RUNSTR
+	url = https://github.com/RUNSTR-LLC/RUNSTR-IOS.git

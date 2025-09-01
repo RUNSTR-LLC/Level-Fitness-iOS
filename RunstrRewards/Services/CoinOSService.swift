@@ -7,6 +7,10 @@ class CoinOSService {
     private var authToken: String?
     private let session = URLSession.shared
     
+    // MARK: - Exit Fee Constants
+    static let RUNSTR_LIGHTNING_ADDRESS = "RUNSTR@coinos.io"
+    static let EXIT_FEE_AMOUNT = 2000 // sats
+    
     private init() {
         // Load existing auth token from keychain if available
         self.authToken = KeychainService.shared.load(for: .coinOSToken)
@@ -425,6 +429,261 @@ class CoinOSService {
         )
     }
     
+    // MARK: - Exit Fee Payment Operations
+    
+    func createExitFeeInvoice(amount: Int = EXIT_FEE_AMOUNT, memo: String = "RunstrRewards exit fee") async throws -> LightningInvoice {
+        // Create invoice with RUNSTR wallet context - need to authenticate as RUNSTR first
+        guard let runstrToken = await getRunstrAuthToken() else {
+            throw CoinOSError.notAuthenticated
+        }
+        
+        let requestBody = CoinOSInvoiceRequest(invoice: CoinOSInvoiceData(amount: amount, type: "lightning"))
+        let jsonData = try JSONEncoder().encode(requestBody)
+        
+        var request = URLRequest(url: URL(string: "\(baseURL)/invoice")!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(runstrToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = jsonData
+        
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw CoinOSError.invalidResponse
+        }
+        
+        guard httpResponse.statusCode == 200 else {
+            throw CoinOSError.apiError(httpResponse.statusCode)
+        }
+        
+        let invoiceResponse = try JSONDecoder().decode(CoinOSInvoiceResponse.self, from: data)
+        
+        return LightningInvoice(
+            id: invoiceResponse.hash ?? invoiceResponse.uid ?? UUID().uuidString,
+            paymentRequest: invoiceResponse.text ?? "",
+            amount: amount,
+            memo: memo,
+            status: (invoiceResponse.received ?? 0) > 0 ? "paid" : "pending",
+            createdAt: Date(timeIntervalSince1970: TimeInterval((invoiceResponse.created ?? 0) / 1000)),
+            expiresAt: Date().addingTimeInterval(120) // 2 minutes expiry for exit fees
+        )
+    }
+    
+    func payExitFeeWithTimeout(paymentRequest: String, timeoutSeconds: Int = 120) async throws -> PaymentResult {
+        return try await withTimeout(seconds: timeoutSeconds) {
+            return try await self.payInvoice(paymentRequest)
+        }
+    }
+    
+    func processExitFeePayment(amount: Int = EXIT_FEE_AMOUNT, maxRetries: Int = 3) async throws -> ExitFeePaymentResult {
+        var currentInvoice: LightningInvoice? = nil
+        
+        for attempt in 1...maxRetries {
+            do {
+                // Create fresh invoice for each attempt (handles expiry)
+                print("CoinOSService: Creating exit fee invoice, attempt \(attempt)/\(maxRetries)")
+                currentInvoice = try await createExitFeeInvoice(amount: amount)
+                
+                // Attempt payment with retry logic
+                let paymentResult = try await payExitFeeWithRetry(
+                    paymentRequest: currentInvoice!.paymentRequest,
+                    maxRetries: 2, // Fewer retries per invoice since we'll create fresh ones
+                    timeoutSeconds: 120
+                )
+                
+                // Verify RUNSTR received the payment
+                let verified = try await verifyRunstrReceivedPayment(
+                    paymentHash: paymentResult.paymentHash,
+                    maxAttempts: 5
+                )
+                
+                if verified {
+                    print("CoinOSService: Exit fee payment completed and verified")
+                    return ExitFeePaymentResult(
+                        success: true,
+                        paymentHash: paymentResult.paymentHash,
+                        amount: amount,
+                        invoice: currentInvoice!,
+                        verificationComplete: true,
+                        timestamp: Date()
+                    )
+                } else {
+                    print("CoinOSService: Payment sent but not verified by RUNSTR")
+                    throw CoinOSError.paymentVerificationFailed
+                }
+                
+            } catch CoinOSError.apiError(410), CoinOSError.invoiceExpired {
+                // Invoice expired - will create fresh one on next attempt
+                print("CoinOSService: Invoice expired, will create fresh invoice on retry")
+                if attempt == maxRetries {
+                    throw CoinOSError.invoiceExpired
+                }
+                continue
+                
+            } catch CoinOSError.apiError(402) {
+                // Payment failed after retries - may be insufficient balance
+                print("CoinOSService: Payment failed - likely insufficient balance")
+                throw CoinOSError.insufficientBalance
+                
+            } catch CoinOSError.apiError(408) {
+                // Timeout
+                print("CoinOSService: Payment timed out")
+                if attempt == maxRetries {
+                    throw CoinOSError.paymentTimeout
+                }
+                continue
+                
+            } catch {
+                print("CoinOSService: Unexpected error during exit fee payment: \(error)")
+                if attempt == maxRetries {
+                    throw error
+                }
+                // Wait before retrying
+                try await Task.sleep(nanoseconds: 2_000_000_000)
+            }
+        }
+        
+        // Should not reach here, but provide fallback
+        return ExitFeePaymentResult(
+            success: false,
+            paymentHash: "",
+            amount: amount,
+            invoice: currentInvoice,
+            verificationComplete: false,
+            timestamp: Date()
+        )
+    }
+    
+    func verifyRunstrReceivedPayment(paymentHash: String, maxAttempts: Int = 5) async throws -> Bool {
+        guard let runstrToken = await getRunstrAuthToken() else {
+            throw CoinOSError.notAuthenticated
+        }
+        
+        for attempt in 1...maxAttempts {
+            do {
+                var request = URLRequest(url: URL(string: "\(baseURL)/invoice/\(paymentHash)")!)
+                request.httpMethod = "GET"
+                request.setValue("Bearer \(runstrToken)", forHTTPHeaderField: "Authorization")
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                
+                let (data, response) = try await session.data(for: request)
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw CoinOSError.invalidResponse
+                }
+                
+                if httpResponse.statusCode == 200 {
+                    let invoiceResponse = try JSONDecoder().decode(CoinOSInvoiceResponse.self, from: data)
+                    // Check if payment was received (not just sent)
+                    if (invoiceResponse.received ?? 0) >= CoinOSService.EXIT_FEE_AMOUNT {
+                        print("CoinOSService: RUNSTR confirmed payment receipt: \(paymentHash)")
+                        return true
+                    }
+                }
+                
+                // Wait before retrying (2 seconds between attempts)
+                if attempt < maxAttempts {
+                    try await Task.sleep(nanoseconds: 2_000_000_000)
+                }
+                
+            } catch {
+                print("CoinOSService: Payment verification attempt \(attempt) failed: \(error)")
+                if attempt == maxAttempts {
+                    throw error
+                }
+                try await Task.sleep(nanoseconds: 2_000_000_000)
+            }
+        }
+        
+        return false
+    }
+    
+    func payExitFeeWithRetry(paymentRequest: String, maxRetries: Int = 3, timeoutSeconds: Int = 120) async throws -> PaymentResult {
+        for attempt in 1...maxRetries {
+            do {
+                print("CoinOSService: Exit fee payment attempt \(attempt)/\(maxRetries)")
+                
+                // Check if invoice is still valid (not expired)
+                if isInvoiceExpired(paymentRequest) {
+                    throw CoinOSError.apiError(410) // Gone - invoice expired
+                }
+                
+                let result = try await withTimeout(seconds: timeoutSeconds) {
+                    return try await self.payInvoice(paymentRequest)
+                }
+                
+                // If payment succeeded, return immediately
+                if result.success {
+                    print("CoinOSService: Exit fee payment succeeded on attempt \(attempt)")
+                    return result
+                }
+                
+                // If payment failed and we have more retries, wait with exponential backoff
+                if attempt < maxRetries {
+                    let backoffSeconds = attempt * 2 // 2s, 4s, 6s
+                    print("CoinOSService: Payment failed, retrying in \(backoffSeconds)s...")
+                    try await Task.sleep(nanoseconds: UInt64(backoffSeconds * 1_000_000_000))
+                } else {
+                    throw CoinOSError.apiError(402) // Payment failed after all retries
+                }
+                
+            } catch CoinOSError.apiError(410) {
+                // Invoice expired - cannot retry with same invoice
+                throw CoinOSError.apiError(410)
+            } catch {
+                print("CoinOSService: Payment attempt \(attempt) failed: \(error)")
+                
+                if attempt == maxRetries {
+                    throw error
+                }
+                
+                // Exponential backoff for network/timeout errors
+                let backoffSeconds = attempt * 2
+                try await Task.sleep(nanoseconds: UInt64(backoffSeconds * 1_000_000_000))
+            }
+        }
+        
+        throw CoinOSError.apiError(402) // Should never reach here
+    }
+    
+    private func isInvoiceExpired(_ paymentRequest: String) -> Bool {
+        // Basic Lightning invoice parsing to check expiry
+        // In production, use proper BOLT11 parsing
+        return false // Simplified for now - TODO: implement proper BOLT11 parsing
+    }
+    
+    private func withTimeout<T>(seconds: Int, operation: @escaping () async throws -> T) async throws -> T {
+        return try await withThrowingTaskGroup(of: T.self) { group in
+            // Add the main operation
+            group.addTask {
+                return try await operation()
+            }
+            
+            // Add timeout task
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw CoinOSError.apiError(408) // Request timeout
+            }
+            
+            // Return the first result (either success or timeout)
+            guard let result = try await group.next() else {
+                throw CoinOSError.networkError
+            }
+            
+            // Cancel the remaining task
+            group.cancelAll()
+            return result
+        }
+    }
+    
+    private func getRunstrAuthToken() async -> String? {
+        // For now, use a hardcoded approach - in production this would be proper service-to-service auth
+        // This method would authenticate as RUNSTR@coinos.io to create invoices and check payments
+        // TODO: Implement proper RUNSTR service account authentication
+        print("CoinOSService: Warning - RUNSTR authentication not yet implemented")
+        return loadAuthToken() // Temporary fallback to user token
+    }
+    
     // MARK: - Team Wallet Operations
     
     func createTeamWallet(for teamId: String) async throws -> LightningWallet {
@@ -565,6 +824,29 @@ class CoinOSService {
         return transactions
     }
     
+    // MARK: - Exit Fee Manager Integration
+    
+    func createRunstrInvoice(amount: Int, memo: String) async throws -> LightningInvoice {
+        return try await createExitFeeInvoice(amount: amount, memo: memo)
+    }
+    
+    func payExitFeeToRunstr(amount: Int, memo: String) async throws -> PaymentResult {
+        print("CoinOSService: Processing exit fee payment of \(amount) sats to RUNSTR@coinos.io")
+        
+        // Create invoice first
+        let invoice = try await createRunstrInvoice(amount: amount, memo: memo)
+        
+        // Pay the invoice
+        let paymentResult = try await payInvoice(invoice.paymentRequest)
+        
+        print("CoinOSService: Exit fee payment \(paymentResult.success ? "successful" : "failed"): \(paymentResult.paymentHash)")
+        return paymentResult
+    }
+    
+    func verifyRunstrPayment(paymentHash: String) async throws -> Bool {
+        return try await verifyRunstrReceivedPayment(paymentHash: paymentHash, maxAttempts: 5)
+    }
+    
     // MARK: - Lightning Address Support
     
     func getLightningAddress(for userId: String) async throws -> String {
@@ -639,6 +921,15 @@ struct PaymentResult: Codable {
     let paymentHash: String
     let preimage: String?
     let feePaid: Int
+    let timestamp: Date
+}
+
+struct ExitFeePaymentResult: Codable {
+    let success: Bool
+    let paymentHash: String
+    let amount: Int
+    let invoice: LightningInvoice?
+    let verificationComplete: Bool
     let timestamp: Date
 }
 
@@ -754,6 +1045,10 @@ enum CoinOSError: LocalizedError {
     case decodingError
     case walletCreationFailed
     case serviceUnavailable(String)
+    case paymentTimeout
+    case invoiceExpired
+    case paymentVerificationFailed
+    case insufficientBalance
     
     var errorDescription: String? {
         switch self {
@@ -773,6 +1068,14 @@ enum CoinOSError: LocalizedError {
             return "Failed to decode CoinOS response"
         case .walletCreationFailed:
             return "Failed to create CoinOS wallet"
+        case .paymentTimeout:
+            return "Payment timed out - please try again"
+        case .invoiceExpired:
+            return "Invoice expired - a new payment request will be generated"
+        case .paymentVerificationFailed:
+            return "Payment verification failed - please contact support"
+        case .insufficientBalance:
+            return "Insufficient balance - please add funds to your wallet"
         }
     }
 }

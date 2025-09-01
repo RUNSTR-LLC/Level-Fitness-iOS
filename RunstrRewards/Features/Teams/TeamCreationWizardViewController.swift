@@ -549,6 +549,7 @@ class TeamCreationWizardViewController: UIViewController {
                     description: teamData.description.isEmpty ? nil : teamData.description,
                     captainId: userSession.id,
                     memberCount: 1, // Start with 1 member (the creator)
+                    maxMembers: 50, // Default team size limit
                     totalEarnings: 0.0,
                     imageUrl: nil,
                     selectedMetrics: teamData.selectedMetrics,
